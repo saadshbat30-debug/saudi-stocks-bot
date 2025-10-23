@@ -8,18 +8,20 @@ CHAT_ID = "8476329457"
 
 @app.route("/")
 def home():
-    return "🟢 SYSTEM WORKING! ✅"
+    return "🟢 SYSTEM WORKING! ✅ - V3"
 
 @app.route("/test")
 def test():
     try:
-        requests.post(
+        import requests
+        response = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={"chat_id": CHAT_ID, "text": "✅ TEST FROM RENDER"}
+            json={"chat_id": CHAT_ID, "text": "✅ TEST FROM RENDER - V3"},
+            timeout=10
         )
-        return "✅ TEST SENT TO BOT!"
-    except:
-        return "❌ ERROR SENDING TEST"
+        return f"✅ Status: {response.status_code} - Message Sent! V3"
+    except Exception as e:
+        return f"❌ ERROR: {str(e)}"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
