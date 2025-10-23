@@ -13,7 +13,6 @@ def home():
 @app.route("/test")
 def test():
     try:
-        import requests
         response = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={"chat_id": CHAT_ID, "text": "✅ TEST FROM RENDER - V3"},
