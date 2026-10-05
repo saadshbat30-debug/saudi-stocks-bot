@@ -12,8 +12,9 @@ from strategy import Params
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-CHAT_ID = os.environ.get("CHAT_ID", "")
+# Telegram is optional; the web page works without it.
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+CHAT_ID = os.environ.get("CHAT_ID") or os.environ.get("OWNER_CHAT_ID", "")
 
 # Aramco, Al Rajhi, SABIC, STC, SNB, ACWA
 DEFAULT_SYMBOLS = os.environ.get("SYMBOLS", "2222,1120,2010,7010,1180,2082")
