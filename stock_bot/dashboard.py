@@ -36,7 +36,8 @@ from functools import lru_cache
 
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 
-from bot import (BASE_DIR, FILE_LABELS, StockBot, clear_data_folder, detect_file_key, is_sample_data,
+from bot import (BASE_DIR, FIELD_ALIASES, FILE_LABELS, StockBot, clear_data_folder, custom_file_name,
+                 detect_file_key, find_column, is_sample_data, norm_header,
                  load_config, match_fields, parse_table_text, parse_uploaded_file, resolve_path,
                  save_data_file)
 
@@ -153,25 +154,37 @@ def create_app(cfg: dict | None = None, bot: StockBot | None = None) -> Flask:
         except Exception as exc:
             return jsonify({"ok": False, "file": filename, "error": f"تعذرت قراءة البيانات: {exc}"}), 400
 
+        # النوع: معروف (sahmak / market / ...) أو "custom" = يُحفظ كما هو بكل أعمدته
         if kind == "auto":
-            kind = detect_file_key(df, cfg, filename)
-            if kind is None:
-                return jsonify({"ok": False, "file": filename, "columns": list(df.columns),
-                                "error": "لم أتعرف على نوع البيانات من أسماء الأعمدة — اختر النوع يدويًا"}), 400
-        elif kind not in cfg["data"]["files"]:
+            kind = detect_file_key(df, cfg, filename) or "custom"
+        elif kind != "custom" and kind not in cfg["data"]["files"]:
             return jsonify({"ok": False, "error": "نوع بيانات غير معروف"}), 400
 
-        found, missing = match_fields(df, kind, cfg)
-        result = {"ok": True, "file": filename, "kind": kind, "label": FILE_LABELS.get(kind, kind),
-                  "target": cfg["data"]["files"][kind], "rows": len(df), "columns": list(df.columns),
-                  "found": found, "missing": missing, "saved": False,
+        if kind == "custom":
+            target, label = custom_file_name(filename), "بيانات أخرى (كل الأعمدة كما هي)"
+            # الأعمدة التي يعرفها البوت (تُستخدم في الفلاتر)؛ البقية تُحفظ وتُعرض كما هي
+            known = {norm_header(a) for names in FIELD_ALIASES(cfg).values() for a in names}
+            found = [c for c in df.columns if norm_header(c) in known]
+            missing = []
+        else:
+            target, label = cfg["data"]["files"][kind], FILE_LABELS.get(kind, kind)
+            found, missing = match_fields(df, kind, cfg)
+
+        warnings_ = []
+        if not find_column(df, cfg["data"]["symbol_column"]):
+            warnings_.append(f"لا يوجد عمود \"{cfg['data']['symbol_column']}\" — لن يُعرف لأي سهم تنتمي الصفوف"
+                             " (إلا إذا كانت لسهم واحد فقط)")
+        result = {"ok": True, "file": filename, "kind": kind, "label": label,
+                  "target": target, "rows": len(df), "columns": list(df.columns),
+                  "found": found, "missing": missing, "warnings": warnings_, "saved": False,
                   "preview": [[("" if v is None or v != v else str(v)) for v in row]
                               for row in df.head(5).itertuples(index=False, name=None)]}
         if preview:
             return jsonify(result)
         was_sample = is_sample_data(cfg)
         try:
-            result["total_rows"] = save_data_file(df, kind, cfg, append)
+            result["total_rows"] = save_data_file(df, kind, cfg, append,
+                                                  target if kind == "custom" else None)
         except Exception as exc:
             return jsonify({**result, "ok": False, "error": str(exc)}), 500
         result["saved"] = True

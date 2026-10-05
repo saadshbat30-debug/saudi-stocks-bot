@@ -262,6 +262,7 @@ textarea#paste {
             {% for key, label, fname in file_types %}
             <option value="{{ key }}">{{ label }} ({{ fname }})</option>
             {% endfor %}
+            <option value="custom">📄 بيانات أخرى (حفظ كل الأعمدة كما هي)</option>
           </select>
         </div>
         <div class="field">
@@ -292,7 +293,7 @@ textarea#paste {
         <ol class="steps">
           <li>في تكرتشارت حدد الجدول كاملًا (Ctrl + A) وانسخه (Ctrl + C).</li>
           <li>الصقه في المربع (Ctrl + V) — يجب أن يكون السطر الأول أسماء الأعمدة.</li>
-          <li>اختر نوع البيانات أو اتركه تلقائيًا.</li>
+          <li>اختر نوع البيانات أو اتركه تلقائيًا — <b>أي جدول مقبول</b>: البوت يأخذ الأعمدة التي يعرفها (آخر، صافي السيولة، RSI، ...) من أي جدول، ويحفظ باقي الأعمدة كما هي.</li>
           <li>اضغط <b>معاينة</b> للتأكد أن الأعمدة تعرّفت، ثم <b>حفظ وتحليل</b>.</li>
           <li>كرر لكل نوع بيانات — النتائج تظهر في كل التبويبات فورًا.</li>
         </ol>
@@ -491,6 +492,15 @@ function showTab(name) {
 
 // إنشاء تبويب ولوحة لكل ملف خام (سهمك، السيولة، ...)
 function ensureRawTabs(raw, labels) {
+  // حذف تبويبات الملفات التي لم تعد موجودة (مثل البيانات التجريبية بعد حذفها)
+  document.querySelectorAll('#tabs button[data-tab^="raw-"]').forEach((btn) => {
+    const key = btn.dataset.tab.slice(4);
+    if (!raw[key]) {
+      if (activeTab === btn.dataset.tab) showTab("summary");
+      btn.remove();
+      $("panel-raw-" + key)?.remove();
+    }
+  });
   const order = Object.keys(labels);
   order.forEach((key) => {
     if (!raw[key] || $("panel-raw-" + key)) return;
@@ -770,8 +780,8 @@ function renderAll() {
     columns: ["الملف", "الوصف", "موجود", "عدد الصفوف", "آخر تعديل", "ملاحظة"],
     rows: Object.values(d.files_status || {}).map((f) => [f.file, f.label, f.exists ? "✅ نعم" : "❌ لا", f.rows, f.modified || "—", f.note || ""]),
   });
-  const missing = Object.values(d.files_status || {}).filter((f) => !f.exists).map((f) => f.file);
-  if (missing.length) showBanner("⚠️ ملفات غير موجودة في مجلد data: " + missing.join("، ") + " — الفلاتر المعتمدة عليها ستظهر \"لا توجد بيانات\".");
+  const anyData = Object.values(d.files_status || {}).some((f) => f.exists);
+  if (!anyData) showBanner("📥 لا توجد بيانات بعد — افتح تبويب \"إدخال البيانات\" والصق جدولًا من تكرتشارت.");
 
   renderImportStatus(d);
   fillTickSelect();
@@ -810,10 +820,15 @@ function resultBox(r) {
   let html = `<b>${title}</b>`;
   if (r.ok) {
     html += `<div class="cols">الأعمدة المعروفة: ${r.found.map((c) => `<span class="chip ok">✓ ${esc(c)}</span>`).join("") || "لا شيء"}</div>`;
+    const others = r.columns.length - r.found.length;
+    if (others > 0) {
+      html += `<div class="cols">📎 ${others} عمود آخر يُحفظ كما هو ويظهر في "الجدول الكامل" وفي Excel.</div>`;
+    }
     if (r.missing.length) {
-      html += `<div class="cols">أعمدة ناقصة (الفلاتر المعتمدة عليها ستظهر "لا توجد بيانات"):
+      html += `<div class="cols">أعمدة غير موجودة في هذا الجدول (إن لم تأتِ من جدول آخر ستظهر فلاترها "لا توجد بيانات"):
         ${r.missing.map((c) => `<span class="chip miss">✗ ${esc(c)}</span>`).join("")}</div>`;
     }
+    (r.warnings || []).forEach((w) => { html += `<div class="cols" style="color:var(--sell)">⚠️ ${esc(w)}</div>`; });
   }
   if (r.columns && r.preview && !r.saved) {
     html += `<div class="mini-table table-wrap"><table><thead><tr>${r.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>

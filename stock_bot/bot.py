@@ -67,6 +67,7 @@ log = logging.getLogger("stock_bot")
 
 # أسماء عربية لكل ملف (تظهر في التبويبات وأوراق Excel)
 FILE_LABELS = {
+    "market": "شاشة السوق",
     "sahmak": "سهمك",
     "liquidity": "السيولة اللحظية",
     "moving_avg": "المتوسطات",
@@ -75,6 +76,7 @@ FILE_LABELS = {
     "rsi_stoch": "RSI و Stochastic",
     "ichimoku": "الغيمة اليابانية",
     "ticks": "اللحظي (Ticks)",
+    "custom": "بيانات أخرى",
 }
 
 # ═════════════════════════════════════════════
@@ -82,9 +84,23 @@ FILE_LABELS = {
 # ═════════════════════════════════════════════
 # ربط الأعمدة الافتراضي (نفس الموجود في config.yaml) — يُستخدم إذا حُذف قسم columns من الإعدادات
 DEFAULT_COLUMNS: dict = {
+    "market": {
+        "time": "الوقت",
+        "price": ["آخر", "السعر", "الأخير"],
+        "change_pct": ["التغير %", "التغير%", "نسبة التغير"],
+        "trades": "الصفقات",
+        "volume": "الحجم",
+        "value": "القيمة",
+        "net_liquidity": "صافي السيولة",
+        "liquidity_ratio": ["نسبة السيولة %", "نسبة السيولة%", "نسبة السيولة"],
+        "liquidity_flow": "تدفق السيولة",
+        "last_volume": "حجم آخر",
+        "direction": "الاتجاه",
+        "sector": "القطاع",
+    },
     "sahmak": {
         "time": "الوقت",
-        "price": "السعر",
+        "price": ["السعر", "آخر"],
         "change_pct": ["التغير %", "التغير%", "نسبة التغير"],
         "trades": "الصفقات",
         "buy_trades": "صفقات الشراء",
@@ -165,7 +181,7 @@ DEFAULT_COLUMNS: dict = {
         "time": "الوقت",
         "last_volume": "حجم آخر",
         "price": "السعر",
-        "value": "القيمة",
+        "trade_value": "القيمة",
         "direction": "الاتجاه",
         "count": "العدد",
     },
@@ -183,7 +199,8 @@ DEFAULT_CONFIG: dict = {
         "default_symbol": "",
         "encodings": ["utf-8-sig", "cp1256", "utf-16", "utf-8"],
         "max_raw_rows": 1000,
-        "files": {key: f"{key}.csv" for key in FILE_LABELS},
+        "exclude_indices": True,
+        "files": {key: f"{key}.csv" for key in FILE_LABELS if key != "custom"},
     },
     "filters": {
         "liquidity_threshold": 500000,
@@ -245,6 +262,21 @@ def load_config(path: Optional[str | Path] = None) -> dict:
     else:
         log.warning("لم يتم العثور على %s — سيتم استخدام الإعدادات الافتراضية", path)
     return _deep_merge(DEFAULT_CONFIG, user_cfg)
+
+
+def FIELD_ALIASES(cfg: dict) -> dict[str, list[str]]:
+    """
+    دمج أسماء الأعمدة لكل حقل من كل أنواع الملفات في config.yaml.
+    مثال: price ← ["آخر", "السعر"] — فيُعرف السعر في أي جدول مهما كان نوعه.
+    """
+    aliases: dict[str, list[str]] = {}
+    for mapping in (cfg.get("columns") or {}).values():
+        for field, names in (mapping or {}).items():
+            for name in ([names] if isinstance(names, str) else names):
+                aliases.setdefault(field, [])
+                if name not in aliases[field]:
+                    aliases[field].append(name)
+    return aliases
 
 
 def resolve_path(p: str | Path) -> Path:
@@ -372,7 +404,15 @@ class Dataset:
         sym_name, name_name = data_cfg["symbol_column"], data_cfg["name_column"]
         fallback_symbol = normalize_symbol(data_cfg.get("default_symbol") or "")
 
-        for key, filename in data_cfg["files"].items():
+        # الملفات المعرّفة في config.yaml + أي ملف CSV إضافي في المجلد (يُقرأ بكل أعمدته)
+        files = dict(data_cfg["files"])
+        known = {f.lower() for f in files.values()}
+        if folder.exists():
+            for path in sorted(folder.glob("*.csv")):
+                if path.name.lower() not in known and not path.name.startswith("~tmp_"):
+                    files[path.stem] = path.name
+
+        for key, filename in files.items():
             path = folder / filename
             info = {"label": FILE_LABELS.get(key, key), "file": filename,
                     "exists": path.exists(), "rows": 0, "modified": None, "note": ""}
@@ -404,9 +444,9 @@ class Dataset:
             if name_col and name_col != name_name:
                 df = df.rename(columns={name_col: name_name})
 
-            # ربط الحقول المعرّفة في config.yaml بالأعمدة الفعلية
-            mapping = self.cfg["columns"].get(key, {}) or {}
-            self.cols[key] = {field: find_column(df, names) for field, names in mapping.items()}
+            # ربط الحقول بالأعمدة الفعلية: نبحث عن كل حقل معروف بكل أسمائه البديلة
+            # (من أي نوع ملف) — فأي جدول يحتوي عمود "RSI" مثلًا يُستفاد منه أينما كان
+            self.cols[key] = {field: find_column(df, names) for field, names in FIELD_ALIASES(self.cfg).items()}
 
             # تحويل الأعمدة الرقمية (ما عدا الرمز والاسم والوقت والأعمدة النصية)
             skip = {sym_name, name_name}
@@ -416,10 +456,8 @@ class Dataset:
             df = sort_by_time(df, self.cols[key].get("time"))
             self.raw[key] = df
 
-        # ملفات بدون رمز: إذا كان في سهمك سهم واحد فقط ننسبها له تلقائيًا
-        sahmak_syms = []
-        if "sahmak" in self.raw:
-            sahmak_syms = [s for s in self.raw["sahmak"][sym_name].unique() if s]
+        # ملفات بدون رمز: إذا كان هناك سهم واحد فقط في بقية الملفات ننسبها له تلقائيًا
+        sahmak_syms = sorted({s for df in self.raw.values() for s in df[sym_name].unique() if s})
         for key, df in self.raw.items():
             if (df[sym_name] == "").all():
                 if len(sahmak_syms) == 1:
@@ -432,12 +470,15 @@ class Dataset:
         # آخر صف لكل سهم
         for key, df in self.raw.items():
             valid = df[df[sym_name] != ""]
+            if data_cfg.get("exclude_indices", True):
+                # استبعاد المؤشرات والقطاعات (TASI, TENI, ...) — رموز الأسهم أرقام فقط
+                valid = valid[valid[sym_name].str.fullmatch(r"\d+")]
             if valid.empty:
                 continue
             self.latest[key] = valid.groupby(sym_name, sort=False).tail(1).set_index(sym_name)
 
-        # قائمة الأسهم: أسهم "سهمك" أولًا ثم أي سهم يظهر في بقية الملفات
-        ordered = ["sahmak"] + [k for k in self.latest if k != "sahmak"]
+        # قائمة الأسهم: شاشة السوق وسهمك أولًا ثم أي سهم يظهر في بقية الملفات
+        ordered = ["market", "sahmak"] + [k for k in self.latest if k not in ("market", "sahmak")]
         for key in ordered:
             df = self.latest.get(key)
             if df is None:
@@ -466,6 +507,21 @@ class Dataset:
     def has_field(self, key: str, field: str) -> bool:
         return bool(self.cols.get(key, {}).get(field))
 
+    def find(self, field: str, symbol: str, prefer: tuple = ()) -> Any:
+        """
+        البحث عن حقل لسهم في كل الملفات: الملفات المفضلة أولًا (prefer) ثم أي ملف آخر
+        يحتوي عمودًا بهذا الاسم. يرجع أول قيمة غير فارغة، أو None.
+        """
+        order = list(prefer) + [k for k in self.latest if k not in prefer]
+        for key in order:
+            val = self.value(key, field, symbol)
+            if val is not None:
+                return val
+        return None
+
+    def find_number(self, field: str, symbol: str, prefer: tuple = ()) -> Optional[float]:
+        return flt.to_number(self.find(field, symbol, prefer))
+
 
 # ═════════════════════════════════════════════
 #  تجهيز مدخلات الفلاتر لكل سهم
@@ -479,64 +535,73 @@ def first_not_none(*values):
 
 def build_inputs(ds: Dataset, symbol: str, fcfg: dict) -> dict:
     """
-    جمع القيم التي تحتاجها الفلاتر لسهم واحد من الملفات المختلفة.
-    إذا نقصت قيمة في ملف، نحاول حسابها من ملف آخر (مثل صافي السيولة من سهمك).
+    جمع القيم التي تحتاجها الفلاتر لسهم واحد.
+    كل حقل يُبحث عنه في الملف المتوقع أولًا، ثم في أي ملف آخر فيه عمود بنفس الاسم
+    (مثلًا "صافي السيولة" قد يأتي من شاشة السوق أو من ملف السيولة).
+    إذا نقصت قيمة نحاول حسابها (مثل صافي السيولة = قيمة الشراء - قيمة البيع).
     """
-    n = lambda key, field: ds.number(key, field, symbol)
+    n = lambda field, *prefer: ds.find_number(field, symbol, prefer)
 
-    # السعر: من سهمك، وإلا من آخر صفقة لحظية
-    price = first_not_none(n("sahmak", "price"), n("ticks", "price"))
+    price = n("price", "market", "sahmak", "ticks")
 
-    # صافي السيولة: العمود الجاهز ← أو (قيمة الشراء - قيمة البيع) من السيولة ← أو من سهمك
-    net = n("liquidity", "net_liquidity")
-    ratio = n("liquidity", "liquidity_ratio")
-    for src in ("liquidity", "sahmak"):
-        buy, sell = n(src, "buy_value"), n(src, "sell_value")
-        if buy is None or sell is None:
-            continue
+    # صافي السيولة ونسبتها: العمود الجاهز، وإلا الحساب من قيمة الشراء والبيع
+    net = n("net_liquidity", "market", "liquidity")
+    ratio = n("liquidity_ratio", "market", "liquidity")
+    buy, sell = n("buy_value", "liquidity", "sahmak"), n("sell_value", "liquidity", "sahmak")
+    if buy is not None and sell is not None:
         if net is None:
             net = buy - sell
         if ratio is None and (buy + sell) > 0:
             ratio = buy / (buy + sell) * 100
+    if ratio == 0 and not net:
+        ratio = None            # سهم بلا تداول اليوم: النسبة 0 لا تعني بيعًا
 
-    # الصفقة اللحظية الأخيرة
-    last_volume, last_value = n("ticks", "last_volume"), n("ticks", "value")
+    # الصفقة الأخيرة (من ملف الصفقات اللحظية أو عمود "حجم آخر" في شاشة السوق)
+    last_volume = n("last_volume", "ticks", "market")
+    # قيمة الصفقة من ملف الصفقات فقط — لأن "القيمة" في شاشة السوق هي قيمة تداول اليوم كله
+    last_value = ds.number("ticks", "trade_value", symbol)
+    if last_value is None and last_volume is not None and price is not None:
+        last_value = last_volume * price
     size = last_value if fcfg.get("big_trade_field") == "value" else last_volume
-    direction = flt.parse_direction(ds.value("ticks", "direction", symbol))
+    direction = flt.parse_direction(ds.find("direction", symbol, ("ticks", "market")))
 
     # الوقت: من البيانات أو من ساعة الجهاز
     t = None
     if fcfg.get("timing_source", "data") == "data":
-        t = first_not_none(*(flt.parse_time(ds.value(k, "time", symbol))
-                             for k in ("sahmak", "ticks", "liquidity")))
+        t = flt.parse_time(ds.find("time", symbol, ("market", "sahmak", "ticks", "liquidity")))
 
-    # إشارات ملف الاختراقات (None إذا العمود غير موجود أصلًا)
+    # إشارات الاختراق (None إذا لا يوجد عمود لها في أي ملف)
     def sig(field):
-        if not ds.has_field("breakout", field) or symbol not in ds.latest.get("breakout", pd.DataFrame()).index:
+        if not any(ds.has_field(k, field) and symbol in df.index for k, df in ds.latest.items()):
             return None
-        return flt.parse_signal(ds.value("breakout", field, symbol))
+        return flt.parse_signal(ds.find(field, symbol, ("breakout",)))
 
     return {
         "price": price,
-        "change_pct": n("sahmak", "change_pct"),
-        "ma_10": n("moving_avg", "ma_10"),
+        "change_pct": n("change_pct", "market", "sahmak"),
+        "ma_10": n("ma_10", "moving_avg"),
         "net_liquidity": net,
         "liquidity_ratio": ratio,
         "last_trade_size": size,
         "last_trade_value": last_value,
         "direction": direction,
-        "tick_time": ds.value("ticks", "time", symbol),
+        "tick_time": ds.find("time", symbol, ("ticks", "market")),
         "time": t,
-        "rsi": n("rsi_stoch", "rsi"),
-        "stoch_k": n("rsi_stoch", "stoch_k"),
+        "rsi": n("rsi", "rsi_stoch"),
+        "stoch_k": n("stoch_k", "rsi_stoch"),
         "breakout_ma10": sig("breakout_ma10"),
         "ma5_cross_ma20": sig("ma5_cross_ma20"),
-        "aroon_up": n("aroon_macd", "aroon_up"),
-        "aroon_down": n("aroon_macd", "aroon_down"),
-        "macd": n("aroon_macd", "macd"),
-        "macd_signal": n("aroon_macd", "macd_signal"),
-        "cmf": n("aroon_macd", "cmf"),
+        "aroon_up": n("aroon_up", "aroon_macd"),
+        "aroon_down": n("aroon_down", "aroon_macd"),
+        "macd": n("macd", "aroon_macd"),
+        "macd_signal": n("macd_signal", "aroon_macd"),
+        "cmf": n("cmf", "aroon_macd"),
     }
+
+
+# القيم التي يكفي وجود واحدة منها ليُعرض السهم (السهم الموقوف بلا أي بيانات يُستبعد)
+DATA_FIELDS = ("price", "net_liquidity", "liquidity_ratio", "last_trade_size", "ma_10", "rsi",
+               "stoch_k", "aroon_up", "aroon_down", "macd", "cmf", "breakout_ma10", "ma5_cross_ma20")
 
 
 # ═════════════════════════════════════════════
@@ -842,9 +907,17 @@ def detect_file_key(df: pd.DataFrame, cfg: dict, filename: str = "") -> Optional
     return best if best_score[0] >= 2 else None
 
 
-def save_data_file(df: pd.DataFrame, key: str, cfg: dict, append: bool = False) -> int:
+def custom_file_name(filename: str = "") -> str:
+    """اسم ملف لبيانات من نوع غير معروف: من اسم الملف المرفوع، أو custom.csv للنص الملصوق."""
+    stem = re.sub(r"[^\w\-]+", "_", Path(filename).stem, flags=re.UNICODE).strip("_") if filename else ""
+    return f"{stem or 'custom'}.csv"
+
+
+def save_data_file(df: pd.DataFrame, key: str, cfg: dict, append: bool = False,
+                   target: Optional[str] = None) -> int:
     """
-    حفظ الجدول في مجلد data باسم الملف المحدد لهذا النوع (مثل liquidity.csv).
+    حفظ الجدول في مجلد data باسم الملف المحدد لهذا النوع (مثل liquidity.csv)،
+    أو باسم target لبيانات من نوع غير معروف (تُقرأ كل أعمدتها كما هي).
     append=True يضيف الصفوف للملف الموجود بدل استبداله (مفيد للبيانات اللحظية).
     يرجع عدد الصفوف في الملف بعد الحفظ.
     """
@@ -855,7 +928,7 @@ def save_data_file(df: pd.DataFrame, key: str, cfg: dict, append: bool = False) 
     if is_sample_data(cfg):
         clear_data_folder(cfg)
 
-    path = folder / cfg["data"]["files"][key]
+    path = folder / (target or cfg["data"]["files"][key])
     if append and path.exists():
         old = read_csv_file(path, cfg["data"]["encodings"])
         if old is not None and not old.empty:
@@ -874,14 +947,15 @@ def save_data_file(df: pd.DataFrame, key: str, cfg: dict, append: bool = False) 
 
 
 def clear_data_folder(cfg: dict) -> int:
-    """حذف كل ملفات البيانات المعرّفة في config.yaml (وعلامة البيانات التجريبية)."""
+    """حذف كل ملفات CSV في مجلد البيانات (وعلامة البيانات التجريبية)."""
     folder = resolve_path(cfg["data"]["input_folder"])
+    if not folder.exists():
+        return 0
     removed = 0
-    for fname in list(cfg["data"]["files"].values()) + [SAMPLE_MARKER]:
-        path = folder / fname
-        if path.exists():
-            path.unlink()
-            removed += fname != SAMPLE_MARKER
+    for path in folder.glob("*.csv"):
+        path.unlink()
+        removed += 1
+    (folder / SAMPLE_MARKER).unlink(missing_ok=True)
     return removed
 
 
@@ -934,6 +1008,8 @@ class StockBot:
         rows = []
         for sym in ds.symbols:
             inputs = build_inputs(ds, sym, cfg["filters"])
+            if all(inputs[f] is None for f in DATA_FIELDS):
+                continue                              # سهم موقوف أو بلا بيانات
             result = flt.apply_filters(inputs, cfg["filters"])
             level, signal = flt.classify_score(result["score"], cfg["scoring"])
             rows.append({"symbol": sym, "name": ds.names.get(sym, ""), "inputs": inputs,
@@ -967,7 +1043,7 @@ class StockBot:
             full = full.set_index("الرمز")
             for key, df in ds.latest.items():
                 part = df.drop(columns=[c for c in (name_col,) if c in df.columns])
-                label = FILE_LABELS.get(key, key)
+                label = ds.status[key]["label"]
                 part = part.rename(columns={c: (f"{c} [{label}]" if c in full.columns else c)
                                             for c in part.columns})
                 full = full.join(part, how="left")
@@ -985,7 +1061,7 @@ class StockBot:
                   ("الجدول الكامل", full, signal_cols, ["النقاط"]),
                   ("التنبيهات", alerts_df, ["الإشارة"], ["النقاط"])]
         for key, df in ds.raw.items():
-            sheets.append((FILE_LABELS.get(key, key), df, [], []))
+            sheets.append((ds.status[key]["label"], df, [], []))
         write_excel(self.excel_path, sheets)
 
         # 7) ملف JSON للوحة الويب
@@ -1036,7 +1112,7 @@ class StockBot:
             "is_sample": is_sample_data(cfg),
             "run": self.run_count + 1,
             "filter_titles": flt.FILTER_TITLES,
-            "file_labels": FILE_LABELS,
+            "file_labels": {k: v["label"] for k, v in ds.status.items()},
             "files_status": ds.status,
             "summary": df_to_table(summary),
             "full": df_to_table(full),
@@ -1048,7 +1124,7 @@ class StockBot:
             } for r in rows if r["level"] in ("strong_buy", "strong_sell")],
             "alerts": [{k: (json_value(v) if k != "details" else v) for k, v in a.items()}
                        for a in self.alerts.history],
-            "raw": {key: {"label": FILE_LABELS.get(key, key), **df_to_table(df, max_raw)}
+            "raw": {key: {"label": ds.status[key]["label"], **df_to_table(df, max_raw)}
                     for key, df in ds.raw.items()},
             "chart": chart,
             "ticks": ticks,
