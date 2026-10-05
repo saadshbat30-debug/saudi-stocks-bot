@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مختبر السيولة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>مختبر السيولة</h1>
+      <div class="muted">يسجّل السوق كل 5 دقائق، ويطبّق مرشحات موثّقة ثابتة ({{ version }})، ويقيس نتيجتها مقابل السوق بعد العمولة</div>
+    </div>
+    <div class="muted">
+      المسجّل: {% if status.running %}<strong class="up">يعمل</strong>{% else %}<strong class="down">متوقف</strong>{% endif %}
+      {% if status.last_snapshot %} · آخر لقطة: <span class="num">{{ status.last_snapshot }}</span>{% endif %}
+      {% if status.universe %} · {{ status.universe }} سهماً{% endif %}
+    </div>
+  </header>
+
+  <nav>
+    <a href="{{ url_for('home') }}">اللوحة</a>
+    <a href="{{ url_for('backtest_page') }}">الاختبار التاريخي</a>
+    <a href="{{ url_for('portfolio_page') }}">محفظتي</a>
+    <a href="{{ url_for('lab_page') }}" class="active">المختبر</a>
+  </nav>
+
+  {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
+
+  <section class="grid movers">
+    {% for key, f in summary.items() %}
+    <div class="card">
+      <h2>{{ key }} · {{ f.name }}</h2>
+      <p class="muted">{{ f.rule }}<br>التوقع: {{ "صعود أفضل من السوق" if f.expect == "up" else "أداء أسوأ من السوق" }}</p>
+      <p><strong>{{ f.verdict }}</strong></p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>بعد</th><th>مكتملة</th><th>ناجحة</th><th>متوسط صافٍ</th><th>t</th></tr></thead>
+        <tbody>
+        {% for h, st in f.h.items() %}
+          <tr>
+            <td>{{ "جلسة" if h == 1 else h ~ " جلسات" }}</td>
+            <td class="num">{{ st.n }}{% if st.pending %} <span class="muted">(+{{ st.pending }})</span>{% endif %}</td>
+            <td class="num">{{ "{:.0f}%".format(st.hit) if st.n else "—" }}</td>
+            <td class="num {{ 'up' if st.n and st.mean > 0 else 'down' if st.n else '' }}">{{ "{:+.2f}%".format(st.mean) if st.n else "—" }}</td>
+            <td class="num">{% if st.n and st.t is not none %}{{ "{:.1f}".format(st.t) if st.t|abs < 100 else (">99" if st.t > 0 else "<-99") }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% set five = f.h[5] %}
+      {% if five.n >= 2 %}
+      <p class="muted">النصف الأول: {{ "{:+.2f}%".format(five.first_half.mean) if five.first_half.n else "—" }}
+         · النصف الثاني: {{ "{:+.2f}%".format(five.second_half.mean) if five.second_half.n else "—" }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  {% if overview %}
+  <section class="card section-gap">
+    <h2>السيولة — آخر لقطة <span class="muted num">{{ overview.day }} {{ overview.time }}</span></h2>
+    <p class="muted">إجمالي صافي السيولة: <strong class="num {{ 'up' if overview.total_net >= 0 else 'down' }}">{{ "{:+,.0f}".format(overview.total_net) }}</strong> ر.س · {{ overview.count }} سهماً · {{ overview.snapshots }} لقطة اليوم</p>
+    <div class="grid movers">
+      {% for title, items, cls in [("أعلى صافي داخل", overview.top_in, "up"), ("أعلى صافي خارج", overview.top_out, "down")] %}
+      <div>
+        <h2>{{ title }}</h2>
+        <ul>
+          {% for r in items %}
+          <li><span><strong>{{ r.symbol }}</strong> <span class="muted">{{ r.name }}</span></span>
+              <span class="num {{ cls }}">{{ "{:+,.0f}".format(r.net|float) }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="card section-gap">
+    <h2>لا توجد لقطات بعد</h2>
+    <p class="muted">يبدأ التسجيل تلقائياً أيام التداول (الأحد–الخميس) من 10:05 إلى 15:00 ما دامت نافذة البوت مفتوحة. المرشحات تُطبَّق الساعة 14:30، والإغلاق يُسجَّل 15:20.</p>
+  </section>
+  {% endif %}
+
+  <section class="card section-gap">
+    <h2>سجل الإشارات <span class="muted">(آخر 60)</span></h2>
+    {% if signals %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>التاريخ</th><th>المرشح</th><th>السهم</th><th>السعر</th><th>تغير الجلسة</th><th>نسبة الداخل</th><th>الصافي</th>
+        <th>بعد جلسة</th><th>بعد 5 جلسات</th>
+      </tr></thead>
+      <tbody>
+      {% for s in signals %}
+        <tr>
+          <td class="num">{{ s.date }} {{ s.time }}</td>
+          <td>{{ s.filter }}</td>
+          <td><strong>{{ s.symbol }}</strong> <span class="muted">{{ s.name }}</span></td>
+          <td class="num">{{ "{:.2f}".format(s.price|float) }}</td>
+          <td class="num">{{ "{:+.2f}%".format(s.change|float) }}</td>
+          <td class="num">{{ "{:.0f}%".format(s.inflow_ratio|float) }}</td>
+          <td class="num">{{ "{:+,.0f}".format(s.net|float) }}</td>
+          {% for h in [1, 5] %}
+          <td class="num {{ 'up' if s['net' ~ h] is not none and s['net' ~ h] > 0 else 'down' if s['net' ~ h] is not none else 'muted' }}">
+            {{ "{:+.2f}%".format(s['net' ~ h] * 100) if s['net' ~ h] is not none else "بانتظار" }}
+          </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">لم تُسجَّل إشارات بعد.</p>
+    {% endif %}
+  </section>
+
+  <details class="section-gap">
+    <summary>طريقة القياس</summary>
+    <p class="muted">
+      «الداخل/الخارج» يقيس جهة المبادرة في الصفقات (شراء عند سعر العرض أو بيع عند سعر الطلب)، وليس أموالاً دخلت فعلاً.
+      العائد يُحسب من سعر الإشارة الساعة 14:30 إلى إغلاق الجلسة التالية والخامسة، ويُطرح منه متوسط عائد كل أسهم السوق الرئيسي المسجّلة للفترة نفسها، ثم 0.31% عمولة.
+      لمرشح التصريف (F3) تُعكس الإشارة: النجاح أن يكون السهم أسوأ من السوق.
+      معيار النجاح المعلن مسبقاً: {{ min_signals }} إشارة مكتملة على الأقل، متوسط صافٍ بعد 5 جلسات أكبر من صفر، t أكبر من 2، وإيجابي في النصفين.
+      المرشحات مجمّدة على الإصدار {{ version }}؛ أي تعديل يصبح إصداراً جديداً بسجل منفصل.
+      الملفات محفوظة على جهازك في مجلد data/lab. هذه أداة قياس وليست توصية استثمارية.
+    </p>
+  </details>
+</main>
+</body>
+</html>

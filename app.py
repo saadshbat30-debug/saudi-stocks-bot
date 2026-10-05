@@ -8,6 +8,7 @@ import requests
 load_dotenv()  # read SAHMK_API_KEY etc. from a local .env file if present
 
 import backtest
+import lab
 import market_data
 import portfolio
 from strategy import Params
@@ -177,6 +178,21 @@ def _form_float(name, default):
         return default
 
 
+@app.route("/lab")
+def lab_page():
+    results = lab.outcomes()
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY ليبدأ التسجيل.")
+    if lab.status["last_error"]:
+        notices.append("آخر خطأ في التسجيل: " + lab.status["last_error"])
+    return render_template(
+        "lab.html", status=lab.status, overview=lab.today_overview(), summary=lab.summary(results),
+        signals=list(reversed(results))[:60], filters=lab.FILTERS, version=lab.VERSION,
+        min_signals=lab.MIN_SIGNALS_FOR_VERDICT, notices=notices, now=datetime.now(RIYADH),
+    )
+
+
 @app.route("/health")
 def health():
     return "🟢 SYSTEM WORKING! ✅ - Saudi Stocks Bot"
@@ -215,5 +231,8 @@ if __name__ == "__main__":
         import webbrowser
 
         threading.Timer(1.5, webbrowser.open, [f"http://localhost:{port}"]).start()
+    if os.environ.get("LAB_ENABLED", "1") == "1" and os.environ.get("SAHMK_API_KEY"):
+        lab.start_background()
+        print("Liquidity lab recorder: on (records during market hours)")
     print(f"Open http://localhost:{port} in your browser")
     app.run(host="127.0.0.1", port=port)

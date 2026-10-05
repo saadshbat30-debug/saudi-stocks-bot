@@ -21,6 +21,7 @@
     <a href="{{ url_for('home') }}">اللوحة</a>
     <a href="{{ url_for('backtest_page') }}">الاختبار التاريخي</a>
     <a href="{{ url_for('portfolio_page') }}" class="active">محفظتي</a>
+    <a href="{{ url_for('lab_page') }}">المختبر</a>
   </nav>
 
   {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
