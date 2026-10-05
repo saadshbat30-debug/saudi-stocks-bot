@@ -1,18 +1,20 @@
 import os
+from datetime import datetime, timedelta, timezone
 
-from flask import Flask
+from flask import Flask, render_template, request
 import requests
 
-from strategy import Params, find_signals
+import market_data
+from strategy import Params
 
 app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 CHAT_ID = os.environ.get("CHAT_ID", "")
 
-# Tadawul tickers on Yahoo Finance: Aramco, Al Rajhi, SABIC, STC, SNB, ACWA
-DEFAULT_SYMBOLS = "2222.SR,1120.SR,2010.SR,7010.SR,1180.SR,2082.SR"
-SYMBOLS = [s.strip() for s in os.environ.get("SYMBOLS", DEFAULT_SYMBOLS).split(",") if s.strip()]
+# Aramco, Al Rajhi, SABIC, STC, SNB, ACWA
+DEFAULT_SYMBOLS = os.environ.get("SYMBOLS", "2222,1120,2010,7010,1180,2082")
+MAX_SYMBOLS = 10  # keep within the free plan's daily request quota
 
 PARAMS = Params(
     periods=int(os.environ.get("BB_PERIODS", 20)),
@@ -25,6 +27,14 @@ PARAMS = Params(
     rsi_oversold=float(os.environ.get("RSI_OVERSOLD", 30)),
 )
 
+RIYADH = timezone(timedelta(hours=3))
+MOODS = {"bullish": "إيجابي", "bearish": "سلبي", "neutral": "محايد"}
+
+
+def parse_symbols(text):
+    symbols = [s.strip().upper().removesuffix(".SR") for s in text.split(",") if s.strip()]
+    return list(dict.fromkeys(symbols))[:MAX_SYMBOLS]
+
 
 def send_telegram(text):
     requests.post(
@@ -34,23 +44,41 @@ def send_telegram(text):
     ).raise_for_status()
 
 
-def scan():
-    import yfinance as yf
-
-    alerts = []
-    for symbol in SYMBOLS:
-        close = yf.Ticker(symbol).history(period="1y", interval="1d")["Close"].dropna()
-        signals = find_signals(close, PARAMS)
-        # Only alert on a breakout on the latest bar
-        if signals and signals[-1][0] == close.index[-1]:
-            _, side, price, r = signals[-1]
-            label = "🟢 اختراق صاعد" if side == "BUY" else "🔴 كسر هابط"
-            alerts.append(f"{label} {symbol}\nالسعر: {price:.2f}\nRSI: {r:.1f}")
-    return alerts
-
-
 @app.route("/")
 def home():
+    symbols = parse_symbols(request.args.get("symbols", DEFAULT_SYMBOLS))
+    rows = [market_data.analyze(s, PARAMS) for s in symbols]
+    summary, summary_error = market_data.market_summary()
+    gainers, _ = market_data.movers("gainers")
+    losers, _ = market_data.movers("losers")
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض البيانات.")
+    elif summary_error:
+        notices.append(f"تعذّر جلب بيانات السوق: {summary_error}")
+    if os.environ.get("SAHMK_API_KEY") and any(r["history_error"] for r in rows):
+        notices.append(
+            "إشارات بولينجر وRSI تحتاج البيانات التاريخية، وهي متاحة من باقة Starter في سهمك. "
+            "الأسعار وحركة السوق تعمل على الباقة المجانية."
+        )
+
+    return render_template(
+        "index.html",
+        rows=rows,
+        symbols=symbols,
+        summary=summary,
+        gainers=gainers,
+        losers=losers,
+        notices=notices,
+        params=PARAMS,
+        moods=MOODS,
+        now=datetime.now(RIYADH).strftime("%Y-%m-%d %H:%M"),
+    )
+
+
+@app.route("/health")
+def health():
     return "🟢 SYSTEM WORKING! ✅ - Saudi Stocks Bot"
 
 
@@ -64,14 +92,20 @@ def test():
 
 
 @app.route("/scan")
-def scan_route():
+def scan():
+    symbols = parse_symbols(DEFAULT_SYMBOLS)
+    alerts = []
+    for row in (market_data.analyze(s, PARAMS) for s in symbols):
+        if row.get("signal_today"):
+            _, side, price, r = row["last_signal"]
+            label = "🟢 اختراق صاعد" if side == "BUY" else "🔴 كسر هابط"
+            alerts.append(f"{label} {row['symbol']}\nالسعر: {price:.2f}\nRSI: {r:.1f}")
     try:
-        alerts = scan()
         if alerts:
             send_telegram("📊 إشارات Bollinger + RSI\n\n" + "\n\n".join(alerts))
-        return f"✅ SCANNED {len(SYMBOLS)} SYMBOLS, {len(alerts)} SIGNALS"
     except Exception as e:
-        return f"❌ SCAN ERROR: {e}", 500
+        return f"❌ TELEGRAM ERROR: {e}", 500
+    return f"✅ SCANNED {len(symbols)} SYMBOLS, {len(alerts)} SIGNALS"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>رادار الأسهم السعودية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --border: #e3e6eb;
+    --text: #15191f; --muted: #5d6673;
+    --up: #0f7b4a; --up-bg: #e3f4ec; --down: #b42318; --down-bg: #fbe9e7;
+    --accent: #1d5fd1; --accent-bg: #e6eefc; --on-accent: #ffffff; --warn-bg: #fff6e0; --warn: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --surface: #171b21; --border: #2a3039;
+      --text: #e8ebef; --muted: #98a2b0;
+      --up: #4cc38a; --up-bg: #12291f; --down: #f2776b; --down-bg: #2e1715;
+      --accent: #7aa7f5; --accent-bg: #18243a; --on-accent: #0f1216; --warn-bg: #2b230f; --warn: #e5bf63;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; line-height: 1.5;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 1.6rem; }
+  h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .grid { display: grid; gap: 16px; }
+  .stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .stat .label { color: var(--muted); font-size: .8rem; }
+  .stat .value { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .notice { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: .9rem; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  input[type=text] {
+    flex: 1; min-width: 200px; padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; direction: ltr; text-align: right;
+  }
+  button { padding: 9px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 500; cursor: pointer; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: .8rem; }
+  .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+  td.num { text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 500; }
+  .badge.buy { background: var(--up-bg); color: var(--up); }
+  .badge.sell { background: var(--down-bg); color: var(--down); }
+  .badge.squeeze { background: var(--accent-bg); color: var(--accent); }
+  .badge.none { color: var(--muted); }
+  .movers { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 16px; }
+  .movers li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .movers li:last-child { border-bottom: 0; }
+  .movers ul { list-style: none; margin: 0; padding: 0; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>رادار الأسهم السعودية</h1>
+      <div class="muted">استراتيجية اختراق بولينجر باندز مع فلتر RSI · البيانات من سهمك</div>
+    </div>
+    <div class="muted">آخر تحديث: {{ now }}{% if summary and summary.is_delayed %} · الأسعار متأخرة 15 دقيقة{% endif %}</div>
+  </header>
+
+  {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
+
+  {% if summary %}
+  <section class="grid stats">
+    <div class="card stat">
+      <div class="label">مؤشر {{ summary.index or "تاسي" }}</div>
+      <div class="value num">{{ "{:,.2f}".format(summary.index_value or 0) }}</div>
+      <div class="num {{ 'up' if (summary.index_change_percent or 0) >= 0 else 'down' }}">{{ "{:+.2f}".format(summary.index_change_percent or 0) }}%</div>
+    </div>
+    <div class="card stat"><div class="label">شركات مرتفعة</div><div class="value up">{{ summary.advancing or 0 }}</div></div>
+    <div class="card stat"><div class="label">شركات منخفضة</div><div class="value down">{{ summary.declining or 0 }}</div></div>
+    <div class="card stat"><div class="label">مزاج السوق</div><div class="value">{{ moods.get(summary.market_mood, summary.market_mood) or "—" }}</div></div>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>قائمة المتابعة</h2>
+    <form method="get">
+      <input type="text" name="symbols" value="{{ symbols|join(',') }}" placeholder="2222,1120,2010" aria-label="رموز الأسهم">
+      <button type="submit">تحديث</button>
+    </form>
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>السهم</th><th>السعر</th><th>التغير</th><th>RSI</th><th>عرض الحزمة</th><th>الإشارة</th><th>آخر إشارة</th>
+      </tr></thead>
+      <tbody>
+      {% for row in rows %}
+        {% set q = row.quote %}
+        <tr>
+          <td><strong>{{ row.symbol }}</strong>{% if q and q.name %} <span class="muted">{{ q.name }}</span>{% endif %}</td>
+          {% if q %}
+            <td class="num">{{ "{:.2f}".format(q.price or 0) }}</td>
+            <td class="num {{ 'up' if (q.change_percent or 0) >= 0 else 'down' }}">{{ "{:+.2f}".format(q.change_percent or 0) }}%</td>
+          {% else %}
+            <td colspan="2" class="muted">{{ row.error or "—" }}</td>
+          {% endif %}
+          {% if row.state %}
+            <td class="num">{{ "{:.1f}".format(row.state.rsi) }}</td>
+            <td class="num">{{ "{:.1f}".format(row.state.width_pct) }}%</td>
+            <td>
+              {% if row.signal_today and row.last_signal[1] == "BUY" %}<span class="badge buy">اختراق صاعد</span>
+              {% elif row.signal_today %}<span class="badge sell">كسر هابط</span>
+              {% elif row.state.squeeze %}<span class="badge squeeze">انضغاط</span>
+              {% else %}<span class="badge none">لا شيء</span>{% endif %}
+            </td>
+            <td class="muted">
+              {% if row.last_signal %}{{ "صعود" if row.last_signal[1] == "BUY" else "هبوط" }} · {{ row.last_signal[0].strftime("%Y-%m-%d") }}{% else %}—{% endif %}
+            </td>
+          {% else %}
+            <td colspan="4" class="muted">—</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="grid movers">
+    {% for title, items, cls in [("الأكثر ارتفاعاً", gainers, "up"), ("الأكثر انخفاضاً", losers, "down")] %}
+    <div class="card">
+      <h2>{{ title }}</h2>
+      {% if items %}
+      <ul>
+        {% for s in items %}
+        <li><span><strong>{{ s.symbol }}</strong> <span class="muted">{{ s.name or "" }}</span></span>
+            <span class="num {{ cls }}">{{ "{:+.2f}".format(s.change_percent or 0) }}%</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="muted">لا تتوفر بيانات</div>{% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <details>
+    <summary>إعدادات الاستراتيجية</summary>
+    <p class="muted">
+      بولينجر: {{ params.periods }} شمعة يومية، انحراف {{ params.deviations }}، متوسط {{ params.ma_type }} ·
+      الانضغاط عندما يكون عرض الحزمة ≤ {{ params.max_band_width_pct }}% ·
+      RSI {{ params.rsi_period }} ويجب أن يكون بين {{ params.rsi_oversold }} و{{ params.rsi_overbought }}.
+      هذه أداة تحليل وليست توصية استثمارية.
+    </p>
+  </details>
+</main>
+</body>
+</html>

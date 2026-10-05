@@ -45,6 +45,20 @@ def rsi(close, period):
     return (100 - 100 / (1 + rs)).where(loss != 0, 100.0)
 
 
+def indicator_state(close, params=Params()):
+    """Latest band, band width and RSI values, for display."""
+    top, middle, bottom = bollinger_bands(close, params.periods, params.deviations, params.ma_type)
+    mid = middle.iloc[-1]
+    width = (top.iloc[-1] - bottom.iloc[-1]) / mid * 100 if mid else float("nan")
+    return {
+        "top": float(top.iloc[-1]),
+        "bottom": float(bottom.iloc[-1]),
+        "width_pct": float(width),
+        "squeeze": bool(width <= params.max_band_width_pct),
+        "rsi": float(rsi(close, params.rsi_period).iloc[-1]),
+    }
+
+
 def find_signals(close, params=Params()):
     """Return a list of (date, side, price, rsi) for every breakout bar.
 
