@@ -98,3 +98,9 @@ def all_alerts():
     with _lock:
         data = _load()
         return [(cid, a) for cid, chat in data["chats"].items() for a in chat["alerts"]]
+
+
+def all_watchlists():
+    """Return {chat_id: [symbols]} for chats with a non-empty watchlist."""
+    with _lock:
+        return {cid: list(c["watchlist"]) for cid, c in _load()["chats"].items() if c["watchlist"]}

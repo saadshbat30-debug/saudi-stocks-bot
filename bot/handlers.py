@@ -20,6 +20,12 @@ COMMANDS = [
     ("quote", "سعر سهم: /quote 2222"),
     ("search", "بحث عن شركة: /search الراجحي"),
     ("history", "أداء آخر 30 يوم: /history 2222"),
+    ("company", "بيانات الشركة والأساسيات: /company 2222"),
+    ("financials", "قائمة الدخل: /financials 2222"),
+    ("dividends", "التوزيعات: /dividends 2222"),
+    ("news", "أخبار وإعلانات: /news أو /news 2222"),
+    ("depth", "عمق السوق (أفضل 5 مستويات): /depth 2222"),
+    ("trades", "آخر الصفقات: /trades 2222"),
     ("watch", "إضافة لقائمة المتابعة: /watch 2222 1120"),
     ("unwatch", "حذف من المتابعة: /unwatch 2222"),
     ("watchlist", "أسعار قائمة المتابعة"),
@@ -47,6 +53,14 @@ HELP = """<b>🇸🇦 بوت السوق السعودي — بيانات حقيق
 /search أرامكو — بحث عن رمز شركة
 /history 2222 — أداء آخر 30 يوم
 
+<b>تحليل (باقة برو)</b>
+/company 2222 — الأساسيات والمؤشرات الفنية والقيمة العادلة والمحللين
+/financials 2222 — قائمة الدخل
+/dividends 2222 — التوزيعات والعائد
+/news — آخر أخبار السوق، أو /news 2222 لسهم محدد
+/depth 2222 — عمق السوق (الطلبات والعروض)
+/trades 2222 — آخر الصفقات المنفذة
+
 <b>المتابعة والتنبيهات</b>
 /watch 2222 1120 — إضافة أسهم للمتابعة
 /unwatch 2222 — حذف سهم
@@ -56,7 +70,8 @@ HELP = """<b>🇸🇦 بوت السوق السعودي — بيانات حقيق
 /alerts — تنبيهاتك
 /delalert abc123 — حذف تنبيه
 
-⏰ التنبيهات تُفحص تلقائياً أثناء التداول (الأحد–الخميس 10:00–15:10)."""
+⚡️ التنبيهات لحظية عبر البث المباشر من سهمك أثناء التداول (الأحد–الخميس 10:00–15:10).
+📰 تصلك أخبار وإعلانات أسهم قائمتك تلقائياً."""
 
 MENU = {
     "inline_keyboard": [
@@ -64,7 +79,8 @@ MENU = {
         [{"text": "🚀 الأكثر ارتفاعاً", "callback_data": "gainers"}, {"text": "📉 الأكثر انخفاضاً", "callback_data": "losers"}],
         [{"text": "📦 الأكثر كمية", "callback_data": "volume"}, {"text": "💵 الأكثر قيمة", "callback_data": "value"}],
         [{"text": "🏭 القطاعات", "callback_data": "sectors"}, {"text": "⭐️ قائمتي", "callback_data": "watchlist"}],
-        [{"text": "🔔 تنبيهاتي", "callback_data": "alerts"}, {"text": "❓ مساعدة", "callback_data": "help"}],
+        [{"text": "📰 الأخبار", "callback_data": "news"}, {"text": "🔔 تنبيهاتي", "callback_data": "alerts"}],
+        [{"text": "❓ مساعدة", "callback_data": "help"}],
     ]
 }
 
@@ -74,9 +90,10 @@ ARABIC = {
     "الرابحة": "gainers", "الاكثر ارتفاعا": "gainers", "الأكثر ارتفاعاً": "gainers",
     "الخاسرة": "losers", "الاكثر انخفاضا": "losers", "الأكثر انخفاضاً": "losers",
     "القطاعات": "sectors", "قائمتي": "watchlist", "تنبيهاتي": "alerts",
-    "مساعدة": "help", "القائمة": "start",
+    "مساعدة": "help", "القائمة": "start", "الأخبار": "news", "اخبار": "news",
 }
-ARABIC_PREFIX = {"سعر": "quote", "بحث": "search", "تاريخ": "history", "تابع": "watch", "تنبيه": "alert"}
+ARABIC_PREFIX = {"شركة": "company", "مالية": "financials", "توزيعات": "dividends",
+                 "اخبار": "news", "أخبار": "news", "عمق": "depth", "صفقات": "trades", "سعر": "quote", "بحث": "search", "تاريخ": "history", "تابع": "watch", "تنبيه": "alert"}
 
 
 def handle_update(update):
@@ -85,7 +102,8 @@ def handle_update(update):
             cq = update["callback_query"]
             telegram.answer_callback(cq["id"])
             chat_id = cq["message"]["chat"]["id"]
-            reply(chat_id, cq.get("data", ""), "")
+            command, _, args = cq.get("data", "").partition(":")
+            reply(chat_id, command, args)
         elif "message" in update and "text" in update["message"]:
             msg = update["message"]
             chat_id = msg["chat"]["id"]
@@ -149,7 +167,8 @@ def dispatch(chat_id, command, args):
     if command == "quote":
         if not args:
             return "أرسل الرمز هكذا: /quote 2222", None
-        return market.format_quote(market.get_quote(args)), None
+        q = market.get_quote(args)
+        return market.format_quote(q), stock_buttons(q.symbol)
     if command == "search":
         if not args:
             return "أرسل اسم الشركة: /search الراجحي", None
@@ -158,6 +177,10 @@ def dispatch(chat_id, command, args):
         if not args:
             return "أرسل الرمز: /history 2222", None
         return market.history_text(market.get_quote(args).symbol), None
+    if command in PRO:
+        if not args and command != "news":
+            return f"أرسل الرمز هكذا: /{command} 2222", None
+        return PRO[command](args or None), None
     if command == "watch":
         return watch(chat_id, args), None
     if command == "unwatch":
@@ -177,6 +200,24 @@ def dispatch(chat_id, command, args):
             return "🗑 تم حذف التنبيه.", None
         return "لم أجد تنبيهاً بهذا الرقم. اعرض تنبيهاتك عبر /alerts", None
     return "لم أفهم الأمر. أرسل /help", None
+
+
+def stock_buttons(symbol):
+    b = lambda text, cmd: {"text": text, "callback_data": f"{cmd}:{symbol}"}
+    return {"inline_keyboard": [
+        [b("🏢 الشركة", "company"), b("📚 العمق", "depth"), b("⚡️ الصفقات", "trades")],
+        [b("📰 الأخبار", "news"), b("💸 التوزيعات", "dividends"), b("⭐️ تابع", "watch")],
+    ]}
+
+
+PRO = {
+    "company": market.company_text,
+    "financials": market.financials_text,
+    "dividends": market.dividends_text,
+    "news": market.events_text,
+    "depth": market.depth_text,
+    "trades": market.trades_text,
+}
 
 
 def watch(chat_id, args):

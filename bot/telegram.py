@@ -21,7 +21,7 @@ def _call(method, timeout=15, **payload):
 def send_message(chat_id, text, reply_markup=None):
     payload = {
         "chat_id": chat_id,
-        "text": text,
+        "text": text if len(text) <= 4096 else text[:4090] + "\n…",
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }

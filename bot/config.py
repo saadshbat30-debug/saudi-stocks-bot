@@ -13,6 +13,8 @@ PUBLIC_URL = (os.environ.get("PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_UR
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or secrets.token_hex(16)
 
 ALERT_INTERVAL_SECONDS = int(os.environ.get("ALERT_INTERVAL_SECONDS", "60"))
+EVENTS_INTERVAL_SECONDS = int(os.environ.get("EVENTS_INTERVAL_SECONDS", "300"))
+ENABLE_STREAM = os.environ.get("ENABLE_STREAM", "1") != "0"
 QUOTE_CACHE_SECONDS = int(os.environ.get("QUOTE_CACHE_SECONDS", "20"))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 
