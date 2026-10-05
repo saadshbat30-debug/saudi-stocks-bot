@@ -22,6 +22,8 @@ dashboard.py — لوحة التحكم (صفحة الويب)
   /plotly.min.js     ← مكتبة الرسوم البيانية (من حزمة plotly المثبتة — تعمل بدون إنترنت)
   /download/excel    ← تنزيل signals.xlsx
   /download/alerts   ← تنزيل alerts.log
+  /api/import        ← إدخال بيانات (لصق نص أو رفع ملف) ثم التحليل فورًا
+  /api/clear-data    ← حذف كل ملفات البيانات (مثل البيانات التجريبية)
 """
 
 from __future__ import annotations
@@ -32,9 +34,11 @@ import threading
 import webbrowser
 from functools import lru_cache
 
-from flask import Flask, Response, abort, jsonify, render_template, send_file
+from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 
-from bot import BASE_DIR, load_config, resolve_path
+from bot import (BASE_DIR, FILE_LABELS, StockBot, clear_data_folder, detect_file_key, is_sample_data,
+                 load_config, match_fields, parse_table_text, parse_uploaded_file, resolve_path,
+                 save_data_file)
 
 log = logging.getLogger("stock_bot.dashboard")
 
@@ -46,11 +50,17 @@ def plotly_js() -> str:
     return get_plotlyjs()
 
 
-def create_app(cfg: dict | None = None) -> Flask:
-    """إنشاء تطبيق Flask بالإعدادات المعطاة."""
+def create_app(cfg: dict | None = None, bot: StockBot | None = None) -> Flask:
+    """
+    إنشاء تطبيق Flask بالإعدادات المعطاة.
+    bot: البوت الذي يعيد التحليل بعد إدخال بيانات من الصفحة
+         (إذا شُغّلت اللوحة وحدها عبر python dashboard.py يُنشأ بوت داخلي).
+    """
     cfg = cfg or load_config()
+    bot = bot or StockBot(cfg)
     app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
     app.json.ensure_ascii = False                     # إظهار العربية كما هي في JSON
+    app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024   # أقصى حجم للرفع: 30 ميجا
 
     json_path = resolve_path(cfg["output"]["json_file"])
     excel_path = resolve_path(cfg["output"]["excel_file"])
@@ -74,6 +84,8 @@ def create_app(cfg: dict | None = None) -> Flask:
             "dashboard.html",
             refresh_seconds=int(cfg["output"]["dashboard_refresh"]),
             poll_seconds=int(cfg["output"]["dashboard_poll"]),
+            file_types=[(key, FILE_LABELS.get(key, key), fname)
+                        for key, fname in cfg["data"]["files"].items()],
         )
 
     @app.route("/api/data")
@@ -114,6 +126,72 @@ def create_app(cfg: dict | None = None) -> Flask:
             abort(404)
         return send_file(alerts_path, as_attachment=True, download_name=alerts_path.name,
                          mimetype="text/plain; charset=utf-8")
+
+    @app.route("/api/import", methods=["POST"])
+    def api_import():
+        """
+        إدخال بيانات من الصفحة. يقبل:
+          - text:   نص ملصوق (منسوخ من تكرتشارت أو Excel)
+          - file:   ملف مرفوع (CSV / TXT / XLSX)
+          - kind:   نوع البيانات (sahmak / liquidity / ...) أو auto للتحديد التلقائي
+          - append: 1 لإضافة الصفوف للملف الموجود بدل استبداله
+          - preview: 1 للمعاينة فقط بدون حفظ
+        """
+        kind = request.form.get("kind", "auto")
+        append = request.form.get("append") == "1"
+        preview = request.form.get("preview") == "1"
+        upload = request.files.get("file")
+        filename = upload.filename if upload else ""
+        try:
+            if upload:
+                df = parse_uploaded_file(filename, upload.read(), cfg["data"]["encodings"])
+            else:
+                text = request.form.get("text", "")
+                if not text.strip():
+                    return jsonify({"ok": False, "error": "الصق البيانات أولًا"}), 400
+                df = parse_table_text(text)
+        except Exception as exc:
+            return jsonify({"ok": False, "file": filename, "error": f"تعذرت قراءة البيانات: {exc}"}), 400
+
+        if kind == "auto":
+            kind = detect_file_key(df, cfg, filename)
+            if kind is None:
+                return jsonify({"ok": False, "file": filename, "columns": list(df.columns),
+                                "error": "لم أتعرف على نوع البيانات من أسماء الأعمدة — اختر النوع يدويًا"}), 400
+        elif kind not in cfg["data"]["files"]:
+            return jsonify({"ok": False, "error": "نوع بيانات غير معروف"}), 400
+
+        found, missing = match_fields(df, kind, cfg)
+        result = {"ok": True, "file": filename, "kind": kind, "label": FILE_LABELS.get(kind, kind),
+                  "target": cfg["data"]["files"][kind], "rows": len(df), "columns": list(df.columns),
+                  "found": found, "missing": missing, "saved": False,
+                  "preview": [[("" if v is None or v != v else str(v)) for v in row]
+                              for row in df.head(5).itertuples(index=False, name=None)]}
+        if preview:
+            return jsonify(result)
+        was_sample = is_sample_data(cfg)
+        try:
+            result["total_rows"] = save_data_file(df, kind, cfg, append)
+        except Exception as exc:
+            return jsonify({**result, "ok": False, "error": str(exc)}), 500
+        result["saved"] = True
+        if was_sample:
+            bot.reset_alerts()                    # تنبيهات البيانات التجريبية لا تخص البيانات الحقيقية
+        if request.form.get("analyze", "1") == "1":
+            bot.run_safe()                        # تحليل فوري بعد الحفظ
+        return jsonify(result)
+
+    @app.route("/api/analyze", methods=["POST"])
+    def api_analyze():
+        bot.run_safe()
+        return jsonify({"ok": True})
+
+    @app.route("/api/clear-data", methods=["POST"])
+    def api_clear():
+        removed = clear_data_folder(cfg)
+        bot.reset_alerts()
+        bot.run_safe()
+        return jsonify({"ok": True, "removed": removed})
 
     return app
 

@@ -757,6 +757,135 @@ def atomic_write_text(path: Path, text: str) -> None:
 
 
 # ═════════════════════════════════════════════
+#  إدخال البيانات من لوحة الويب (لصق أو رفع ملف)
+# ═════════════════════════════════════════════
+SAMPLE_MARKER = ".sample_data"     # ملف علامة: وجوده في data/ يعني أن البيانات تجريبية
+
+
+def is_sample_data(cfg: dict) -> bool:
+    """هل البيانات الحالية في مجلد data تجريبية (من sample_data.py)؟"""
+    return (resolve_path(cfg["data"]["input_folder"]) / SAMPLE_MARKER).exists()
+
+
+def parse_table_text(text: str) -> pd.DataFrame:
+    """
+    تحويل نص ملصوق إلى جدول.
+    يدعم النسخ من تكرتشارت أو Excel (الأعمدة مفصولة بـ Tab) أو نص CSV (فاصلة / فاصلة منقوطة).
+    السطر الأول يجب أن يكون أسماء الأعمدة.
+    """
+    import io
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+    lines = [ln for ln in text.split("\n") if ln.strip()]
+    if len(lines) < 2:
+        raise ValueError("يجب أن يحتوي النص على سطر العناوين وسطر بيانات واحد على الأقل")
+    first = lines[0]
+    # تحديد الفاصل: Tab أولًا (النسخ من الجداول)، ثم ; ثم ,
+    sep = "\t" if "\t" in first else (";" if first.count(";") > first.count(",") else ",")
+    df = pd.read_csv(io.StringIO("\n".join(lines)), sep=sep, dtype=str, skipinitialspace=True,
+                     engine="python")
+    return _clean_frame(df)
+
+
+def parse_uploaded_file(filename: str, content: bytes, encodings: list[str]) -> pd.DataFrame:
+    """قراءة ملف مرفوع: CSV / TXT بأي ترميز، أو Excel (.xlsx)."""
+    import io
+    name = filename.lower()
+    if name.endswith((".xlsx", ".xlsm")):
+        return _clean_frame(pd.read_excel(io.BytesIO(content), dtype=str))
+    if name.endswith(".xls"):
+        raise ValueError("صيغة .xls القديمة غير مدعومة — احفظ الملف بصيغة .xlsx أو CSV")
+    for enc in encodings:
+        try:
+            return parse_table_text(content.decode(enc))
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("تعذر التعرف على ترميز الملف")
+
+
+def _clean_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """تنظيف أسماء الأعمدة وحذف الصفوف والأعمدة الفارغة."""
+    df.columns = [flt.clean_text(c) for c in df.columns]
+    df = df.loc[:, [c for c in df.columns if c and not c.startswith("Unnamed")]]
+    df = df.dropna(how="all")
+    if df.empty or not len(df.columns):
+        raise ValueError("لا توجد بيانات في الجدول")
+    return df.reset_index(drop=True)
+
+
+def match_fields(df: pd.DataFrame, key: str, cfg: dict) -> tuple[list[str], list[str]]:
+    """الحقول المعروفة لهذا النوع من الملفات: (الموجودة في الجدول, الناقصة منه) بأسماء الأعمدة."""
+    found, missing = [], []
+    for names in (cfg["columns"].get(key) or {}).values():
+        label = names if isinstance(names, str) else names[0]
+        (found if find_column(df, names) else missing).append(label)
+    return found, missing
+
+
+def detect_file_key(df: pd.DataFrame, cfg: dict, filename: str = "") -> Optional[str]:
+    """
+    تحديد نوع البيانات (sahmak / liquidity / ...) تلقائيًا:
+      1) من اسم الملف إذا طابق أسماء الملفات في config.yaml
+      2) وإلا من أسماء الأعمدة: النوع الذي يطابق أكبر عدد من أعمدته
+    """
+    files = cfg["data"]["files"]
+    base = Path(filename).stem.lower() if filename else ""
+    for key, fname in files.items():
+        if base and base == Path(fname).stem.lower():
+            return key
+    best, best_score = None, (0, 0.0)
+    for key in files:
+        found, missing = match_fields(df, key, cfg)
+        total = len(found) + len(missing)
+        score = (len(found), len(found) / total if total else 0)
+        if score > best_score:
+            best, best_score = key, score
+    return best if best_score[0] >= 2 else None
+
+
+def save_data_file(df: pd.DataFrame, key: str, cfg: dict, append: bool = False) -> int:
+    """
+    حفظ الجدول في مجلد data باسم الملف المحدد لهذا النوع (مثل liquidity.csv).
+    append=True يضيف الصفوف للملف الموجود بدل استبداله (مفيد للبيانات اللحظية).
+    يرجع عدد الصفوف في الملف بعد الحفظ.
+    """
+    folder = resolve_path(cfg["data"]["input_folder"])
+    folder.mkdir(parents=True, exist_ok=True)
+
+    # أول إدخال لبيانات حقيقية: نحذف كل الملفات التجريبية حتى لا تختلط بالحقيقية
+    if is_sample_data(cfg):
+        clear_data_folder(cfg)
+
+    path = folder / cfg["data"]["files"][key]
+    if append and path.exists():
+        old = read_csv_file(path, cfg["data"]["encodings"])
+        if old is not None and not old.empty:
+            df = pd.concat([old, df], ignore_index=True)
+    tmp = path.with_name(f"~tmp_{path.name}")
+    df.to_csv(tmp, index=False, encoding="utf-8-sig")
+    for _ in range(5):
+        try:
+            os.replace(tmp, path)
+            break
+        except PermissionError:          # الملف مفتوح في برنامج آخر
+            time.sleep(0.5)
+    else:
+        raise PermissionError(f"الملف {path.name} مفتوح في برنامج آخر — أغلقه وحاول مجددًا")
+    return len(df)
+
+
+def clear_data_folder(cfg: dict) -> int:
+    """حذف كل ملفات البيانات المعرّفة في config.yaml (وعلامة البيانات التجريبية)."""
+    folder = resolve_path(cfg["data"]["input_folder"])
+    removed = 0
+    for fname in list(cfg["data"]["files"].values()) + [SAMPLE_MARKER]:
+        path = folder / fname
+        if path.exists():
+            path.unlink()
+            removed += fname != SAMPLE_MARKER
+    return removed
+
+
+# ═════════════════════════════════════════════
 #  البوت
 # ═════════════════════════════════════════════
 class StockBot:
@@ -775,6 +904,13 @@ class StockBot:
                 return json.load(fh).get("alerts", [])
         except Exception:
             return []
+
+    def reset_alerts(self) -> None:
+        """مسح تنبيهات الجلسة (مثلًا عند الانتقال من البيانات التجريبية إلى الحقيقية)."""
+        with self._lock:
+            self.alerts.history.clear()
+            self.alerts.last_level.clear()
+            self.alerts.seen_trades.clear()
 
     # ─────────────────────────────────────────
     def run_safe(self) -> None:
@@ -897,6 +1033,7 @@ class StockBot:
 
         payload = {
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "is_sample": is_sample_data(cfg),
             "run": self.run_count + 1,
             "filter_titles": flt.FILTER_TITLES,
             "file_labels": FILE_LABELS,
@@ -961,12 +1098,12 @@ class DataFolderHandler(FileSystemEventHandler):
 # ═════════════════════════════════════════════
 #  لوحة الويب في خيط منفصل
 # ═════════════════════════════════════════════
-def start_dashboard_thread(cfg: dict) -> str:
+def start_dashboard_thread(cfg: dict, bot: Optional[StockBot] = None) -> str:
     from dashboard import create_app        # الاستيراد هنا لتجنب الاستيراد الدائري
 
     host = cfg["output"]["dashboard_host"]
     port = int(cfg["output"]["dashboard_port"])
-    app = create_app(cfg)
+    app = create_app(cfg, bot)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
     thread = threading.Thread(
         target=lambda: app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True),
@@ -1005,7 +1142,7 @@ def main() -> None:
 
     # لوحة الويب
     if cfg["output"]["dashboard_enabled"] and not args.no_dashboard:
-        url = start_dashboard_thread(cfg)
+        url = start_dashboard_thread(cfg, bot)
         if cfg["output"]["open_browser"] and not args.no_browser:
             threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 

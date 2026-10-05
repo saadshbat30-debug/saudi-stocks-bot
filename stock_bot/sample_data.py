@@ -155,6 +155,8 @@ def generate() -> None:
                                 "CCI", "MFI", "W%R"], rsi)
     write_csv("ichimoku.csv", ["الرمز", "الاسم", "الغيمة", "السعر مع الغيمة", "السعر مع Kijun Sen",
                                "Tenken Sen مع Kijun Sen"], ichimoku)
+    # علامة تخبر البوت ولوحة الويب أن هذه البيانات تجريبية (تُحذف تلقائيًا عند إدخال بيانات حقيقية)
+    (DATA_DIR / ".sample_data").write_text("بيانات تجريبية من sample_data.py", encoding="utf-8")
     write_csv("ticks.csv", ["الوقت", "الرمز", "حجم آخر", "السعر", "القيمة", "الاتجاه", "العدد"], ticks)
     print(f"✅ [{now_str}] تم إنشاء البيانات التجريبية في {DATA_DIR}")
 

@@ -150,6 +150,51 @@ td.score { font-weight: 700; text-align: center; }
 @keyframes slide { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
 .banner { background: var(--warn-bg); color: var(--warn); padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; display: none; }
 
+/* ═══════════ إدخال البيانات ═══════════ */
+.sample-banner {
+  display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--sell-bg); color: var(--sell); border: 1px solid var(--sell);
+  padding: 10px 16px; border-radius: 10px; margin: 16px 16px 0; font-weight: 600;
+}
+.sample-banner .btn { font-weight: 400; }
+.import-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.box h3 { margin: 0 0 10px; font-size: 15px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.field label { font-weight: 600; font-size: 13px; }
+.field select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+textarea#paste {
+  width: 100%; min-height: 220px; resize: vertical; direction: rtl; font-family: Consolas, "Courier New", monospace;
+  font-size: 12.5px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; white-space: pre; overflow: auto;
+}
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 22px 12px; text-align: center;
+  color: var(--text-2); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.dropzone.over, .dropzone:hover { border-color: var(--accent); background: var(--surface-2); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--sell); border-color: var(--sell); }
+.btn:disabled { opacity: .5; cursor: wait; }
+.result { border-radius: 8px; padding: 10px 12px; margin-top: 10px; border: 1px solid var(--border); font-size: 13px; }
+.result.ok { background: var(--buy-bg); border-color: var(--buy); }
+.result.err { background: var(--sell-bg); border-color: var(--sell); }
+.result.info { background: var(--surface-2); }
+.result b { display: block; margin-bottom: 4px; }
+.result .cols { margin-top: 6px; line-height: 1.9; }
+.chip { display: inline-block; padding: 0 8px; border-radius: 10px; margin: 0 0 0 4px; font-size: 12px; border: 1px solid var(--border); background: var(--surface); }
+.chip.ok { color: var(--buy); border-color: var(--buy); }
+.chip.miss { color: var(--sell); border-color: var(--sell); }
+.mini-table { overflow-x: auto; margin-top: 8px; }
+.mini-table table { font-size: 12px; }
+.steps { margin: 0; padding-inline-start: 20px; line-height: 1.9; color: var(--text-2); font-size: 13px; }
+.file-list { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.file-list li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.file-list li span:last-child { color: var(--muted); direction: ltr; }
+
+@media (max-width: 900px) { .import-grid { grid-template-columns: 1fr; } }
+
 @media (max-width: 640px) {
   header { position: static; }
   header h1 { font-size: 16px; }
@@ -172,6 +217,12 @@ td.score { font-weight: 700; text-align: center; }
   <a class="btn" href="/download/alerts">⬇️ سجل التنبيهات</a>
 </header>
 
+<!-- تحذير البيانات التجريبية -->
+<div class="sample-banner" id="sample-banner">
+  ⚠️ البيانات المعروضة الآن تجريبية (وهمية) — لا تعتمد على أي إشارة منها.
+  <button class="btn" onclick="showTab('import')">📥 أدخل بياناتك الحقيقية</button>
+</div>
+
 <!-- بطاقات الإحصاءات -->
 <section class="stats">
   <div class="stat"><div class="label">عدد الأسهم</div><div class="value" id="st-total">—</div></div>
@@ -185,6 +236,7 @@ td.score { font-weight: 700; text-align: center; }
 <!-- التبويبات (تُضاف تبويبات الملفات الخام تلقائيًا من JavaScript) -->
 <nav class="tabs" id="tabs">
   <button data-tab="summary" class="active">📋 الجدول الموحد</button>
+  <button data-tab="import">📥 إدخال البيانات</button>
   <button data-tab="strong">⚡ الإشارات القوية <span class="badge" id="badge-strong" hidden></span></button>
   <button data-tab="alerts">🔔 التنبيهات <span class="badge" id="badge-alerts" hidden></span></button>
   <button data-tab="charts">📈 الرسوم البيانية</button>
@@ -197,6 +249,58 @@ td.score { font-weight: 700; text-align: center; }
   <section class="panel active" id="panel-summary">
     <p class="hint">مرتب حسب النقاط (كل فلتر إيجابي +1 وكل فلتر سلبي −1). اضغط على عنوان أي عمود للترتيب.</p>
     <div id="tbl-summary"></div>
+  </section>
+
+  <section class="panel" id="panel-import">
+    <div class="import-grid">
+      <div class="box">
+        <h3>📋 الصق البيانات أو ارفع ملفات</h3>
+        <div class="field">
+          <label for="imp-kind">نوع البيانات</label>
+          <select id="imp-kind">
+            <option value="auto">🔎 تحديد تلقائي من أسماء الأعمدة</option>
+            {% for key, label, fname in file_types %}
+            <option value="{{ key }}">{{ label }} ({{ fname }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="paste">الصق هنا (انسخ الجدول من تكرتشارت أو Excel مع سطر العناوين)</label>
+          <textarea id="paste" spellcheck="false" placeholder="مثال:
+الوقت	الرمز	الاسم	السعر	التغير %	...
+10:15	2222	أرامكو	27.45	0.73	...
+10:15	1120	الراجحي	93.10	-0.21	..."></textarea>
+        </div>
+        <div class="dropzone" id="dropzone">
+          📂 اسحب ملفات CSV أو Excel هنا — أو اضغط للاختيار (يمكن اختيار الملفات الثمانية مرة واحدة)
+          <input type="file" id="imp-files" accept=".csv,.txt,.xlsx,.xlsm" multiple hidden>
+        </div>
+        <div class="actions">
+          <label><input type="checkbox" id="imp-append"> إضافة للبيانات الموجودة بدل استبدالها (للبيانات اللحظية)</label>
+        </div>
+        <div class="actions">
+          <button class="btn" id="btn-preview">🔍 معاينة</button>
+          <button class="btn primary" id="btn-import">💾 حفظ وتحليل</button>
+          <span class="spacer"></span>
+          <button class="btn danger" id="btn-clear">🗑️ حذف كل البيانات</button>
+        </div>
+        <div id="imp-results"></div>
+      </div>
+
+      <div class="box">
+        <h3>💡 طريقة الاستخدام</h3>
+        <ol class="steps">
+          <li>في تكرتشارت حدد الجدول كاملًا (Ctrl + A) وانسخه (Ctrl + C).</li>
+          <li>الصقه في المربع (Ctrl + V) — يجب أن يكون السطر الأول أسماء الأعمدة.</li>
+          <li>اختر نوع البيانات أو اتركه تلقائيًا.</li>
+          <li>اضغط <b>معاينة</b> للتأكد أن الأعمدة تعرّفت، ثم <b>حفظ وتحليل</b>.</li>
+          <li>كرر لكل نوع بيانات — النتائج تظهر في كل التبويبات فورًا.</li>
+        </ol>
+        <p class="hint" style="margin-top:10px">عند أول إدخال لبيانات حقيقية تُحذف البيانات التجريبية تلقائيًا حتى لا تختلط بها.</p>
+        <h3 style="margin-top:14px">📁 الملفات الحالية</h3>
+        <ul class="file-list" id="imp-files-status"></ul>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="panel-strong">
@@ -669,6 +773,7 @@ function renderAll() {
   const missing = Object.values(d.files_status || {}).filter((f) => !f.exists).map((f) => f.file);
   if (missing.length) showBanner("⚠️ ملفات غير موجودة في مجلد data: " + missing.join("، ") + " — الفلاتر المعتمدة عليها ستظهر \"لا توجد بيانات\".");
 
+  renderImportStatus(d);
   fillTickSelect();
   if (activeTab === "charts") renderCharts();
   checkNewAlerts(d.alerts || []);
@@ -695,6 +800,118 @@ function tick() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   إدخال البيانات: لصق نص أو رفع ملفات
+   ═══════════════════════════════════════════════════════════ */
+function resultBox(r) {
+  const cls = !r.ok ? "err" : r.saved ? "ok" : "info";
+  const title = !r.ok ? `❌ ${esc(r.file || "البيانات الملصوقة")}: ${esc(r.error)}`
+    : r.saved ? `✅ تم حفظ ${r.rows} صف في ${esc(r.target)} (${esc(r.label)})${r.file ? " — من " + esc(r.file) : ""}`
+    : `🔍 معاينة: ${r.rows} صف — النوع: ${esc(r.label)} ← سيُحفظ في ${esc(r.target)}`;
+  let html = `<b>${title}</b>`;
+  if (r.ok) {
+    html += `<div class="cols">الأعمدة المعروفة: ${r.found.map((c) => `<span class="chip ok">✓ ${esc(c)}</span>`).join("") || "لا شيء"}</div>`;
+    if (r.missing.length) {
+      html += `<div class="cols">أعمدة ناقصة (الفلاتر المعتمدة عليها ستظهر "لا توجد بيانات"):
+        ${r.missing.map((c) => `<span class="chip miss">✗ ${esc(c)}</span>`).join("")}</div>`;
+    }
+  }
+  if (r.columns && r.preview && !r.saved) {
+    html += `<div class="mini-table table-wrap"><table><thead><tr>${r.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+      <tbody>${r.preview.map((row) => `<tr>${row.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  } else if (r.columns && !r.ok) {
+    html += `<div class="cols">الأعمدة في بياناتك: ${r.columns.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div>`;
+  }
+  return `<div class="result ${cls}">${html}</div>`;
+}
+
+async function sendImport(form) {
+  try {
+    const res = await fetch("/api/import", { method: "POST", body: form });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: "تعذر الاتصال بالبوت — تأكد أنه يعمل" };
+  }
+}
+
+function importForm(preview, analyze) {
+  const f = new FormData();
+  f.append("kind", $("imp-kind").value);
+  f.append("append", $("imp-append").checked ? "1" : "0");
+  f.append("preview", preview ? "1" : "0");
+  f.append("analyze", analyze ? "1" : "0");
+  return f;
+}
+
+function setBusy(busy) {
+  ["btn-preview", "btn-import", "btn-clear"].forEach((id) => { $(id).disabled = busy; });
+  $("btn-import").textContent = busy ? "⏳ جاري الحفظ والتحليل..." : "💾 حفظ وتحليل";
+}
+
+async function importPasted(preview) {
+  const text = $("paste").value;
+  if (!text.trim()) { $("imp-results").innerHTML = resultBox({ ok: false, error: "الصق البيانات في المربع أولًا، أو اسحب ملفات" }); return; }
+  setBusy(true);
+  const f = importForm(preview, true);
+  f.append("text", text);
+  const r = await sendImport(f);
+  $("imp-results").innerHTML = resultBox(r);
+  setBusy(false);
+  if (r.saved) { $("paste").value = ""; await loadData(); }
+}
+
+async function importFiles(files) {
+  if (!files.length) return;
+  setBusy(true);
+  const list = [...files];
+  $("imp-results").innerHTML = `<div class="result info"><b>⏳ جاري رفع ${list.length} ملف...</b></div>`;
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    const f = importForm(false, i === list.length - 1);   // التحليل مرة واحدة بعد آخر ملف
+    if (list.length > 1) f.set("kind", "auto");           // عدة ملفات: كل ملف يُحدد نوعه تلقائيًا
+    f.append("file", list[i], list[i].name);
+    out.push(await sendImport(f));
+  }
+  // إذا فشل آخر ملف فلن يحدث التحليل — نطلبه يدويًا
+  if (!out[out.length - 1].saved && out.some((r) => r.saved)) await fetch("/api/analyze", { method: "POST" });
+  $("imp-results").innerHTML = out.map(resultBox).join("");
+  setBusy(false);
+  $("imp-files").value = "";
+  await loadData();
+}
+
+async function clearAllData() {
+  if (!confirm("سيتم حذف كل ملفات البيانات من مجلد data (التجريبية أو الحقيقية). متأكد؟")) return;
+  setBusy(true);
+  try {
+    const res = await fetch("/api/clear-data", { method: "POST" });
+    const r = await res.json();
+    $("imp-results").innerHTML = `<div class="result info"><b>🗑️ تم حذف ${r.removed} ملف. أدخل بياناتك الحقيقية الآن.</b></div>`;
+  } catch {
+    $("imp-results").innerHTML = resultBox({ ok: false, error: "تعذر الاتصال بالبوت" });
+  }
+  setBusy(false);
+  await loadData();
+}
+
+function renderImportStatus(d) {
+  $("sample-banner").style.display = d.is_sample ? "flex" : "none";
+  $("imp-files-status").innerHTML = Object.values(d.files_status || {}).map((f) =>
+    `<li><span>${f.exists ? "✅" : "⬜"} ${esc(f.label)}</span><span>${f.exists ? `${f.rows} صف` : esc(f.file)}</span></li>`).join("");
+}
+
+function setupImport() {
+  $("btn-preview").addEventListener("click", () => importPasted(true));
+  $("btn-import").addEventListener("click", () => importPasted(false));
+  $("btn-clear").addEventListener("click", clearAllData);
+  const dz = $("dropzone"), input = $("imp-files");
+  dz.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => importFiles(input.files));
+  dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+  dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); importFiles(e.dataTransfer.files); });
+}
+
+/* ═══════════════════════════════════════════════════════════
    الأزرار وبدء التشغيل
    ═══════════════════════════════════════════════════════════ */
 function updateButtons() {
@@ -717,6 +934,7 @@ $("tick-symbol").addEventListener("change", () => { store.set("tickSymbol", $("t
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => renderCharts());
 
 setupTabs();
+setupImport();
 updateButtons();
 loadData().then(() => showTab(store.get("activeTab", "summary")));
 poll();
