@@ -113,4 +113,11 @@ def scan():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    if os.environ.get("OPEN_BROWSER"):
+        import threading
+        import webbrowser
+
+        threading.Timer(1.5, webbrowser.open, [f"http://localhost:{port}"]).start()
+    print(f"Open http://localhost:{port} in your browser")
+    app.run(host="127.0.0.1", port=port)
