@@ -1,11 +1,14 @@
-"""Download company fundamentals from SAHMK into fundamentals.zip.
+"""Download company fundamentals and daily prices from SAHMK into fundamentals.zip.
 
 Run on your own machine (uses SAHMK_API_KEY from .env). Saves the raw API
-responses for financial statements, ratios and dividends of each symbol so
-they can be analysed offline.
+responses for financial statements, ratios, dividends and company info, plus
+daily price history, so they can be analysed offline. Parts already
+downloaded are skipped on later runs.
 """
+import csv
 import json
 import os
+from datetime import date
 import sys
 import zipfile
 
@@ -20,6 +23,7 @@ SYMBOLS = [
     "8010", "2082",  # insurance & utilities
 ]
 HISTORIES = ["max", "10y", "5y", "3y"]  # longest the plan allows wins
+PRICE_STARTS = ["2004-01-01", "2010-01-01", "2015-01-01", "2020-01-01"]
 OUT = "fundamentals"
 
 
@@ -51,7 +55,32 @@ def main():
 
     for i, sym in enumerate(SYMBOLS, 1):
         print(f"[{i}/{len(SYMBOLS)}] {sym}")
+        path = os.path.join(OUT, f"{sym}.json")
         data = {"symbol": sym}
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+
+        if not data.get("company"):
+            data["company"], _ = first_ok("company", [("info", lambda: to_jsonable(client.company(sym)))])
+
+        prices = os.path.join(OUT, f"{sym}_prices.csv")
+        if not os.path.exists(prices):
+            hist, _ = first_ok("prices", [
+                (start, lambda start=start: client.historical(sym, from_date=start, to_date=date.today().isoformat(), interval="1d"))
+                for start in PRICE_STARTS
+            ])
+            if hist is not None:
+                with open(prices, "w", newline="") as f:
+                    w = csv.writer(f)
+                    w.writerow(["Date", "Open", "High", "Low", "Close", "Volume"])
+                    for p in hist.data:
+                        w.writerow([p.date, p.open, p.high, p.low, p.close, p.volume])
+
+        if data.get("financials") and data.get("ratios") and "dividends" in data:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=1, default=str)
+            continue
 
         data["financials"], used = first_ok("financials", [
             (h, lambda h=h: to_jsonable(client.financials(sym, history=h, period="annual"))) for h in HISTORIES
@@ -65,7 +94,7 @@ def main():
 
         data["dividends"], _ = first_ok("dividends", [("all", lambda: to_jsonable(client.dividends(sym)))])
 
-        with open(os.path.join(OUT, f"{sym}.json"), "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1, default=str)
 
     with zipfile.ZipFile("fundamentals.zip", "w", zipfile.ZIP_DEFLATED) as z:
