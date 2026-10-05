@@ -56,18 +56,19 @@ stock_bot/
   python --version
   ```
 
-### 2) تثبيت المكتبات
-افتح Command Prompt داخل مجلد المشروع:
-```
-cd C:\path\to\stock_bot
-pip install -r requirements.txt
-```
-أو مباشرة:
-```
-pip install pandas openpyxl schedule flask plotly watchdog pyyaml
-```
+### 2) تنزيل المشروع إلى جهازك
+- حمّل المشروع كملف ZIP من GitHub (زر **Code ← Download ZIP**) وفك الضغط مثلًا على سطح المكتب.
+- المجلد المهم هو `stock_bot` داخل المجلد المفكوك.
+- **أسهل طريقة:** افتح مجلد `stock_bot` وانقر نقرتين على **`run.bat`** — يثبّت المكتبات ويشغّل البوت تلقائيًا.
 
-### 3) تجربة البوت بالبيانات التجريبية (اختياري)
+### 3) تثبيت المكتبات يدويًا (إذا لم تستخدم run.bat)
+افتح PowerShell **داخل مجلد stock_bot** (افتح المجلد ← اضغط Shift + زر الفأرة الأيمن ← "Open PowerShell window here")، ثم:
+```
+py -m pip install -r requirements.txt
+```
+> استخدم `py -m pip` بدل `pip` — أضمن على Windows إذا كان عندك أكثر من نسخة Python.
+
+### 4) تجربة البوت بالبيانات التجريبية (اختياري)
 المجلد `data/` يحتوي بيانات تجريبية جاهزة لـ 12 سهمًا. لتوليد بيانات جديدة:
 ```
 python sample_data.py
@@ -78,9 +79,9 @@ python sample_data.py --loop 30
 ```
 > ⚠️ هذا الأمر **يستبدل** ملفات `data/` — لا تشغّله على بياناتك الحقيقية.
 
-### 4) تشغيل البوت
+### 5) تشغيل البوت
 ```
-python bot.py
+py bot.py
 ```
 أو انقر نقرتين على **`run.bat`**.
 
@@ -102,7 +103,7 @@ python bot.py
 | `python bot.py --config my.yaml` | استخدام ملف إعدادات آخر |
 | `python dashboard.py` | تشغيل لوحة الويب وحدها لعرض آخر نتائج محفوظة |
 
-### 5) فتح لوحة التحكم
+### 6) فتح لوحة التحكم
 افتح المتصفح على: **http://localhost:8000**
 
 لفتحها من الجوال على نفس شبكة الواي فاي: غيّر في `config.yaml`:
@@ -315,7 +316,9 @@ alerts:
 | المشكلة | الحل |
 |---|---|
 | `'python' is not recognized` | أعد تثبيت Python مع تفعيل "Add Python to PATH"، أو استخدم `py bot.py` |
-| `ModuleNotFoundError` | شغّل `pip install -r requirements.txt` |
+| `ModuleNotFoundError` | شغّل `py -m pip install -r requirements.txt` |
+| `can't open file ...bot.py` | أنت لست داخل مجلد stock_bot — انتقل إليه بالأمر `cd` أولًا |
+| `Fatal error in launcher` عند pip | استخدم `py -m pip` بدل `pip` |
 | "الملف مفتوح في Excel" | أغلق `signals.xlsx` في Excel — Windows يقفل الملف المفتوح. سيتحدث في الدورة القادمة |
 | الفلاتر تظهر "— لا توجد بيانات" | اسم العمود في ملفك مختلف — عدّله في `config.yaml → columns` وراجع تبويب "حالة الملفات" |
 | البوت لا يلتقط التحديثات | إذا كان المجلد على OneDrive أو شبكة: `use_polling: true` |
