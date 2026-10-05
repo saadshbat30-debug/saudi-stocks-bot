@@ -20,6 +20,7 @@
   <nav>
     <a href="{{ url_for('home', symbols=symbols|join(',')) }}">اللوحة</a>
     <a href="{{ url_for('backtest_page', symbols=symbols|join(',')) }}" class="active">الاختبار التاريخي</a>
+    <a href="{{ url_for('portfolio_page') }}">محفظتي</a>
   </nav>
 
   {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}

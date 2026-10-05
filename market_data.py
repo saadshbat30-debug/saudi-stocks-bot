@@ -85,3 +85,32 @@ def analyze(symbol, params=Params()):
         row["last_signal"] = signals[-1] if signals else None
         row["signal_today"] = bool(signals) and signals[-1][0] == close.index[-1]
     return row
+
+
+DIVIDEND_CACHE_SECONDS = 24 * 3600
+
+
+def quotes(symbols):
+    """Prices for many symbols: one batch request (Starter+), else one request each."""
+    symbols = list(symbols)
+    if not symbols:
+        return {}, None
+    batch, _ = cached(
+        "quotes:" + ",".join(sorted(symbols)),
+        CACHE_SECONDS,
+        lambda: {q.symbol: q for q in client().quotes(symbols).quotes},
+    )
+    if batch is not None:
+        return batch, None
+    out, error = {}, None
+    for s in symbols:
+        q, e = quote(s)
+        if q is not None:
+            out[s] = q
+        else:
+            error = e
+    return out, error
+
+
+def dividends(symbol):
+    return cached(f"div:{symbol}", DIVIDEND_CACHE_SECONDS, lambda: client().dividends(symbol))

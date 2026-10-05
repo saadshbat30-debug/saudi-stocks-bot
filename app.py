@@ -2,13 +2,14 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request
+from flask import Flask, redirect, render_template, request, url_for
 import requests
 
 load_dotenv()  # read SAHMK_API_KEY etc. from a local .env file if present
 
 import backtest
 import market_data
+import portfolio
 from strategy import Params
 
 app = Flask(__name__)
@@ -117,6 +118,63 @@ def backtest_page():
     return render_template(
         "backtest.html", results=results, overall=overall, symbols=symbols, rules=rules, notices=notices
     )
+
+
+@app.route("/portfolio")
+def portfolio_page():
+    holdings = portfolio.load()
+    symbols = [h["symbol"] for h in holdings] or portfolio.SUGGESTED
+    quotes, error = market_data.quotes(symbols)
+    prices = {s: q.price for s, q in quotes.items() if q.price}
+    names = {s: q.name for s, q in quotes.items()}
+
+    dividends = {}
+    for h in holdings:
+        d, _ = market_data.dividends(h["symbol"])
+        if d is not None and d.trailing_12m_dividends:
+            dividends[h["symbol"]] = d.trailing_12m_dividends
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض الأسعار.")
+    elif error and not prices:
+        notices.append(f"تعذّر جلب الأسعار: {error}")
+
+    result = portfolio.evaluate(holdings, prices, dividends, names) if holdings else None
+    if result and result["missing_prices"]:
+        notices.append("لا يوجد سعر لهذه الرموز: " + "، ".join(result["missing_prices"]))
+    return render_template(
+        "portfolio.html", result=result, holdings=holdings, notices=notices,
+        suggested_count=len(portfolio.SUGGESTED), saved=request.args.get("saved"),
+    )
+
+
+@app.route("/portfolio/save", methods=["POST"])
+def portfolio_save():
+    holdings = portfolio.parse_form(
+        request.form.getlist("symbol"), request.form.getlist("shares"), request.form.getlist("cost")
+    )
+    portfolio.save(holdings)
+    return redirect(url_for("portfolio_page", saved=1))
+
+
+@app.route("/portfolio/suggested", methods=["POST"])
+def portfolio_suggested():
+    amount = _form_float("amount", 100000.0)
+    quotes, _ = market_data.quotes(portfolio.SUGGESTED)
+    prices = {s: q.price for s, q in quotes.items() if q.price}
+    holdings = portfolio.build_suggested(amount, prices)
+    if holdings:
+        portfolio.save(holdings)
+    return redirect(url_for("portfolio_page", saved=1 if holdings else None))
+
+
+def _form_float(name, default):
+    try:
+        value = float(request.form.get(name, default))
+        return value if value > 0 else default
+    except ValueError:
+        return default
 
 
 @app.route("/health")
