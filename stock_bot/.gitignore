@@ -1,0 +1,5 @@
+# مخرجات البوت (تُنشأ تلقائيًا)
+output/*
+!output/.gitkeep
+__pycache__/
+*.pyc

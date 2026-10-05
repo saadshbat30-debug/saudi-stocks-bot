@@ -1,0 +1,156 @@
+# ═══════════════════════════════════════════════════════════════
+#  إعدادات بوت تحليل الأسهم السعودية
+#  - جميع المسارات نسبية لمجلد المشروع (المجلد الذي فيه bot.py)
+#  - أي مفتاح تحذفه من هنا سيأخذ قيمته الافتراضية من bot.py
+# ═══════════════════════════════════════════════════════════════
+
+data:
+  input_folder: "data/"          # مجلد ملفات CSV المُصدَّرة من تكرتشارت
+  update_interval: 300           # إعادة التحليل الدورية بالثواني (حتى لو لم تتغير الملفات)
+  debounce_seconds: 3            # انتظار بعد آخر تعديل على الملفات قبل التحليل (لأن التصدير يكتب على دفعات)
+  use_polling: false             # اجعلها true إذا كان المجلد على شبكة أو OneDrive ولم يلتقط watchdog التغييرات
+  symbol_column: "الرمز"         # اسم عمود رمز السهم في الملفات
+  name_column: "الاسم"           # اسم عمود اسم السهم
+  default_symbol: ""             # إذا كان ملف (مثل ticks.csv) بدون عمود رمز، يُنسب لهذا السهم
+  encodings: ["utf-8-sig", "cp1256", "utf-16", "utf-8"]   # الترميزات التي تُجرَّب بالترتيب عند القراءة
+  max_raw_rows: 1000             # أقصى عدد صفوف تُعرض من كل ملف خام في لوحة الويب
+  # أسماء الملفات (غيّرها إذا كانت أسماء ملفاتك مختلفة)
+  files:
+    sahmak: "sahmak.csv"
+    liquidity: "liquidity.csv"
+    moving_avg: "moving_avg.csv"
+    aroon_macd: "aroon_macd.csv"
+    breakout: "breakout.csv"
+    rsi_stoch: "rsi_stoch.csv"
+    ichimoku: "ichimoku.csv"
+    ticks: "ticks.csv"
+
+filters:
+  liquidity_threshold: 500000    # فلتر 1: حد صافي السيولة (ريال)
+  big_trade_threshold: 50000     # فلتر 2 و 7: حد الصفقة الكبيرة
+  big_trade_field: "volume"      # volume = مقارنة "حجم آخر" (أسهم) | value = مقارنة "القيمة" (ريال)
+  liquidity_ratio_high: 80       # فلتر 3: نسبة سيولة عالية
+  liquidity_ratio_low: 20        # فلتر 3: نسبة سيولة منخفضة
+  morning_start: "09:30"         # فلتر 4: بداية فترة التجميع الصباحية
+  morning_end: "11:30"           # فلتر 4: نهاية فترة التجميع الصباحية
+  afternoon_start: "14:00"       # فلتر 4: بداية فترة التصريف
+  timing_source: "data"          # data = وقت آخر بيانات في الملف | clock = ساعة الجهاز
+  rsi_overbought: 70             # فلتر 6
+  rsi_oversold: 30               # فلتر 6
+  aroon_strong: 70               # فلتر 9
+  cmf_positive: 0.1              # فلتر 12
+  cmf_negative: -0.1             # فلتر 12
+  stoch_overbought: 80           # فلتر 11
+  stoch_oversold: 20             # فلتر 11
+
+# تصنيف السهم حسب مجموع النقاط (كل فلتر إيجابي +1 وكل فلتر سلبي -1)
+scoring:
+  strong_buy: 4                  # النقاط >= 4  ← 🟢🟢 شراء قوي (يُسجَّل تنبيه)
+  buy: 2                         # النقاط >= 2  ← 🟢 شراء
+  sell: -2                       # النقاط <= -2 ← 🔴 بيع
+  strong_sell: -4                # النقاط <= -4 ← 🔴🔴 بيع قوي (يُسجَّل تنبيه)
+
+output:
+  excel_file: "output/signals.xlsx"
+  alerts_file: "output/alerts.log"
+  json_file: "output/latest.json"   # الملف الذي تقرأ منه لوحة الويب
+  dashboard_port: 8000
+  dashboard_host: "127.0.0.1"       # اجعلها "0.0.0.0" لفتح اللوحة من جوال على نفس الشبكة
+  dashboard_enabled: true           # تشغيل لوحة الويب تلقائيًا مع bot.py
+  open_browser: true                # فتح المتصفح تلقائيًا عند التشغيل
+  dashboard_refresh: 300            # تحديث كامل لصفحة الويب كل كم ثانية
+  dashboard_poll: 20                # فحص سريع لوجود تحديث جديد كل كم ثانية
+  chart_max_stocks: 40              # أقصى عدد أسهم في الرسوم البيانية (الأقوى إشارة أولًا)
+  max_alerts: 300                   # عدد التنبيهات المحفوظة في لوحة الويب و Excel
+
+alerts:
+  sound: true                       # إشعار صوتي على Windows عبر winsound
+  sound_file: "alert.wav"           # إن لم يوجد الملف يُستخدم صوت Windows الافتراضي
+  log_big_trades: true              # تسجيل الصفقات الكبيرة (فلتر 7) كتنبيهات أيضًا
+
+# ═══════════════════════════════════════════════════════════════
+#  ربط أسماء الأعمدة: المفتاح الداخلي ← اسم العمود في ملف CSV
+#  إذا كان اسم العمود عندك مختلفًا عدّله هنا فقط (لا حاجة لتعديل الكود)
+#  يمكن وضع قائمة أسماء بديلة مثل: ["RSI", "RSI 14", "مؤشر القوة النسبية"]
+#  المطابقة لا تتأثر بالمسافات الزائدة ولا بحالة الأحرف الإنجليزية
+# ═══════════════════════════════════════════════════════════════
+columns:
+  sahmak:
+    time: "الوقت"
+    price: "السعر"
+    change_pct: ["التغير %", "التغير%", "نسبة التغير"]
+    trades: "الصفقات"
+    buy_trades: "صفقات الشراء"
+    sell_trades: "صفقات البيع"
+    volume: "الحجم"
+    buy_volume: "حجم الشراء"
+    sell_volume: "حجم البيع"
+    value: "القيمة"
+    buy_value: "قيمة الشراء"
+    sell_value: "قيمة البيع"
+  liquidity:
+    time: "الوقت"
+    buy_volume: "حجم الشراء"
+    buy_value: "قيمة الشراء"
+    buy_trades: "صفقات الشراء"
+    sell_volume: "حجم البيع"
+    sell_value: "قيمة البيع"
+    sell_trades: "صفقات البيع"
+    net_liquidity: "صافي السيولة"
+    liquidity_ratio: ["نسبة السيولة %", "نسبة السيولة%", "نسبة السيولة"]
+  moving_avg:
+    ma_3: "المتوسط 3"
+    ma_5: "المتوسط 5"
+    ma_10: "المتوسط 10"
+    ma_20: "المتوسط 20"
+    ma_50: "المتوسط 50"
+    ma_100: "المتوسط 100"
+    ma_200: "المتوسط 200"
+    positive_signals: "إشارات إيجابية"
+    negative_signals: "إشارات سلبية"
+  aroon_macd:
+    aroon_up: "Aroon Up"
+    aroon_down: "Aroon Down"
+    aroon_osc: "Aroon Oscillator"
+    macd: "MACD"
+    macd_signal: "MACD Signal"
+    macd_hist: "MACD Histogram"
+    sar: "Parabolic SAR"
+    cmf: "CMF"
+    ppo: "PPO"
+    roc: "ROC"
+    eom: "EOM"
+  breakout:
+    breakout_ma10: "اختراق متوسط 10"
+    ma5_cross_ma20: "تقاطع متوسط 5 مع 20"
+    macd_zero: "اختراق MACD للصفر"
+    macd_cross: "تقاطع MACD"
+    stoch_cross: "تقاطع Stochastic"
+    aroon_cross: "تقاطع Aroon"
+    adx_cross: "تقاطع ADX"
+    new_cloud: "غيمة جدية"
+    cloud_breakout: "اختراق الغيمة"
+    kijun_breakout: "اختراق Kijun"
+    tenkan_kijun: "تقاطع Tenken مع Kijun"
+    sar_reversal: "انعكاس Parabolic SAR"
+    gap: "فجوة سعرية"
+  rsi_stoch:
+    rsi: "RSI"
+    stoch_d: "Stochastic D"
+    stoch_k: "Stochastic K"
+    stoch_rsi: "StochRSI"
+    cci: "CCI"
+    mfi: "MFI"
+    wr: ["W%R", "Williams %R"]
+  ichimoku:
+    cloud: "الغيمة"
+    price_vs_cloud: "السعر مع الغيمة"
+    price_vs_kijun: "السعر مع Kijun Sen"
+    tenkan_vs_kijun: "Tenken Sen مع Kijun Sen"
+  ticks:
+    time: "الوقت"
+    last_volume: "حجم آخر"
+    price: "السعر"
+    value: "القيمة"
+    direction: "الاتجاه"
+    count: "العدد"
