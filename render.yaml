@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: saudi-stocks-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    # One worker so the alert scheduler runs once; threads handle concurrent updates.
+    startCommand: gunicorn wsgi:app --workers 1 --threads 4 --timeout 60
+    envVars:
+      - key: SAHMK_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OWNER_CHAT_ID
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
