@@ -85,7 +85,7 @@
     </div>
     <div class="card stat"><div class="label">شركات مرتفعة</div><div class="value up">{{ summary.advancing or 0 }}</div></div>
     <div class="card stat"><div class="label">شركات منخفضة</div><div class="value down">{{ summary.declining or 0 }}</div></div>
-    <div class="card stat"><div class="label">مزاج السوق</div><div class="value">{{ moods.get(summary.market_mood, summary.market_mood) or "—" }}</div></div>
+    <div class="card stat"><div class="label">مزاج السوق</div><div class="value">{{ moods.get((summary.market_mood or "")|lower, summary.market_mood) or "—" }}</div></div>
   </section>
   {% endif %}
 
