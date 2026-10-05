@@ -1,8 +1,11 @@
 import os
 from datetime import datetime, timedelta, timezone
 
+from dotenv import load_dotenv
 from flask import Flask, render_template, request
 import requests
+
+load_dotenv()  # read SAHMK_API_KEY etc. from a local .env file if present
 
 import market_data
 from strategy import Params

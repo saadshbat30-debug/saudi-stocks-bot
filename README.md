@@ -7,9 +7,11 @@
 
 ```bash
 pip install -r requirements.txt
-export SAHMK_API_KEY=shmk_live_...
-python app.py   # ثم افتح http://localhost:5000
+cp .env.example .env   # ثم ضع مفتاحك في ملف .env
+python app.py          # ثم افتح http://localhost:5000
 ```
+
+ملف `.env` لا يُرفع إلى GitHub.
 
 على Render: أمر التشغيل `gunicorn wsgi:app`، وأضف المتغيرات في Environment.
 
