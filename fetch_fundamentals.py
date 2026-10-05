@@ -8,7 +8,7 @@ downloaded are skipped on later runs.
 import csv
 import json
 import os
-from datetime import date
+from datetime import date, timedelta
 import sys
 import zipfile
 
@@ -23,7 +23,8 @@ SYMBOLS = [
     "8010", "2082",  # insurance & utilities
 ]
 HISTORIES = ["max", "10y", "5y", "3y"]  # longest the plan allows wins
-PRICE_STARTS = ["2004-01-01", "2010-01-01", "2015-01-01", "2020-01-01"]
+PRICE_START = date(2004, 1, 1)
+PRICE_CHUNK_DAYS = 600  # the API returns at most ~500 bars per request
 OUT = "fundamentals"
 
 
@@ -37,6 +38,36 @@ def first_ok(label, calls):
             errors.append(f"{name}: {e}")
     print(f"    {label}: failed ({'; '.join(errors[-2:])})")
     return None, None
+
+
+def prices_complete(path):
+    """True if the file exists and reaches the last two weeks."""
+    if not os.path.exists(path):
+        return False
+    with open(path) as f:
+        last = f.read().strip().splitlines()[-1].split(",")[0]
+    try:
+        return date.fromisoformat(last) >= date.today() - timedelta(days=14)
+    except ValueError:
+        return False
+
+
+def fetch_prices(client, sym):
+    """Daily bars from PRICE_START to today, fetched in chunks."""
+    rows, start, today = {}, PRICE_START, date.today()
+    while start <= today:
+        end = min(start + timedelta(days=PRICE_CHUNK_DAYS), today)
+        try:
+            hist = client.historical(sym, from_date=start.isoformat(), to_date=end.isoformat(), interval="1d")
+            for p in hist.data:
+                rows[p.date] = [p.date, p.open, p.high, p.low, p.close, p.adjusted_close, p.volume]
+        except SahmkError as e:
+            if getattr(e, "status_code", None) == 403 and not rows:
+                start = end + timedelta(days=1)  # range before the plan's limit; move on
+                continue
+            print(f"    prices {start}..{end}: {e}")
+        start = end + timedelta(days=1)
+    return [rows[d] for d in sorted(rows)]
 
 
 def to_jsonable(obj):
@@ -65,17 +96,14 @@ def main():
             data["company"], _ = first_ok("company", [("info", lambda: to_jsonable(client.company(sym)))])
 
         prices = os.path.join(OUT, f"{sym}_prices.csv")
-        if not os.path.exists(prices):
-            hist, _ = first_ok("prices", [
-                (start, lambda start=start: client.historical(sym, from_date=start, to_date=date.today().isoformat(), interval="1d"))
-                for start in PRICE_STARTS
-            ])
-            if hist is not None:
+        if not prices_complete(prices):
+            rows = fetch_prices(client, sym)
+            if rows:
                 with open(prices, "w", newline="") as f:
                     w = csv.writer(f)
-                    w.writerow(["Date", "Open", "High", "Low", "Close", "Volume"])
-                    for p in hist.data:
-                        w.writerow([p.date, p.open, p.high, p.low, p.close, p.volume])
+                    w.writerow(["Date", "Open", "High", "Low", "Close", "AdjClose", "Volume"])
+                    w.writerows(rows)
+                print(f"    prices: {len(rows)} days from {rows[0][0]}")
 
         if data.get("financials") and data.get("ratios") and "dividends" in data:
             with open(path, "w", encoding="utf-8") as f:
