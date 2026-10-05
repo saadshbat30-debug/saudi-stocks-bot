@@ -49,10 +49,15 @@
    - `OWNER_CHAT_ID` (اختياري)
 
 ### التشغيل محلياً (بدون سيرفر)
+السكربت ينشئ بيئة معزولة `.venv` داخل مجلد البوت، فلا يغيّر مكتبات Python لمشاريعك الأخرى. ويقرأ المفاتيح من ملف `.env`.
+
+ويندوز:
+```powershell
+powershell -ExecutionPolicy Bypass -File start.ps1
+```
+لينكس/ماك:
 ```bash
-pip install -r requirements.txt
-export SAHMK_API_KEY=... TELEGRAM_BOT_TOKEN=...
-python run_polling.py
+./start.sh
 ```
 
 ### النشر على Render

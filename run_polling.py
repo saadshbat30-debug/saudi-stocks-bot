@@ -10,6 +10,13 @@ def main():
     missing = config.missing_settings()
     if missing:
         raise SystemExit(f"Set these environment variables first: {', '.join(missing)}")
+    try:
+        me = telegram.get_me()
+    except Exception as exc:
+        raise SystemExit(f"Cannot reach Telegram - check your internet connection. ({type(exc).__name__})")
+    if not me.get("ok"):
+        raise SystemExit("TELEGRAM_BOT_TOKEN is wrong - copy it again from @BotFather.")
+    logging.info("Connected as @%s", me["result"].get("username"))
     telegram.delete_webhook()
     telegram.set_commands(handlers.COMMANDS)
     scheduler.start()

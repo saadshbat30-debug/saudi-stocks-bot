@@ -51,3 +51,7 @@ def get_updates(offset=None, timeout=50):
 
 def set_commands(commands):
     return _call("setMyCommands", commands=[{"command": c, "description": d} for c, d in commands])
+
+
+def get_me():
+    return _call("getMe")
