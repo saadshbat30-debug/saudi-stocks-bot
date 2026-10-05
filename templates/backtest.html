@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الاختبار التاريخي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>الاختبار التاريخي</h1>
+      <div class="muted">ماذا لو اتبعت إشارات الاستراتيجية خلال السنة الماضية؟ شراء فقط، بأسعار الإغلاق اليومية</div>
+    </div>
+  </header>
+
+  <nav>
+    <a href="{{ url_for('home', symbols=symbols|join(',')) }}">اللوحة</a>
+    <a href="{{ url_for('backtest_page', symbols=symbols|join(',')) }}" class="active">الاختبار التاريخي</a>
+  </nav>
+
+  {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
+
+  <section class="card">
+    <form method="get">
+      <input type="text" name="symbols" value="{{ symbols|join(',') }}" placeholder="2222,1120,2010" aria-label="رموز الأسهم">
+      <label class="muted">هدف الربح % <input type="number" step="0.5" min="0.5" name="tp" value="{{ rules.take_profit_pct }}"></label>
+      <label class="muted">وقف الخسارة % <input type="number" step="0.5" min="0.5" name="sl" value="{{ rules.stop_loss_pct }}"></label>
+      <label class="muted">أقصى مدة (أيام) <input type="number" min="1" name="days" value="{{ rules.max_hold_days }}"></label>
+      <button type="submit">اختبر</button>
+    </form>
+
+    {% if overall %}
+    <div class="grid stats section-gap">
+      <div class="stat"><div class="label">عدد الصفقات</div><div class="value num">{{ overall.count }}</div></div>
+      <div class="stat"><div class="label">نسبة الصفقات الرابحة</div><div class="value num">{{ "{:.0f}".format(overall.win_rate) if overall.win_rate is not none else "—" }}%</div></div>
+      <div class="stat"><div class="label">متوسط ربح الصفقة</div>
+        <div class="value num {{ 'up' if (overall.avg_return or 0) >= 0 else 'down' }}">{{ "{:+.2f}".format(overall.avg_return) if overall.avg_return is not none else "—" }}%</div></div>
+    </div>
+    {% endif %}
+
+    <div class="table-wrap section-gap">
+    <table>
+      <thead><tr>
+        <th>السهم</th><th>الصفقات</th><th>الرابحة</th><th>متوسط الصفقة</th><th>عائد الاستراتيجية</th><th>عائد الشراء والاحتفاظ</th>
+      </tr></thead>
+      <tbody>
+      {% for r in results %}
+        <tr>
+          <td><strong>{{ r.symbol }}</strong></td>
+          {% if r.error %}
+            <td colspan="5" class="muted">{{ r.error }}</td>
+          {% else %}
+            <td class="num">{{ r.count }}</td>
+            <td class="num">{{ r.wins }}{% if r.win_rate is not none %} ({{ "{:.0f}".format(r.win_rate) }}%){% endif %}</td>
+            <td class="num {{ 'up' if (r.avg_return or 0) >= 0 else 'down' }}">{{ "{:+.2f}%".format(r.avg_return) if r.avg_return is not none else "—" }}</td>
+            <td class="num {{ 'up' if r.total_return >= 0 else 'down' }}"><strong>{{ "{:+.1f}%".format(r.total_return) }}</strong></td>
+            <td class="num {{ 'up' if (r.buy_hold or 0) >= 0 else 'down' }}">{{ "{:+.1f}%".format(r.buy_hold) if r.buy_hold is not none else "—" }}</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  {% for r in results if r.trades %}
+  <details class="card section-gap">
+    <summary><strong>{{ r.symbol }}</strong> · تفاصيل {{ r.trades|length }} صفقة</summary>
+    <div class="table-wrap section-gap">
+    <table>
+      <thead><tr><th>الدخول</th><th>سعر الدخول</th><th>الخروج</th><th>سعر الخروج</th><th>النتيجة</th><th>سبب الخروج</th></tr></thead>
+      <tbody>
+      {% for t in r.trades %}
+        <tr>
+          <td class="num">{{ t.entry_date.strftime("%Y-%m-%d") }}</td>
+          <td class="num">{{ "{:.2f}".format(t.entry_price) }}</td>
+          <td class="num">{{ t.exit_date.strftime("%Y-%m-%d") }}</td>
+          <td class="num">{{ "{:.2f}".format(t.exit_price) }}</td>
+          <td class="num {{ 'up' if t.return_pct >= 0 else 'down' }}">{{ "{:+.2f}%".format(t.return_pct) }}</td>
+          <td>{{ t.reason }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+  {% endfor %}
+
+  <p class="muted section-gap">
+    "عائد الاستراتيجية" هو العائد المركّب لكل الصفقات بالتتابع، و"الشراء والاحتفاظ" هو لو اشتريت السهم أول السنة واحتفظت به.
+    الاختبار لا يحسب العمولات، ونتائج الماضي لا تضمن المستقبل.
+  </p>
+</main>
+</body>
+</html>

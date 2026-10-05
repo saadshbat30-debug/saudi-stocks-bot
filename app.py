@@ -7,6 +7,7 @@ import requests
 
 load_dotenv()  # read SAHMK_API_KEY etc. from a local .env file if present
 
+import backtest
 import market_data
 from strategy import Params
 
@@ -78,6 +79,43 @@ def home():
         params=PARAMS,
         moods=MOODS,
         now=datetime.now(RIYADH).strftime("%Y-%m-%d %H:%M"),
+    )
+
+
+def float_arg(name, default):
+    try:
+        value = float(request.args.get(name, default))
+        return value if value > 0 else default
+    except ValueError:
+        return default
+
+
+@app.route("/backtest")
+def backtest_page():
+    symbols = parse_symbols(request.args.get("symbols", DEFAULT_SYMBOLS))
+    rules = backtest.Rules(
+        take_profit_pct=float_arg("tp", 6.0),
+        stop_loss_pct=float_arg("sl", 3.0),
+        max_hold_days=int(float_arg("days", 20)),
+    )
+
+    results = []
+    for symbol in symbols:
+        close, error = market_data.closes(symbol)
+        if close is None or len(close) <= PARAMS.periods:
+            results.append({"symbol": symbol, "error": error or "لا تتوفر بيانات كافية", "trades": []})
+        else:
+            results.append({"symbol": symbol, "error": None, **backtest.run(close, PARAMS, rules)})
+
+    all_trades = [t for r in results for t in r["trades"]]
+    overall = backtest.summarize(all_trades, []) if all_trades else None
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض البيانات.")
+
+    return render_template(
+        "backtest.html", results=results, overall=overall, symbols=symbols, rules=rules, notices=notices
     )
 
 
