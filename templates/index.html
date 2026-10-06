@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>رادار الأسهم السعودية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>رادار الأسهم السعودية</h1>
+      <div class="muted">استراتيجية اختراق بولينجر باندز مع فلتر RSI · البيانات من سهمك</div>
+    </div>
+    <div class="muted">آخر تحديث: {{ now }}{% if summary and summary.is_delayed %} · الأسعار متأخرة 15 دقيقة{% endif %}</div>
+  </header>
+
+  <nav>
+    <a href="{{ url_for('home', symbols=symbols|join(',')) }}" class="active">اللوحة</a>
+    <a href="{{ url_for('backtest_page', symbols=symbols|join(',')) }}">الاختبار التاريخي</a>
+    <a href="{{ url_for('portfolio_page') }}">محفظتي</a>
+    <a href="{{ url_for('lab_page') }}">المختبر</a>
+  </nav>
+
+  {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
+
+  {% if summary %}
+  <section class="grid stats">
+    <div class="card stat">
+      <div class="label">مؤشر {{ summary.index or "تاسي" }}</div>
+      <div class="value num">{{ "{:,.2f}".format(summary.index_value or 0) }}</div>
+      <div class="num {{ 'up' if (summary.index_change_percent or 0) >= 0 else 'down' }}">{{ "{:+.2f}".format(summary.index_change_percent or 0) }}%</div>
+    </div>
+    <div class="card stat"><div class="label">شركات مرتفعة</div><div class="value up">{{ summary.advancing or 0 }}</div></div>
+    <div class="card stat"><div class="label">شركات منخفضة</div><div class="value down">{{ summary.declining or 0 }}</div></div>
+    <div class="card stat"><div class="label">مزاج السوق</div><div class="value">{{ moods.get((summary.market_mood or "")|lower, summary.market_mood) or "—" }}</div></div>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>قائمة المتابعة</h2>
+    <form method="get">
+      <input type="text" name="symbols" value="{{ symbols|join(',') }}" placeholder="2222,1120,2010" aria-label="رموز الأسهم">
+      <button type="submit">تحديث</button>
+    </form>
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>السهم</th><th>السعر</th><th>التغير</th><th>RSI</th><th>عرض الحزمة</th><th>الإشارة</th><th>آخر إشارة</th>
+      </tr></thead>
+      <tbody>
+      {% for row in rows %}
+        {% set q = row.quote %}
+        <tr>
+          <td><strong>{{ row.symbol }}</strong>{% if q and q.name %} <span class="muted">{{ q.name }}</span>{% endif %}</td>
+          {% if q %}
+            <td class="num">{{ "{:.2f}".format(q.price or 0) }}</td>
+            <td class="num {{ 'up' if (q.change_percent or 0) >= 0 else 'down' }}">{{ "{:+.2f}".format(q.change_percent or 0) }}%</td>
+          {% else %}
+            <td colspan="2" class="muted">{{ row.error or "—" }}</td>
+          {% endif %}
+          {% if row.state %}
+            <td class="num">{{ "{:.1f}".format(row.state.rsi) }}</td>
+            <td class="num">{{ "{:.1f}".format(row.state.width_pct) }}%</td>
+            <td>
+              {% if row.signal_today and row.last_signal[1] == "BUY" %}<span class="badge buy">اختراق صاعد</span>
+              {% elif row.signal_today %}<span class="badge sell">كسر هابط</span>
+              {% elif row.state.squeeze %}<span class="badge squeeze">انضغاط</span>
+              {% else %}<span class="badge none">لا شيء</span>{% endif %}
+            </td>
+            <td class="muted">
+              {% if row.last_signal %}{{ "صعود" if row.last_signal[1] == "BUY" else "هبوط" }} · {{ row.last_signal[0].strftime("%Y-%m-%d") }}{% else %}—{% endif %}
+            </td>
+          {% else %}
+            <td colspan="4" class="muted">—</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="grid movers">
+    {% for title, items, cls in [("الأكثر ارتفاعاً", gainers, "up"), ("الأكثر انخفاضاً", losers, "down")] %}
+    <div class="card">
+      <h2>{{ title }}</h2>
+      {% if items %}
+      <ul>
+        {% for s in items %}
+        <li><span><strong>{{ s.symbol }}</strong> <span class="muted">{{ s.name or "" }}</span></span>
+            <span class="num {{ cls }}">{{ "{:+.2f}".format(s.change_percent or 0) }}%</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="muted">لا تتوفر بيانات</div>{% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <details>
+    <summary>إعدادات الاستراتيجية</summary>
+    <p class="muted">
+      بولينجر: {{ params.periods }} شمعة يومية، انحراف {{ params.deviations }}، متوسط {{ params.ma_type }} ·
+      الانضغاط عندما يكون عرض الحزمة ≤ {{ params.max_band_width_pct }}% ·
+      RSI {{ params.rsi_period }} ويجب أن يكون بين {{ params.rsi_oversold }} و{{ params.rsi_overbought }}.
+      هذه أداة تحليل وليست توصية استثمارية.
+    </p>
+  </details>
+</main>
+</body>
+</html>

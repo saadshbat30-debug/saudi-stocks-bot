@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محفظتي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>محفظتي</h1>
+      <div class="muted">توزيع متساوٍ على شركات من قطاعات مختلفة، وإعادة توازن مرة في السنة</div>
+    </div>
+  </header>
+
+  <nav>
+    <a href="{{ url_for('home') }}">اللوحة</a>
+    <a href="{{ url_for('backtest_page') }}">الاختبار التاريخي</a>
+    <a href="{{ url_for('portfolio_page') }}" class="active">محفظتي</a>
+    <a href="{{ url_for('lab_page') }}">المختبر</a>
+  </nav>
+
+  {% for msg in notices %}<div class="notice">{{ msg }}</div>{% endfor %}
+  {% if saved %}<div class="notice ok">تم حفظ المحفظة.</div>{% endif %}
+
+  {% if result %}
+  <section class="grid stats">
+    <div class="card stat"><div class="label">قيمة المحفظة الآن</div><div class="value num">{{ "{:,.0f}".format(result.total_value) }}</div></div>
+    <div class="card stat"><div class="label">المبلغ المدفوع</div><div class="value num">{{ "{:,.0f}".format(result.total_cost) }}</div></div>
+    <div class="card stat"><div class="label">الربح / الخسارة</div>
+      {% if result.pnl is not none %}
+      <div class="value num {{ 'up' if result.pnl >= 0 else 'down' }}">{{ "{:+,.0f}".format(result.pnl) }}</div>
+      <div class="num {{ 'up' if result.pnl >= 0 else 'down' }}">{{ "{:+.2f}".format(result.pnl_pct) }}%</div>
+      {% else %}<div class="value">—</div>{% endif %}
+    </div>
+    <div class="card stat"><div class="label">التوزيعات المتوقعة سنوياً</div>
+      <div class="value num up">{{ "{:,.0f}".format(result.dividends) }}</div>
+      <div class="muted">حسب توزيعات آخر 12 شهراً</div>
+    </div>
+  </section>
+
+  <section class="card section-gap">
+    <h2>إعادة التوازن</h2>
+    {% if result.needs_rebalance %}
+      <div class="notice">بعض الأسهم ابتعدت كثيراً عن حصتها ({{ "{:.1f}".format(result.target_weight * 100) }}% لكل سهم). راجع عمود "للتوازن" في الجدول.</div>
+    {% elif result.rebalance_due %}
+      <div class="notice">هذا شهر إعادة التوازن السنوي. راجع عمود "للتوازن" في الجدول.</div>
+    {% else %}
+      <p class="muted">المحفظة متوازنة. إعادة التوازن القادمة: <strong class="num">{{ result.next_rebalance.strftime("%Y-%m-%d") }}</strong></p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="card section-gap">
+    <h2>{{ "الأسهم" if holdings else "ابدأ محفظتك" }}</h2>
+    {% if not holdings %}
+      <p class="muted">أنشئ المحفظة المقترحة ({{ suggested_count }} شركة بمبالغ متساوية حسب أسعار اليوم)، أو أضف أسهمك يدوياً في الجدول بالأسفل.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('portfolio_suggested') }}" class="section-gap"
+          {% if holdings %}onsubmit="return confirm('سيتم استبدال محفظتك الحالية بالمحفظة المقترحة. متأكد؟')"{% endif %}>
+      <label class="muted">المبلغ <input type="number" name="amount" min="1000" step="1000" value="100000" style="width:130px"></label>
+      <button type="submit">{{ "استبدلها بالمحفظة المقترحة" if holdings else "أنشئ المحفظة المقترحة" }}</button>
+    </form>
+
+    <form method="post" action="{{ url_for('portfolio_save') }}">
+      <div class="table-wrap section-gap">
+      <table>
+        <thead><tr>
+          <th>الرمز</th><th>الاسم</th><th>عدد الأسهم</th><th>سعر الشراء</th><th>السعر الآن</th><th>القيمة</th>
+          <th>الربح</th><th>الحصة</th><th>للتوازن</th><th>توزيعات/سنة</th>
+        </tr></thead>
+        <tbody>
+        {% for r in (result.rows if result else []) %}
+          <tr>
+            <td><input type="text" name="symbol" value="{{ r.symbol }}" class="cell" aria-label="الرمز"></td>
+            <td class="muted">{{ r.name or "" }}</td>
+            <td><input type="number" name="shares" value="{{ r.shares }}" min="0" class="cell" aria-label="عدد الأسهم"></td>
+            <td><input type="number" name="cost" value="{{ r.cost }}" min="0" step="0.01" class="cell" aria-label="سعر الشراء"></td>
+            <td class="num">{{ "{:.2f}".format(r.price) if r.price else "—" }}</td>
+            <td class="num">{{ "{:,.0f}".format(r.value) if r.value is not none else "—" }}</td>
+            <td class="num {{ 'up' if (r.pnl or 0) >= 0 else 'down' }}">{{ "{:+.1f}%".format(r.pnl_pct) if r.pnl_pct is not none else "—" }}</td>
+            <td class="num {{ 'down' if r.drift is not none and r.drift|abs > 1/3 else '' }}">{{ "{:.1f}%".format(r.weight * 100) if r.weight is not none else "—" }}</td>
+            <td class="num">
+              {% if r.trade %}<span class="{{ 'up' if r.trade > 0 else 'down' }}">{{ "اشترِ" if r.trade > 0 else "بِع" }} {{ r.trade|abs }}</span>{% else %}—{% endif %}
+            </td>
+            <td class="num">{{ "{:,.0f}".format(r.dividend) if r.dividend else "—" }}</td>
+          </tr>
+        {% endfor %}
+        {% for i in range(3) %}
+          <tr>
+            <td><input type="text" name="symbol" placeholder="رمز جديد" class="cell" aria-label="رمز جديد"></td>
+            <td></td>
+            <td><input type="number" name="shares" min="0" class="cell" aria-label="عدد الأسهم"></td>
+            <td><input type="number" name="cost" min="0" step="0.01" class="cell" aria-label="سعر الشراء"></td>
+            <td colspan="6"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <p class="muted">عدّل الأعداد أو أسعار الشراء حسب ما اشتريته فعلاً، أو ضع 0 لحذف سهم، ثم احفظ.</p>
+      <button type="submit">احفظ التعديلات</button>
+    </form>
+  </section>
+
+  <p class="muted section-gap">
+    هذه أداة متابعة وليست توصية استثمارية. التوزيعات المتوقعة تقدير من توزيعات آخر سنة وقد تتغير.
+    المحفظة محفوظة على جهازك في ملف portfolio.json.
+  </p>
+</main>
+</body>
+</html>

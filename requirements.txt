@@ -1,2 +1,6 @@
 Flask==2.3.3
 requests==2.31.0
+pandas>=2.0
+sahmk>=0.16
+gunicorn>=21.2
+python-dotenv>=1.0

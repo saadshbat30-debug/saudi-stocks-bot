@@ -1,25 +1,238 @@
-from flask import Flask
+import os
+from datetime import datetime, timedelta, timezone
+
+from dotenv import load_dotenv
+from flask import Flask, redirect, render_template, request, url_for
 import requests
+
+load_dotenv()  # read SAHMK_API_KEY etc. from a local .env file if present
+
+import backtest
+import lab
+import market_data
+import portfolio
+from strategy import Params
 
 app = Flask(__name__)
 
-BOT_TOKEN = "8493081055:AAG5aH7h6kbBjBEXEC_4-dHhqNRINh7iw0U"
-CHAT_ID = "8476329457"
+# Telegram is optional; the web page works without it.
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+CHAT_ID = os.environ.get("CHAT_ID") or os.environ.get("OWNER_CHAT_ID", "")
+
+# Aramco, Al Rajhi, SABIC, STC, SNB, ACWA
+DEFAULT_SYMBOLS = os.environ.get("SYMBOLS", "2222,1120,2010,7010,1180,2082")
+MAX_SYMBOLS = 10  # keep within the free plan's daily request quota
+
+PARAMS = Params(
+    periods=int(os.environ.get("BB_PERIODS", 20)),
+    deviations=float(os.environ.get("BB_DEVIATIONS", 2.0)),
+    ma_type=os.environ.get("BB_MA_TYPE", "wilder"),
+    max_band_width_pct=float(os.environ.get("BB_MAX_WIDTH_PCT", 8.0)),
+    consolidation_periods=int(os.environ.get("CONSOLIDATION_PERIODS", 1)),
+    rsi_period=int(os.environ.get("RSI_PERIOD", 14)),
+    rsi_overbought=float(os.environ.get("RSI_OVERBOUGHT", 70)),
+    rsi_oversold=float(os.environ.get("RSI_OVERSOLD", 30)),
+)
+
+RIYADH = timezone(timedelta(hours=3))
+MOODS = {"bullish": "إيجابي", "bearish": "سلبي", "neutral": "محايد"}
+
+
+def parse_symbols(text):
+    symbols = [s.strip().upper().removesuffix(".SR") for s in text.split(",") if s.strip()]
+    return list(dict.fromkeys(symbols))[:MAX_SYMBOLS]
+
+
+def send_telegram(text):
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={"chat_id": CHAT_ID, "text": text},
+        timeout=10,
+    ).raise_for_status()
+
 
 @app.route("/")
 def home():
+    symbols = parse_symbols(request.args.get("symbols", DEFAULT_SYMBOLS))
+    rows = [market_data.analyze(s, PARAMS) for s in symbols]
+    summary, summary_error = market_data.market_summary()
+    gainers, _ = market_data.movers("gainers")
+    losers, _ = market_data.movers("losers")
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض البيانات.")
+    elif summary_error:
+        notices.append(f"تعذّر جلب بيانات السوق: {summary_error}")
+    if os.environ.get("SAHMK_API_KEY") and any(r["history_error"] for r in rows):
+        notices.append(
+            "إشارات بولينجر وRSI تحتاج البيانات التاريخية، وهي متاحة من باقة Starter في سهمك. "
+            "الأسعار وحركة السوق تعمل على الباقة المجانية."
+        )
+
+    return render_template(
+        "index.html",
+        rows=rows,
+        symbols=symbols,
+        summary=summary,
+        gainers=gainers,
+        losers=losers,
+        notices=notices,
+        params=PARAMS,
+        moods=MOODS,
+        now=datetime.now(RIYADH).strftime("%Y-%m-%d %H:%M"),
+    )
+
+
+def float_arg(name, default):
+    try:
+        value = float(request.args.get(name, default))
+        return value if value > 0 else default
+    except ValueError:
+        return default
+
+
+@app.route("/backtest")
+def backtest_page():
+    symbols = parse_symbols(request.args.get("symbols", DEFAULT_SYMBOLS))
+    rules = backtest.Rules(
+        take_profit_pct=float_arg("tp", 6.0),
+        stop_loss_pct=float_arg("sl", 3.0),
+        max_hold_days=int(float_arg("days", 20)),
+    )
+
+    results = []
+    for symbol in symbols:
+        close, error = market_data.closes(symbol)
+        if close is None or len(close) <= PARAMS.periods:
+            results.append({"symbol": symbol, "error": error or "لا تتوفر بيانات كافية", "trades": []})
+        else:
+            results.append({"symbol": symbol, "error": None, **backtest.run(close, PARAMS, rules)})
+
+    all_trades = [t for r in results for t in r["trades"]]
+    overall = backtest.summarize(all_trades, []) if all_trades else None
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض البيانات.")
+
+    return render_template(
+        "backtest.html", results=results, overall=overall, symbols=symbols, rules=rules, notices=notices
+    )
+
+
+@app.route("/portfolio")
+def portfolio_page():
+    holdings = portfolio.load()
+    symbols = [h["symbol"] for h in holdings] or portfolio.SUGGESTED
+    quotes, error = market_data.quotes(symbols)
+    prices = {s: q.price for s, q in quotes.items() if q.price}
+    names = {s: q.name for s, q in quotes.items()}
+
+    dividends = {}
+    for h in holdings:
+        d, _ = market_data.dividends(h["symbol"])
+        if d is not None and d.trailing_12m_dividends:
+            dividends[h["symbol"]] = d.trailing_12m_dividends
+
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY لعرض الأسعار.")
+    elif error and not prices:
+        notices.append(f"تعذّر جلب الأسعار: {error}")
+
+    result = portfolio.evaluate(holdings, prices, dividends, names) if holdings else None
+    if result and result["missing_prices"]:
+        notices.append("لا يوجد سعر لهذه الرموز: " + "، ".join(result["missing_prices"]))
+    return render_template(
+        "portfolio.html", result=result, holdings=holdings, notices=notices,
+        suggested_count=len(portfolio.SUGGESTED), saved=request.args.get("saved"),
+    )
+
+
+@app.route("/portfolio/save", methods=["POST"])
+def portfolio_save():
+    holdings = portfolio.parse_form(
+        request.form.getlist("symbol"), request.form.getlist("shares"), request.form.getlist("cost")
+    )
+    portfolio.save(holdings)
+    return redirect(url_for("portfolio_page", saved=1))
+
+
+@app.route("/portfolio/suggested", methods=["POST"])
+def portfolio_suggested():
+    amount = _form_float("amount", 100000.0)
+    quotes, _ = market_data.quotes(portfolio.SUGGESTED)
+    prices = {s: q.price for s, q in quotes.items() if q.price}
+    holdings = portfolio.build_suggested(amount, prices)
+    if holdings:
+        portfolio.save(holdings)
+    return redirect(url_for("portfolio_page", saved=1 if holdings else None))
+
+
+def _form_float(name, default):
+    try:
+        value = float(request.form.get(name, default))
+        return value if value > 0 else default
+    except ValueError:
+        return default
+
+
+@app.route("/lab")
+def lab_page():
+    results = lab.outcomes()
+    notices = []
+    if not os.environ.get("SAHMK_API_KEY"):
+        notices.append("أضف مفتاح سهمك في المتغير SAHMK_API_KEY ليبدأ التسجيل.")
+    if lab.status["last_error"]:
+        notices.append("آخر خطأ في التسجيل: " + lab.status["last_error"])
+    return render_template(
+        "lab.html", status=lab.status, overview=lab.today_overview(), summary=lab.summary(results),
+        signals=list(reversed(results))[:60], filters=lab.FILTERS, version=lab.VERSION,
+        min_signals=lab.MIN_SIGNALS_FOR_VERDICT, notices=notices, now=datetime.now(RIYADH),
+    )
+
+
+@app.route("/health")
+def health():
     return "🟢 SYSTEM WORKING! ✅ - Saudi Stocks Bot"
+
 
 @app.route("/test")
 def test():
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={"chat_id": CHAT_ID, "text": "✅ TEST FROM RENDER"}
-        )
+        send_telegram("✅ TEST FROM RENDER")
         return "✅ TEST SENT TO BOT!"
-    except:
+    except Exception:
         return "❌ ERROR SENDING TEST"
 
+
+@app.route("/scan")
+def scan():
+    symbols = parse_symbols(DEFAULT_SYMBOLS)
+    alerts = []
+    for row in (market_data.analyze(s, PARAMS) for s in symbols):
+        if row.get("signal_today"):
+            _, side, price, r = row["last_signal"]
+            label = "🟢 اختراق صاعد" if side == "BUY" else "🔴 كسر هابط"
+            alerts.append(f"{label} {row['symbol']}\nالسعر: {price:.2f}\nRSI: {r:.1f}")
+    try:
+        if alerts:
+            send_telegram("📊 إشارات Bollinger + RSI\n\n" + "\n\n".join(alerts))
+    except Exception as e:
+        return f"❌ TELEGRAM ERROR: {e}", 500
+    return f"✅ SCANNED {len(symbols)} SYMBOLS, {len(alerts)} SIGNALS"
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    if os.environ.get("OPEN_BROWSER"):
+        import threading
+        import webbrowser
+
+        threading.Timer(1.5, webbrowser.open, [f"http://localhost:{port}"]).start()
+    if os.environ.get("LAB_ENABLED", "1") == "1" and os.environ.get("SAHMK_API_KEY"):
+        lab.start_background()
+        print("Liquidity lab recorder: on (records during market hours)")
+    print(f"Open http://localhost:{port} in your browser")
+    app.run(host="127.0.0.1", port=port)
