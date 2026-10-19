@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} — منصة الأسهم{% endblock %}
+{% block content %}
+<a href="/market/{{ market_id }}" class="muted">→ رجوع إلى {{ market.title }}</a>
+<h2 style="margin:12px 0 4px">{{ name }} <span class="muted ltr">{{ symbol }}</span></h2>
+<div style="height:70vh;min-height:420px;margin-top:12px">
+  <div class="tradingview-widget-container" style="height:100%">
+    <div id="tv_chart" style="height:100%"></div>
+  </div>
+</div>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+new TradingView.widget({
+  container_id: "tv_chart",
+  symbol: {{ tv_symbol|tojson }},
+  autosize: true,
+  interval: "D",
+  timezone: "Asia/Riyadh",
+  theme: "dark",
+  style: "1",
+  locale: "ar_AE",
+  allow_symbol_change: true,
+});
+</script>
+{% endblock %}

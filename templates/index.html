@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ market.title }} — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:block; transition:border-color .2s; }
+  .card:hover { border-color:var(--accent); }
+  .name { font-weight:600; }
+  .price { font-size:24px; font-weight:700; margin:8px 0 2px; }
+  .flash { animation:flash .8s; }
+  @keyframes flash { from { background:#2a3a4d; } to { background:var(--card); } }
+</style>
+<div class="muted">يتحدث تلقائيًا كل 20 ثانية · تنبيه تيليجرام عند تغير ±{{ alert_pct }}% · <span id="updated">جارٍ التحميل…</span></div>
+<div class="grid">
+  {% for symbol, name in market.stocks.items() %}
+  <a class="card" href="/stock/{{ symbol }}" data-symbol="{{ symbol }}">
+    <div class="name">{{ name }}</div>
+    <div class="muted ltr">{{ symbol }}</div>
+    <div class="price ltr">—</div>
+    <div class="change ltr muted">—</div>
+  </a>
+  {% endfor %}
+</div>
+<script>
+const currency = {{ market.currency|tojson }};
+async function refresh() {
+  try {
+    const res = await fetch("/api/quotes/{{ market_id }}");
+    const quotes = await res.json();
+    document.querySelectorAll(".card").forEach(card => {
+      const q = quotes[card.dataset.symbol];
+      if (!q) return;
+      const priceEl = card.querySelector(".price");
+      const text = q.price.toFixed(2) + " " + currency;
+      if (priceEl.textContent !== text && priceEl.textContent !== "—") {
+        card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+      }
+      priceEl.textContent = text;
+      const ch = card.querySelector(".change");
+      const sign = q.change >= 0 ? "+" : "";
+      ch.textContent = `${sign}${q.change.toFixed(2)} (${sign}${q.change_pct.toFixed(2)}%)`;
+      ch.className = "change ltr " + (q.change >= 0 ? "up" : "down");
+    });
+    document.getElementById("updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-SA");
+  } catch (e) {
+    document.getElementById("updated").textContent = "تعذر التحديث";
+  }
+}
+refresh();
+setInterval(refresh, 20000);
+</script>
+{% endblock %}
