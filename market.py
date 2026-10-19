@@ -314,6 +314,9 @@ def _enrich(r, now):
     if ext:
         r["ext_price"], r["ext_change_pct"] = ext["price"], ext["change_pct"]
         r["ext_live"] = True
+    if r.get("ext_price"):
+        # زخم الجلسة الممتدة من تحركات سعر ما قبل الافتتاح / ما بعد الإغلاق
+        r["ext_speed"] = _speed(symbol + "#ext", r["ext_price"], now)
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]

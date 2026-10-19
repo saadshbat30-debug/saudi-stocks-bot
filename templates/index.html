@@ -182,7 +182,10 @@ function signals(q) {
 // في وضع "قبل / بعد الجلسة" يُعرض السعر والتغير الممتد
 function view(q) {
   if (!ext) return q;
-  return { ...q, price: q.ext_price, change_pct: q.ext_change_pct, change: q.ext_price != null && q.ext_change_pct != null ? q.ext_price - q.ext_price / (1 + q.ext_change_pct / 100) : null };
+  return {
+    ...q, price: q.ext_price, change_pct: q.ext_change_pct, speed: q.ext_speed ?? null, at_high: false, live: q.ext_live,
+    change: q.ext_price != null && q.ext_change_pct != null ? q.ext_price - q.ext_price / (1 + q.ext_change_pct / 100) : null,
+  };
 }
 
 function miniList(id, list, metric) {
@@ -192,9 +195,11 @@ function miniList(id, list, metric) {
 }
 
 function renderTop() {
-  const up = rows.filter(q => q.change_pct > 0).length, down = rows.filter(q => q.change_pct < 0).length;
-  const flat = rows.length - up - down, total = rows.length || 1;
-  document.getElementById("b-total").textContent = rows.length;
+  // في وضع "قبل / بعد الجلسة" يُحسب الارتفاع والانخفاض والزخم من الأسعار الممتدة
+  const live = rows.map(view).filter(q => q.price != null && q.change_pct != null);
+  const up = live.filter(q => q.change_pct > 0).length, down = live.filter(q => q.change_pct < 0).length;
+  const flat = live.length - up - down, total = live.length || 1;
+  document.getElementById("b-total").textContent = live.length;
   document.getElementById("b-up").textContent = up;
   document.getElementById("b-down").textContent = down;
   document.getElementById("b-flat").textContent = flat;
@@ -205,7 +210,8 @@ function renderTop() {
   document.getElementById("b-hot").textContent = rows.filter(q => q.vol_ratio >= 2).length;
   document.getElementById("b-high").textContent = rows.filter(q => q.at_high).length;
   const top = (key, n = 5) => rows.filter(q => q[key] != null).sort((a, b) => b[key] - a[key]).slice(0, n);
-  miniList("m-speed", top("speed"), q => `<span class="ltr ${cls(q.speed)}">${signed(q.speed)}</span>`);
+  const topSpeed = live.filter(q => q.speed != null).sort((a, b) => b.speed - a.speed).slice(0, 5);
+  miniList("m-speed", topSpeed, q => `<span class="ltr ${cls(q.speed)}">${signed(q.speed)}</span>`);
   miniList("m-rvol", top("vol_ratio"), q => `<span class="ltr">${fmt(q.vol_ratio, 1)}× <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
   miniList("m-value", top("value"), q => `<span class="ltr">$${fmtBig(q.value)} <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
 }
@@ -243,7 +249,7 @@ function render() {
     return `<tr data-symbol="${s}">
       <td class="rank">${i + 1}</td>
       <td><button class="star ${favs.has(q.symbol) ? "on" : ""}" data-fav="${s}" title="المفضلة">★</button></td>
-      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live && !ext ? ' <span style="color:#facc15" title="سعر لحظي">⚡</span>' : ""}</div></td>
+      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live ? ' <span style="color:#facc15" title="سعر لحظي">⚡</span>' : ""}</div></td>
       <td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>
       <td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>
       <td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>
