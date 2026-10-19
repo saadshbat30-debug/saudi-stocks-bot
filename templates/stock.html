@@ -31,6 +31,7 @@
 <div class="kpis">
   <div class="kpi"><span class="muted">السعر <span id="k-live"></span></span><b id="k-price">—</b></div>
   <div class="kpi"><span class="muted">التغير</span><b id="k-change">—</b></div>
+  <div class="kpi" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span><b id="k-ext">—</b></div>
   <div class="kpi"><span class="muted">RSI 14</span><b id="k-rsi">—</b></div>
   <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
   <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
@@ -160,6 +161,15 @@ async function loadKpis() {
     if (!q) return;
     lastQuote = q;
     const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
+    // سعر ما قبل الافتتاح / ما بعد الإغلاق إن وُجد
+    const extBox = document.getElementById("k-ext-box");
+    extBox.hidden = q.ext_price == null;
+    if (q.ext_price != null) {
+      const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      document.getElementById("k-ext-label").textContent = ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
+      const e = document.getElementById("k-ext"), pct = q.ext_change_pct;
+      e.innerHTML = `${CURRENCY}${f(q.ext_price, q.ext_price < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
+    }
     const sign = q.change_pct >= 0 ? "+" : "";
     document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);
     document.getElementById("k-live").innerHTML = q.live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
