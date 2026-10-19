@@ -2,7 +2,7 @@ from flask import Flask, abort, jsonify, render_template, request
 
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, MARKETS, find_stock
-from market import CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, valid_symbol
+from market import CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
 
@@ -81,6 +81,17 @@ def api_quotes():
     symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
     symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:MAX_SYMBOLS]
     return jsonify(get_quotes(symbols) if symbols else {})
+
+
+@app.route("/api/raw/<symbol>")
+def api_raw(symbol):
+    """البيانات الخام من ماسح ياهو لسهم — لمعرفة أسماء الحقول (مثل حقول التداول الليلي)."""
+    symbol = symbol.upper()
+    q = raw_quote(symbol)
+    if not q:
+        get_market("us")
+        q = raw_quote(symbol)
+    return jsonify(q or {"error": "الرمز غير موجود في قائمة الماسح"})
 
 
 @app.route("/test")

@@ -1,6 +1,8 @@
 """بث مباشر للأسعار من ياهو (WebSocket) — كل صفقة تصل لحظة حدوثها."""
 import threading
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
@@ -8,6 +10,16 @@ REGULAR_MARKET = 1  # market_hours في رسائل ياهو: 0 قبل الافت
 
 _prices = {}  # الرمز ← آخر سعر من البث (الجلسة الرسمية)
 _ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بعد الإغلاق
+_night_prices = {}  # الرمز ← آخر سعر في التداول الليلي (Blue Ocean ATS)
+
+NY = ZoneInfo("America/New_York")
+
+
+def is_overnight(now=None):
+    """التداول الليلي: 8 مساءً – 4 فجرًا بتوقيت نيويورك، من ليلة الأحد حتى فجر الجمعة."""
+    t = now or datetime.now(NY)
+    m = t.hour * 60 + t.minute
+    return (m >= 20 * 60 and t.weekday() in (6, 0, 1, 2, 3)) or (m < 4 * 60 and t.weekday() in (0, 1, 2, 3, 4))
 _wanted = set()
 _state = {"ws": None, "started": False}
 _lock = threading.Lock()
@@ -17,7 +29,10 @@ def _on_message(msg):
     symbol, price = msg.get("id"), msg.get("price")
     if not symbol or price is None:
         return
-    target = _prices if msg.get("market_hours", 0) == REGULAR_MARKET else _ext_prices
+    if msg.get("market_hours", 0) == REGULAR_MARKET:
+        target = _prices
+    else:
+        target = _night_prices if is_overnight() else _ext_prices
     target[symbol] = {
         "price": price,
         "change": msg.get("change"),
@@ -84,6 +99,11 @@ def watch(symbols):
 
 def latest(symbol, max_age=120):
     p = _prices.get(symbol)
+    return p if p and time.time() - p["at"] < max_age else None
+
+
+def latest_night(symbol, max_age=600):
+    p = _night_prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None
 
 

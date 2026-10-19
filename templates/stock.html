@@ -172,7 +172,7 @@ async function loadChart(fit) {
 // تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
 function applyLive(q) {
   // خلال الجلسة: سعر البث؛ قبل الافتتاح/بعد الإغلاق: سعر البث الممتد
-  const price = q.live ? q.price : q.ext_live ? q.ext_price : null;
+  const price = q.live ? q.price : q.night_live ? q.night_price : q.ext_live ? q.ext_price : null;
   if (price == null || !bars.length) return;
   q = { ...q, price };
   const last = bars[bars.length - 1];
@@ -200,13 +200,16 @@ async function loadKpis() {
     const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
     // سعر ما قبل الافتتاح / ما بعد الإغلاق إن وُجد
     const extBox = document.getElementById("k-ext-box");
-    extBox.hidden = q.ext_price == null;
-    if (q.ext_price != null) {
+    // في التداول الليلي يُعرض سعره، وإلا سعر ما قبل الافتتاح / ما بعد الإغلاق
+    const night = marketSession()[1] === "night" && q.night_price != null;
+    const xp = night ? q.night_price : q.ext_price, pct = night ? q.night_change_pct : q.ext_change_pct;
+    const xlive = night ? q.night_live : q.ext_live;
+    extBox.hidden = xp == null;
+    if (xp != null) {
       const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      document.getElementById("k-ext-label").textContent = ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
-      document.getElementById("k-ext-live").innerHTML = q.ext_live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
-      const e = document.getElementById("k-ext"), pct = q.ext_change_pct;
-      e.innerHTML = `${CURRENCY}${f(q.ext_price, q.ext_price < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
+      document.getElementById("k-ext-label").textContent = night ? "🌙 التداول الليلي" : ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
+      document.getElementById("k-ext-live").innerHTML = xlive ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
+      document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(xp, xp < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
     }
     const sign = q.change_pct >= 0 ? "+" : "";
     document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);

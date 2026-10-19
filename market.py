@@ -193,7 +193,24 @@ def _num(q, key, digits=2):
     return round(v, digits) if isinstance(v, (int, float)) else None
 
 
+_raw_quotes = {}  # آخر بيانات خام من الماسح لكل رمز (لصفحة فحص الحقول)
+
+
+def _overnight_fields(q):
+    """ياهو يعرض سعر التداول الليلي على موقعه؛ اسم الحقل غير موثق فنبحث عن أي حقل فيه overnight."""
+    price = pct = None
+    for k, v in q.items():
+        lk = k.lower()
+        if "overnight" in lk and isinstance(v, (int, float)):
+            if lk.endswith("changepercent"):
+                pct = v
+            elif lk.endswith("price"):
+                price = v
+    return price, pct
+
+
 def _row(q):
+    _raw_quotes[q.get("symbol")] = q
     price = q.get("regularMarketPrice")
     if price is None or not _is_common_stock(q["symbol"]):
         return None
@@ -218,6 +235,8 @@ def _row(q):
         "quote_time": q.get("regularMarketTime") or 0,
         "ext_price": q.get(f"{ext}Price") if ext else None,
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
+        "night_price": _overnight_fields(q)[0],
+        "night_change_pct": _overnight_fields(q)[1],
     }
 
 
@@ -314,6 +333,18 @@ def _enrich(r, now):
     if ext:
         r["ext_price"], r["ext_change_pct"] = ext["price"], ext["change_pct"]
         r["ext_live"] = True
+    night = stream.latest_night(symbol)
+    if night:
+        r["night_price"], r["night_change_pct"] = night["price"], night["change_pct"]
+        r["night_live"] = True
+    if r.get("night_price"):
+        if r.get("night_change_pct") is None and r.get("prev_close") is not None:
+            # التغير مقارنة بآخر إغلاق رسمي
+            r["night_change_pct"] = (r["night_price"] / price - 1) * 100 if price else None
+        r["night_speed"] = _speed(symbol + "#night", r["night_price"], now)
+        r["night_price"] = _price_round(r["night_price"])
+        if r.get("night_change_pct") is not None:
+            r["night_change_pct"] = round(r["night_change_pct"], 2)
     if r.get("ext_price"):
         # زخم الجلسة الممتدة من تحركات سعر ما قبل الافتتاح / ما بعد الإغلاق
         r["ext_speed"] = _speed(symbol + "#ext", r["ext_price"], now)
@@ -485,3 +516,7 @@ def get_flow(symbol):
         **_flow_dict(inflow * scale, outflow * scale),
         **recent,
     }
+
+
+def raw_quote(symbol):
+    return _raw_quotes.get(symbol)

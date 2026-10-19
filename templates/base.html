@@ -20,7 +20,7 @@
   .indices a { display:flex; gap:6px; align-items:baseline; }
   .indices b { font-weight:600; }
   .session { padding:4px 10px; border-radius:999px; font-size:12px; background:var(--card); border:1px solid var(--line); }
-  .session.open { color:var(--up); border-color:#14532d; } .session.ext { color:#facc15; border-color:#713f12; }
+  .session.open { color:var(--up); border-color:#14532d; } .session.ext { color:#facc15; border-color:#713f12; } .session.night { color:#c4b5fd; border-color:#4c1d95; }
   .muted { color:var(--muted); font-size:13px; }
   .up { color:var(--up); } .down { color:var(--down); }
   .ltr { direction:ltr; unicode-bidi:isolate; }
@@ -42,6 +42,8 @@
 function marketSession() {
   const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const m = ny.getHours() * 60 + ny.getMinutes(), day = ny.getDay();
+  // التداول الليلي (Blue Ocean ATS): 8 مساءً – 4 فجرًا، من ليلة الأحد حتى فجر الجمعة
+  if ((m >= 1200 && day <= 4) || (m < 240 && day >= 1 && day <= 5)) return ["تداول ليلي", "night"];
   if (day === 0 || day === 6) return ["السوق مغلق", ""];
   if (m >= 570 && m < 960) return ["السوق مفتوح", "open"];
   if (m >= 240 && m < 570) return ["قبل الافتتاح", "ext"];

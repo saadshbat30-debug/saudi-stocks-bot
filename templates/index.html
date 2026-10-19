@@ -73,6 +73,7 @@
   <span style="margin-inline-start:auto" id="session-tabs">
     <button class="chip active" data-ext="0">الجلسة الرسمية</button>
     <button class="chip" data-ext="1">قبل / بعد الجلسة</button>
+    <button class="chip" data-ext="2" title="8 مساءً – 4 فجرًا بتوقيت نيويورك (Blue Ocean ATS)">🌙 التداول الليلي</button>
   </span>
 </div>
 <div class="toolbar">
@@ -156,7 +157,7 @@ const store = {
 let custom = store.get("custom_" + MARKET, []);
 let favs = new Set(store.get("favs_" + MARKET, []));
 let rows = [];
-let tab = store.get("tab_" + MARKET, "gainers"), sig = null, band = -1, search = "", ext = false;
+let tab = store.get("tab_" + MARKET, "gainers"), sig = null, band = -1, search = "", ext = 0;  // 0 الجلسة الرسمية، 1 قبل/بعد الجلسة، 2 التداول الليلي
 let sortKey = TABS[tab].sort, sortAsc = TABS[tab].asc, shown = PAGE;
 let favOnly = store.get("fav_only_" + MARKET, false);
 
@@ -182,9 +183,10 @@ function signals(q) {
 // في وضع "قبل / بعد الجلسة" يُعرض السعر والتغير الممتد
 function view(q) {
   if (!ext) return q;
+  const k = ext === 2 ? "night" : "ext", price = q[k + "_price"], pct = q[k + "_change_pct"];
   return {
-    ...q, price: q.ext_price, change_pct: q.ext_change_pct, speed: q.ext_speed ?? null, at_high: false, live: q.ext_live,
-    change: q.ext_price != null && q.ext_change_pct != null ? q.ext_price - q.ext_price / (1 + q.ext_change_pct / 100) : null,
+    ...q, price, change_pct: pct, speed: q[k + "_speed"] ?? null, at_high: false, live: q[k + "_live"],
+    change: price != null && pct != null ? price - price / (1 + pct / 100) : null,
   };
 }
 
@@ -237,7 +239,7 @@ function render() {
   const tbody = document.getElementById("rows");
   document.getElementById("more").hidden = list.length <= shown;
   if (!list.length) {
-    const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
+    const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? "لا توجد أسعار تداول ليلي الآن (8 مساءً – 4 فجرًا بتوقيت نيويورك)" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
     tbody.innerHTML = `<tr><td colspan="18" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
     return;
   }
@@ -355,7 +357,7 @@ function setTab(t) {
 }
 setTab(tab);
 chips("tabs", "tab", setTab);
-chips("session-tabs", "ext", v => ext = v === "1");
+chips("session-tabs", "ext", v => ext = Number(v));
 chips("bands", "band", v => band = Number(v));
 chips("signals", "sig", v => sig = v, true);
 document.getElementById("search").oninput = e => { search = e.target.value.trim(); shown = PAGE; render(); };
@@ -403,7 +405,9 @@ if (!("Notification" in window) || Notification.permission === "granted") notify
 notifyBtn.onclick = () => Notification.requestPermission().then(p => { if (p === "granted") notifyBtn.style.display = "none"; });
 
 // إذا كانت جلسة ممتدة الآن، افتح تبويبها تلقائيًا
+// افتح تبويب الجلسة الحالية تلقائيًا
 if (marketSession()[1] === "ext") document.querySelector('[data-ext="1"]').click();
+if (marketSession()[1] === "night") document.querySelector('[data-ext="2"]').click();
 
 renderAlerts();
 render();
