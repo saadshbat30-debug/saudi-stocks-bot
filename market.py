@@ -364,3 +364,86 @@ def name_for(symbol):
             if r["symbol"] == symbol:
                 return r["name"]
     return None
+
+
+# ===== السيولة الداخلة والخارجة (تقديرية) =====
+
+def row_for(symbol):
+    """آخر صف محسوب للسهم من الماسح (فيه القيمة والتدوير والسرعة) إن وُجد."""
+    for cached in list(_markets.values()):
+        for r in cached["rows"]:
+            if r["symbol"] == symbol:
+                return _enrich(dict(r), time.time())
+    return None
+
+
+def _flow(bars):
+    inflow = outflow = 0.0
+    for prev, b in zip([None] + bars[:-1], bars):
+        value = b["close"] * b["volume"]
+        ref = prev["close"] if prev else b["open"]
+        if b["close"] > ref or (b["close"] == ref and b["close"] > b["open"]):
+            inflow += value
+        elif b["close"] < ref or (b["close"] == ref and b["close"] < b["open"]):
+            outflow += value
+        else:
+            inflow += value / 2
+            outflow += value / 2
+    return inflow, outflow
+
+
+def _flow_dict(inflow, outflow):
+    total = inflow + outflow
+    return {
+        "inflow": round(inflow),
+        "outflow": round(outflow),
+        "net": round(inflow - outflow),
+        "inflow_pct": round(inflow / total * 100, 1) if total else None,
+    }
+
+
+def get_flow(symbol):
+    """السيولة الداخلة/الخارجة لليوم من شموع الدقيقة + الحجم اللحظي من البث.
+
+    تقدير شائع: قيمة الشمعة تُحسب داخلة إذا أغلقت أعلى من سابقتها وخارجة إذا أغلقت أدنى.
+    """
+    bars = get_chart(symbol, "1m")
+    if bars:
+        # شموع آخر يوم تداول فقط (الأوقات مزاحة لتوقيت الرياض)
+        last_day = (bars[-1]["time"] - RIYADH_OFFSET - 4 * 3600) // 86400
+        bars = [b for b in bars if (b["time"] - RIYADH_OFFSET - 4 * 3600) // 86400 == last_day]
+    inflow, outflow = _flow(bars)
+
+    row = row_for(symbol)
+    quote = row or get_quotes([symbol]).get(symbol) or {}
+    price, volume = quote.get("price"), quote.get("volume") or 0
+
+    # حجم وصل من البث ولم يدخل شموع ياهو بعد → يُصنَّف حسب اتجاه السعر الآن
+    bars_volume = sum(b["volume"] for b in bars)
+    pending = volume - bars_volume
+    if bars and price and pending > 0:
+        value = pending * price
+        if price > bars[-1]["close"]:
+            inflow += value
+        elif price < bars[-1]["close"]:
+            outflow += value
+        else:
+            inflow += value / 2
+            outflow += value / 2
+
+    recent = {}
+    for minutes in (5, 15):
+        i, o = _flow(bars[-minutes:]) if bars else (0, 0)
+        recent[f"m{minutes}"] = _flow_dict(i, o)
+
+    return {
+        "price": price,
+        "volume": volume,
+        "value": round(price * volume) if price else None,
+        "vol_ratio": quote.get("vol_ratio"),
+        "turnover": quote.get("turnover"),
+        "speed": quote.get("speed"),
+        "live": bool(quote.get("live")),
+        **_flow_dict(inflow, outflow),
+        **recent,
+    }

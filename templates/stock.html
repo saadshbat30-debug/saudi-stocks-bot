@@ -15,6 +15,18 @@
   #live-chart, #tv_chart { position:absolute; inset:0; }
   .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   [hidden] { display:none !important; }
+  .flow { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:12px; }
+  .flow h3 { margin:0 0 10px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
+  .flow-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+  .flow-grid div { background:var(--bg); border-radius:8px; padding:8px 10px; }
+  .flow-grid b { display:block; font-size:17px; margin-top:3px; direction:ltr; text-align:end; font-variant-numeric:tabular-nums; transition:color .3s; }
+  .flow-bar { display:flex; height:22px; border-radius:6px; overflow:hidden; margin:12px 0 6px; background:#26303b; font-size:12px; font-weight:600; }
+  .flow-bar span { display:flex; align-items:center; justify-content:center; transition:width .5s; white-space:nowrap; overflow:hidden; }
+  .flow-rows { display:grid; grid-template-columns:auto 1fr 1fr 1fr; gap:6px 14px; font-size:13px; margin-top:10px; align-items:center; }
+  .flow-rows .h { color:var(--muted); font-size:12px; }
+  .flow-rows bdi { font-variant-numeric:tabular-nums; }
+  .pulse { animation:pulse .8s; }
+  @keyframes pulse { from { color:#facc15; } }
 </style>
 <div class="kpis">
   <div class="kpi"><span class="muted">السعر <span id="k-live"></span></span><b id="k-price">—</b></div>
@@ -22,8 +34,31 @@
   <div class="kpi"><span class="muted">RSI 14</span><b id="k-rsi">—</b></div>
   <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
   <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
-  <div class="kpi"><span class="muted">السيولة × المعتاد</span><b id="k-vol">—</b></div>
 </div>
+
+<section class="flow">
+  <h3>💧 السيولة اللحظية <span class="muted" id="f-updated"></span></h3>
+  <div class="flow-grid">
+    <div><span class="muted">حجم اليوم</span><b id="f-volume">—</b></div>
+    <div><span class="muted">قيمة التداول</span><b id="f-value">—</b></div>
+    <div><span class="muted">السيولة × المعتاد</span><b id="f-ratio">—</b></div>
+    <div><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
+    <div><span class="muted">سرعة 5 دقائق</span><b id="f-speed">—</b></div>
+    <div><span class="muted">صافي السيولة</span><b id="f-net">—</b></div>
+  </div>
+  <div class="flow-bar"><span id="f-in-bar" style="background:#15803d;width:50%"></span><span id="f-out-bar" style="background:#b91c1c;width:50%"></span></div>
+  <div style="display:flex;justify-content:space-between;font-size:13px">
+    <span class="up">▲ داخلة <bdi dir="ltr" id="f-in">—</bdi></span>
+    <span class="down">▼ خارجة <bdi dir="ltr" id="f-out">—</bdi></span>
+  </div>
+  <div class="flow-rows">
+    <span class="h">الفترة</span><span class="h">داخلة</span><span class="h">خارجة</span><span class="h">الصافي</span>
+    <span>آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
+    <span>آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
+    <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
+  </div>
+  <div class="muted" style="margin-top:8px">تقدير: قيمة كل دقيقة تُحسب داخلة إذا ارتفع السعر وخارجة إذا انخفض · يتحدث كل 5 ثوانٍ</div>
+</section>
 
 <div class="chart-bar">
   <button class="chip active" data-view="live">⚡ شارت لحظي</button>
@@ -132,7 +167,6 @@ async function loadKpis() {
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
-    document.getElementById("k-vol").textContent = q.vol_ratio == null ? "—" : q.vol_ratio + "×";
     applyLive(q);
   } catch {}
 }
@@ -164,8 +198,51 @@ document.querySelectorAll("[data-interval]").forEach(b => b.onclick = () => {
   loadChart(true);
 });
 
+// ===== السيولة اللحظية =====
+const money = v => {
+  if (v == null) return "—";
+  const a = Math.abs(v), sign = v < 0 ? "-" : "";
+  return sign + "$" + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0));
+};
+const qty = v => v == null ? "—" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? (v / 1e3).toFixed(1) + "K" : String(v);
+function setText(id, text, cls) {
+  const e = document.getElementById(id);
+  if (e.textContent !== text && e.textContent !== "—") { e.classList.remove("pulse"); void e.offsetWidth; e.classList.add("pulse"); }
+  e.textContent = text;
+  if (cls !== undefined) e.className = cls + (e.classList.contains("pulse") ? " pulse" : "");
+}
+const netCls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const netText = v => v == null ? "—" : (v > 0 ? "+" : "") + money(v);
+
+async function loadFlow() {
+  try {
+    const f = await (await fetch(`/api/flow/${encodeURIComponent(SYMBOL)}`)).json();
+    setText("f-volume", qty(f.volume));
+    setText("f-value", money(f.value));
+    setText("f-ratio", f.vol_ratio == null ? "—" : f.vol_ratio.toFixed(2) + "×", f.vol_ratio >= 2 ? "up" : "");
+    setText("f-turnover", f.turnover == null ? "—" : f.turnover.toFixed(2) + "%");
+    setText("f-speed", f.speed == null ? "—" : (f.speed > 0 ? "+" : "") + f.speed.toFixed(2) + "%", netCls(f.speed));
+    setText("f-net", netText(f.net), netCls(f.net));
+    setText("f-in", money(f.inflow));
+    setText("f-out", money(f.outflow));
+    const pct = f.inflow_pct ?? 50;
+    const inBar = document.getElementById("f-in-bar"), outBar = document.getElementById("f-out-bar");
+    inBar.style.width = pct + "%"; outBar.style.width = (100 - pct) + "%";
+    inBar.textContent = f.inflow_pct == null ? "" : pct.toFixed(0) + "%";
+    outBar.textContent = f.inflow_pct == null ? "" : (100 - pct).toFixed(0) + "%";
+    for (const [p, d] of [["f5", f.m5], ["f15", f.m15], ["fd", f]]) {
+      setText(p + "-in", money(d.inflow));
+      setText(p + "-out", money(d.outflow));
+      setText(p + "-net", netText(d.net), netCls(d.net));
+    }
+    document.getElementById("f-updated").innerHTML = (f.live ? '<span style="color:#facc15">⚡ لحظي</span> · ' : "") + new Date().toLocaleTimeString("ar-SA");
+  } catch {}
+}
+
 loadChart(true);
 loadKpis();
+loadFlow();
+setInterval(loadFlow, 5000);
 setInterval(loadKpis, 5000);
 setInterval(() => loadChart(false), 30000);
 </script>
