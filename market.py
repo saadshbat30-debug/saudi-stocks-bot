@@ -100,13 +100,18 @@ def get_quotes(symbols):
             if live:
                 q = {**q, "price": live["price"], "volume": live["volume"] or q["volume"]}
             change = q["price"] - q["prev_close"]
+            change_pct = change / q["prev_close"] * 100
+            if live and live["change_pct"] is not None:
+                change_pct, change = live["change_pct"], live["change"] if live["change"] is not None else change
             item = {
-                "price": round(q["price"], 2),
-                "change": round(change, 2),
-                "change_pct": round(change / q["prev_close"] * 100, 2),
+                "price": round(q["price"], 4) if q["price"] < 1 else round(q["price"], 2),
+                "change": round(change, 4),
+                "change_pct": round(change_pct, 2),
                 "volume": q["volume"],
             }
             h = _history.get(s)
+            if live:
+                item["live"] = True
             if h:
                 # آخر شمعة تأخذ السعر الحالي حتى تكون المؤشرات محدثة
                 closes = h["closes"][:-1] + [q["price"]]
@@ -243,3 +248,52 @@ def get_market(market_id):
             r["sma20"] = round(s20, 2) if s20 else None
         result.append(r)
     return result
+
+
+# ===== شموع الشارت اللحظي =====
+
+CHART_INTERVALS = {
+    # الفاصل ← (المدة، فاصل ياهو، مدة التخزين بالثواني)
+    "1m": ("2d", "1m", 15),
+    "5m": ("5d", "5m", 30),
+    "15m": ("1mo", "15m", 60),
+    "1h": ("3mo", "60m", 300),
+    "1d": ("2y", "1d", 600),
+}
+RIYADH_OFFSET = 3 * 3600  # الشارت يعرض الوقت بتوقيت الرياض
+
+_charts = {}
+
+
+def get_chart(symbol, interval):
+    period, yf_interval, max_age = CHART_INTERVALS[interval]
+    key = (symbol, interval)
+    cached = _charts.get(key)
+    if cached and time.time() - cached["at"] < max_age:
+        return cached["bars"]
+    try:
+        df = yf.Ticker(symbol).history(period=period, interval=yf_interval, prepost=False, auto_adjust=False)
+    except Exception as e:
+        print(f"⚠️ فشل سحب الشموع {symbol}: {e}")
+        return cached["bars"] if cached else []
+    bars = []
+    for ts, row in df.dropna(subset=["Close"]).iterrows():
+        bars.append({
+            "time": int(ts.timestamp()) + RIYADH_OFFSET,
+            "open": float(row["Open"]),
+            "high": float(row["High"]),
+            "low": float(row["Low"]),
+            "close": float(row["Close"]),
+            "volume": int(row["Volume"] or 0),
+        })
+    _charts[key] = {"bars": bars, "at": time.time()}
+    return bars
+
+
+def name_for(symbol):
+    """اسم الشركة من آخر نتيجة للماسح إن وُجد."""
+    for cached in _markets.values():
+        for r in cached["rows"]:
+            if r["symbol"] == symbol:
+                return r["name"]
+    return None

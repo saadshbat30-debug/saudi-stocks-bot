@@ -2,7 +2,7 @@ from flask import Flask, abort, jsonify, render_template, request
 
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_VOL_RATIO, MARKETS, find_stock
-from market import get_market, get_quotes, valid_symbol
+from market import CHART_INTERVALS, get_chart, get_market, get_quotes, name_for, valid_symbol
 
 app = Flask(__name__)
 
@@ -30,6 +30,7 @@ def stock(symbol):
     if not valid_symbol(symbol):
         abort(404)
     market_id, name = find_stock(symbol)
+    name = name_for(symbol) or name
     return render_template(
         "stock.html",
         markets=MARKETS,
@@ -46,6 +47,15 @@ def api_market(market_id):
     if market_id not in MARKETS:
         abort(404)
     return jsonify(get_market(market_id))
+
+
+@app.route("/api/chart/<symbol>")
+def api_chart(symbol):
+    symbol = symbol.upper()
+    interval = request.args.get("interval", "5m")
+    if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
+        abort(404)
+    return jsonify(get_chart(symbol, interval))
 
 
 @app.route("/api/quotes")

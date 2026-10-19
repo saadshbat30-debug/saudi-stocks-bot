@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ name }} — منصة الأسهم{% endblock %}
+{% block title %}{{ symbol }} — منصة الأسهم{% endblock %}
 {% block content %}
 <a href="/market/{{ market_id }}" class="muted">→ رجوع إلى {{ market.title }}</a>
 <h2 style="margin:12px 0 4px">{{ name }} <span class="muted ltr">{{ symbol }}</span></h2>
@@ -7,50 +7,166 @@
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:12px; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
   .kpi b { display:block; font-size:18px; margin-top:4px; direction:ltr; text-align:end; }
+  .chart-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:14px; }
+  .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sep { width:1px; height:22px; background:var(--line); }
+  .chart-box { height:65vh; min-height:400px; margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; position:relative; }
+  #live-chart, #tv_chart { position:absolute; inset:0; }
+  .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  [hidden] { display:none !important; }
 </style>
 <div class="kpis">
-  <div class="kpi"><span class="muted">السعر</span><b id="k-price">—</b></div>
+  <div class="kpi"><span class="muted">السعر <span id="k-live"></span></span><b id="k-price">—</b></div>
   <div class="kpi"><span class="muted">التغير</span><b id="k-change">—</b></div>
   <div class="kpi"><span class="muted">RSI 14</span><b id="k-rsi">—</b></div>
   <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
   <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
   <div class="kpi"><span class="muted">السيولة × المعتاد</span><b id="k-vol">—</b></div>
 </div>
+
+<div class="chart-bar">
+  <button class="chip active" data-view="live">⚡ شارت لحظي</button>
+  <button class="chip" data-view="tv">TradingView (متأخر 15 دقيقة)</button>
+  <span class="sep"></span>
+  <span id="intervals">
+    <button class="chip" data-interval="1m">1د</button>
+    <button class="chip active" data-interval="5m">5د</button>
+    <button class="chip" data-interval="15m">15د</button>
+    <button class="chip" data-interval="1h">ساعة</button>
+    <button class="chip" data-interval="1d">يوم</button>
+  </span>
+</div>
+<div class="chart-box">
+  <div id="live-chart"></div>
+  <div id="tv_chart" hidden></div>
+  <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
+</div>
+<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · الخط البرتقالي متوسط 20 شمعة · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
+
+<script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script>
+const SYMBOL = {{ symbol|tojson }};
+const CURRENCY = {{ market.currency|tojson }};
+const STEP = { "1m": 60, "5m": 300, "15m": 900 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
+let interval = "5m", bars = [], lastQuote = null;
+
+const el = document.getElementById("live-chart");
+const chart = LightweightCharts.createChart(el, {
+  autoSize: true,
+  layout: { background: { color: "transparent" }, textColor: "#8b98a5" },
+  grid: { vertLines: { color: "#222a33" }, horzLines: { color: "#222a33" } },
+  rightPriceScale: { borderColor: "#2a333d" },
+  timeScale: { borderColor: "#2a333d", timeVisible: true, secondsVisible: false },
+  crosshair: { mode: 0 },
+});
+const candles = chart.addCandlestickSeries({
+  upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444",
+});
+const volume = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" } });
+volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+
+function precisionFor(price) {
+  const p = price < 1 ? 4 : 2;
+  candles.applyOptions({ priceFormat: { type: "price", precision: p, minMove: 1 / 10 ** p } });
+}
+
+function volBar(b) { return { time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.4)" }; }
+
+function maData() {
+  const out = [];
+  for (let i = 19; i < bars.length; i++) {
+    let sum = 0;
+    for (let j = i - 19; j <= i; j++) sum += bars[j].close;
+    out.push({ time: bars[i].time, value: sum / 20 });
+  }
+  return out;
+}
+
+async function loadChart(fit) {
+  try {
+    const data = await (await fetch(`/api/chart/${encodeURIComponent(SYMBOL)}?interval=${interval}`)).json();
+    document.getElementById("chart-empty").hidden = data.length > 0;
+    if (!data.length) return;
+    bars = data;
+    precisionFor(bars[bars.length - 1].close);
+    candles.setData(bars);
+    volume.setData(bars.map(volBar));
+    ma20.setData(maData());
+    if (fit) chart.timeScale().fitContent();
+    if (lastQuote) applyLive(lastQuote);
+  } catch {}
+}
+
+// تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
+function applyLive(q) {
+  if (!q.live || !bars.length) return;
+  const last = bars[bars.length - 1];
+  const step = STEP[interval];
+  const now = Math.floor(Date.now() / 1000) + 3 * 3600;
+  if (step && now - (now % step) > last.time) {
+    const t = now - (now % step);
+    bars.push({ time: t, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0 });
+  } else {
+    last.close = q.price;
+    last.high = Math.max(last.high, q.price);
+    last.low = Math.min(last.low, q.price);
+  }
+  const b = bars[bars.length - 1];
+  candles.update(b);
+  volume.update(volBar(b));
+}
+
 async function loadKpis() {
   try {
-    const q = (await (await fetch("/api/quotes?symbols=" + encodeURIComponent({{ symbol|tojson }}))).json())[{{ symbol|tojson }}];
+    const q = (await (await fetch("/api/quotes?symbols=" + encodeURIComponent(SYMBOL))).json())[SYMBOL];
     if (!q) return;
+    lastQuote = q;
     const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
     const sign = q.change_pct >= 0 ? "+" : "";
-    document.getElementById("k-price").textContent = {{ market.currency|tojson }} + f(q.price, q.price < 1 ? 4 : 2);
+    document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);
+    document.getElementById("k-live").innerHTML = q.live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
     const ch = document.getElementById("k-change");
     ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change_pct >= 0 ? "up" : "down";
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
     document.getElementById("k-vol").textContent = q.vol_ratio == null ? "—" : q.vol_ratio + "×";
+    applyLive(q);
   } catch {}
 }
-loadKpis(); setInterval(loadKpis, 5000);
-</script>
-<div style="height:70vh;min-height:420px;margin-top:12px">
-  <div class="tradingview-widget-container" style="height:100%">
-    <div id="tv_chart" style="height:100%"></div>
-  </div>
-</div>
-<script src="https://s3.tradingview.com/tv.js"></script>
-<script>
-new TradingView.widget({
-  container_id: "tv_chart",
-  symbol: {{ tv_symbol|tojson }},
-  autosize: true,
-  interval: "D",
-  timezone: "Asia/Riyadh",
-  theme: "dark",
-  style: "1",
-  locale: "ar_AE",
-  allow_symbol_change: true,
+
+// ===== التبويبات =====
+let tvLoaded = false;
+function loadTradingView() {
+  if (tvLoaded) return;
+  tvLoaded = true;
+  const s = document.createElement("script");
+  s.src = "https://s3.tradingview.com/tv.js";
+  s.onload = () => new TradingView.widget({
+    container_id: "tv_chart", symbol: {{ tv_symbol|tojson }}, autosize: true, interval: "5",
+    timezone: "Asia/Riyadh", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: true,
+  });
+  document.head.appendChild(s);
+}
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-view]").forEach(x => x.classList.toggle("active", x === b));
+  const tv = b.dataset.view === "tv";
+  document.getElementById("tv_chart").hidden = !tv;
+  el.hidden = tv;
+  document.getElementById("intervals").style.visibility = tv ? "hidden" : "visible";
+  if (tv) loadTradingView();
 });
+document.querySelectorAll("[data-interval]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-interval]").forEach(x => x.classList.toggle("active", x === b));
+  interval = b.dataset.interval;
+  loadChart(true);
+});
+
+loadChart(true);
+loadKpis();
+setInterval(loadKpis, 5000);
+setInterval(() => loadChart(false), 30000);
 </script>
 {% endblock %}
