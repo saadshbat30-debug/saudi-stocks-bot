@@ -22,6 +22,14 @@
   .ind-pane .ind-chart { position:absolute; inset:0 0 0 42px; direction:ltr; }
   .ind-pane .ind-label { position:absolute; top:6px; left:52px; z-index:2; font-size:12px; direction:ltr; color:var(--muted); pointer-events:none; }
   .ind-pane .ind-label b { color:var(--text); font-weight:600; }
+  .draw-props { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:6; display:flex; align-items:center; gap:2px; padding:4px 6px; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.4); direction:ltr; max-width:calc(100% - 90px); overflow-x:auto; }
+  .draw-props[hidden] { display:none; }
+  .draw-props button { min-width:28px; height:28px; border:0; border-radius:6px; background:none; color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+  .draw-props button:hover { background:#26303b; color:var(--text); }
+  .draw-props button.active { background:#26303b; outline:1px solid var(--accent); color:var(--text); }
+  .draw-props .dot { width:14px; height:14px; border-radius:50%; display:block; }
+  .draw-props .ln { width:18px; background:var(--text); display:block; border-radius:2px; }
+  .draw-props .sep { width:1px; height:20px; background:var(--line); margin:0 4px; }
   .draw-toolbar .tb-sep { width:24px; height:1px; background:var(--line); margin:4px 0; }
   .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   [hidden] { display:none !important; }
@@ -97,7 +105,7 @@
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
 <div id="ind-panes"></div>
-<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · أدوات الرسم على اليسار (Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
+<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
