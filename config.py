@@ -33,7 +33,8 @@ MARKETS = {
     },
 }
 
-# بيانات بوت تيليجرام تُقرأ من متغيرات البيئة (لا تكتبها في الكود)
+# تيليجرام اختياري: المنصة تعمل بدونه، والتنبيهات تظهر داخل الموقع
+# اضبط المتغيرين فقط إذا أردت التنبيهات على البوت أيضًا
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 CHAT_ID = os.environ.get("CHAT_ID", "")
 
@@ -43,11 +44,13 @@ ALERT_PCT = float(os.environ.get("ALERT_PCT", "3"))
 ALERT_INTERVAL = int(os.environ.get("ALERT_INTERVAL", "60"))
 # مدة تخزين الأسعار مؤقتًا (ثوانٍ) لتجنب الحظر من ياهو
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "20"))
+# مدة تخزين التاريخ اليومي المستخدم للمؤشرات
+HISTORY_CACHE_SECONDS = int(os.environ.get("HISTORY_CACHE_SECONDS", "600"))
 
 
 def find_stock(symbol):
-    """يرجع (رمز السوق، الاسم) للرمز أو None."""
+    """يرجع (رمز السوق، الاسم) لأي رمز؛ الرموز خارج القوائم تُعرض باسمها."""
     for market_id, market in MARKETS.items():
         if symbol in market["stocks"]:
             return market_id, market["stocks"][symbol]
-    return None
+    return ("sa" if symbol.endswith(".SR") else "us"), symbol

@@ -3,6 +3,37 @@
 {% block content %}
 <a href="/market/{{ market_id }}" class="muted">→ رجوع إلى {{ market.title }}</a>
 <h2 style="margin:12px 0 4px">{{ name }} <span class="muted ltr">{{ symbol }}</span></h2>
+<style>
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:12px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .kpi b { display:block; font-size:18px; margin-top:4px; direction:ltr; text-align:end; }
+</style>
+<div class="kpis">
+  <div class="kpi"><span class="muted">السعر</span><b id="k-price">—</b></div>
+  <div class="kpi"><span class="muted">التغير</span><b id="k-change">—</b></div>
+  <div class="kpi"><span class="muted">RSI 14</span><b id="k-rsi">—</b></div>
+  <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
+  <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
+  <div class="kpi"><span class="muted">السيولة × المعتاد</span><b id="k-vol">—</b></div>
+</div>
+<script>
+async function loadKpis() {
+  try {
+    const q = (await (await fetch("/api/quotes?symbols=" + encodeURIComponent({{ symbol|tojson }}))).json())[{{ symbol|tojson }}];
+    if (!q) return;
+    const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
+    const sign = q.change >= 0 ? "+" : "";
+    document.getElementById("k-price").textContent = f(q.price) + " " + {{ market.currency|tojson }};
+    const ch = document.getElementById("k-change");
+    ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change >= 0 ? "up" : "down";
+    document.getElementById("k-rsi").textContent = f(q.rsi, 1);
+    document.getElementById("k-sma20").textContent = f(q.sma20);
+    document.getElementById("k-sma50").textContent = f(q.sma50);
+    document.getElementById("k-vol").textContent = q.vol_ratio == null ? "—" : q.vol_ratio + "×";
+  } catch {}
+}
+loadKpis(); setInterval(loadKpis, 20000);
+</script>
 <div style="height:70vh;min-height:420px;margin-top:12px">
   <div class="tradingview-widget-container" style="height:100%">
     <div id="tv_chart" style="height:100%"></div>

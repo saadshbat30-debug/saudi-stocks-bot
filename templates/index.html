@@ -2,50 +2,256 @@
 {% block title %}{{ market.title }} — منصة الأسهم{% endblock %}
 {% block content %}
 <style>
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:12px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:block; transition:border-color .2s; }
-  .card:hover { border-color:var(--accent); }
-  .name { font-weight:600; }
-  .price { font-size:24px; font-weight:700; margin:8px 0 2px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(140px,45%),1fr)); gap:10px; margin-bottom:14px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:22px; margin-top:4px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .add { display:flex; gap:6px; margin-inline-start:auto; }
+  .add input { width:130px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; direction:ltr; }
+  .btn { padding:6px 12px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; font:inherit; font-size:13px; }
+  .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--line); }
+  .layout { display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start; }
+  .layout > * { min-width:0; }
+  @media (max-width:900px) { .layout { grid-template-columns:1fr; } }
+  .table-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:10px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:500; cursor:pointer; user-select:none; position:sticky; top:0; background:var(--card); }
+  th.sorted::after { content:" ▾"; } th.sorted.asc::after { content:" ▴"; }
+  tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
+  td.num { text-align:start; font-variant-numeric:tabular-nums; }
+  .sym { color:var(--muted); font-size:12px; direction:ltr; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; margin-inline-end:4px; background:#26303b; }
+  .tag.up { background:#14361f; } .tag.down { background:#3d1717; } .tag.warn { background:#3d3315; color:#facc15; }
+  .x { background:none; border:0; color:var(--muted); cursor:pointer; font-size:14px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .panel h3 { margin:0 0 8px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
+  .alerts { list-style:none; margin:0; padding:0; max-height:60vh; overflow-y:auto; }
+  .alerts li { padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .alerts li a { font-weight:600; }
   .flash { animation:flash .8s; }
-  @keyframes flash { from { background:#2a3a4d; } to { background:var(--card); } }
+  @keyframes flash { from { background:#2a3a4d; } to { background:transparent; } }
 </style>
-<div class="muted">يتحدث تلقائيًا كل 20 ثانية · تنبيه تيليجرام عند تغير ±{{ alert_pct }}% · <span id="updated">جارٍ التحميل…</span></div>
-<div class="grid">
-  {% for symbol, name in market.stocks.items() %}
-  <a class="card" href="/stock/{{ symbol }}" data-symbol="{{ symbol }}">
-    <div class="name">{{ name }}</div>
-    <div class="muted ltr">{{ symbol }}</div>
-    <div class="price ltr">—</div>
-    <div class="change ltr muted">—</div>
-  </a>
-  {% endfor %}
+
+<div class="stats">
+  <div class="stat"><span class="muted">مرتفعة</span><b class="up" id="s-up">—</b></div>
+  <div class="stat"><span class="muted">منخفضة</span><b class="down" id="s-down">—</b></div>
+  <div class="stat"><span class="muted">الأعلى ارتفاعًا</span><b id="s-top" class="ltr">—</b></div>
+  <div class="stat"><span class="muted">الأكثر انخفاضًا</span><b id="s-bottom" class="ltr">—</b></div>
 </div>
+
+<div class="toolbar">
+  <button class="chip active" data-filter="all">الكل</button>
+  <button class="chip" data-filter="gainers">الأكثر ارتفاعًا</button>
+  <button class="chip" data-filter="losers">الأكثر انخفاضًا</button>
+  <button class="chip" data-filter="volume">سيولة عالية</button>
+  <button class="chip" data-filter="oversold">تشبع بيعي</button>
+  <button class="chip" data-filter="overbought">تشبع شرائي</button>
+  <button class="chip" data-filter="uptrend">اتجاه صاعد</button>
+  <form class="add" id="add-form">
+    <input id="add-input" placeholder="{{ 'مثال: 2280' if market_id == 'sa' else 'مثال: NFLX' }}" autocomplete="off">
+    <button class="btn">+ إضافة</button>
+  </form>
+</div>
+
+<div class="layout">
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th data-sort="name">السهم</th>
+        <th data-sort="price">السعر</th>
+        <th data-sort="change_pct" class="sorted">التغير</th>
+        <th data-sort="volume">الحجم</th>
+        <th data-sort="vol_ratio">السيولة ×</th>
+        <th data-sort="rsi">RSI</th>
+        <th>الإشارات</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <aside class="panel">
+    <h3>🔔 التنبيهات <button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></h3>
+    <div class="muted" style="margin-bottom:6px">تغير ±{{ alert_pct }}% · RSI أقل من 30 أو أعلى من 70 · سيولة ضعف المعتاد</div>
+    <ul class="alerts" id="alerts"><li class="muted">لا توجد تنبيهات بعد</li></ul>
+  </aside>
+</div>
+<div class="muted" style="margin-top:10px">يتحدث تلقائيًا كل 20 ثانية · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
+
 <script>
-const currency = {{ market.currency|tojson }};
-async function refresh() {
+const MARKET = {{ market_id|tojson }};
+const CURRENCY = {{ market.currency|tojson }};
+const BASE = {{ market.stocks|tojson }};
+const ALERT_PCT = {{ alert_pct|tojson }};
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let custom = store.get("custom_" + MARKET, []);
+let quotes = {};
+let filter = "all", sortKey = "change_pct", sortAsc = false;
+
+const names = () => Object.assign({}, BASE, Object.fromEntries(custom.map(s => [s, s])));
+const fmt = (n, d = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtVol = v => v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(v ?? "—");
+
+function signals(q) {
+  const s = [];
+  if (q.rsi != null && q.rsi < 30) s.push(["تشبع بيعي", "warn", "oversold"]);
+  if (q.rsi != null && q.rsi > 70) s.push(["تشبع شرائي", "warn", "overbought"]);
+  if (q.sma20 && q.sma50 && q.price > q.sma20 && q.sma20 > q.sma50) s.push(["اتجاه صاعد", "up", "uptrend"]);
+  if (q.sma20 && q.sma50 && q.price < q.sma20 && q.sma20 < q.sma50) s.push(["اتجاه هابط", "down", "downtrend"]);
+  if (q.vol_ratio >= 2) s.push(["سيولة عالية", "up", "volume"]);
+  return s;
+}
+
+function render() {
+  const n = names();
+  let list = Object.keys(n).filter(s => quotes[s]).map(s => ({ symbol: s, name: n[s], ...quotes[s] }));
+  const up = list.filter(q => q.change > 0), down = list.filter(q => q.change < 0);
+  document.getElementById("s-up").textContent = up.length;
+  document.getElementById("s-down").textContent = down.length;
+  const byPct = [...list].sort((a, b) => b.change_pct - a.change_pct);
+  if (byPct.length) {
+    const t = byPct[0], b = byPct[byPct.length - 1];
+    document.getElementById("s-top").innerHTML = `${t.symbol} <span class="up">${t.change_pct > 0 ? "+" : ""}${t.change_pct}%</span>`;
+    document.getElementById("s-bottom").innerHTML = `${b.symbol} <span class="down">${b.change_pct}%</span>`;
+  }
+
+  const has = key => q => signals(q).some(s => s[2] === key);
+  const filters = {
+    all: () => true, gainers: q => q.change_pct > 0, losers: q => q.change_pct < 0,
+    volume: has("volume"), oversold: has("oversold"), overbought: has("overbought"), uptrend: has("uptrend"),
+  };
+  list = list.filter(filters[filter]);
+  if (filter === "losers") list.sort((a, b) => a.change_pct - b.change_pct);
+  else list.sort((a, b) => {
+    const x = a[sortKey] ?? -Infinity, y = b[sortKey] ?? -Infinity;
+    const c = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return sortAsc ? c : -c;
+  });
+
+  const tbody = document.getElementById("rows");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">${Object.keys(quotes).length ? "لا توجد أسهم بهذا الفلتر" : "جارٍ تحميل البيانات…"}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(q => {
+    const cls = q.change >= 0 ? "up" : "down", sign = q.change >= 0 ? "+" : "";
+    const rsiCls = q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : "";
+    return `<tr data-symbol="${q.symbol}">
+      <td><div>${q.name}</div><div class="sym">${q.symbol}</div></td>
+      <td class="num"><bdi dir="ltr">${fmt(q.price)} ${CURRENCY}</bdi></td>
+      <td class="num ${cls}"><bdi dir="ltr">${sign}${fmt(q.change_pct)}%</bdi><div class="sym ${cls}">${sign}${fmt(q.change)}</div></td>
+      <td class="num">${fmtVol(q.volume)}</td>
+      <td class="num"><bdi dir="ltr">${q.vol_ratio == null ? "—" : q.vol_ratio + "×"}</bdi></td>
+      <td class="num" ${rsiCls}>${fmt(q.rsi, 1)}</td>
+      <td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>
+      <td>${custom.includes(q.symbol) ? `<button class="x" data-remove="${q.symbol}" title="حذف">✕</button>` : ""}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ===== التنبيهات داخل الموقع =====
+let alerts = store.get("alerts_" + MARKET, []);
+const sentKeys = new Set(store.get("alert_keys_" + MARKET, []));
+
+function renderAlerts() {
+  const ul = document.getElementById("alerts");
+  ul.innerHTML = alerts.length ? alerts.map(a =>
+    `<li><a href="/stock/${a.symbol}">${a.name}</a> <span class="sym">${a.symbol}</span><br>${a.text}<div class="muted">${a.time}</div></li>`
+  ).join("") : `<li class="muted">لا توجد تنبيهات بعد</li>`;
+}
+
+function beep() {
   try {
-    const res = await fetch("/api/quotes/{{ market_id }}");
-    const quotes = await res.json();
-    document.querySelectorAll(".card").forEach(card => {
-      const q = quotes[card.dataset.symbol];
-      if (!q) return;
-      const priceEl = card.querySelector(".price");
-      const text = q.price.toFixed(2) + " " + currency;
-      if (priceEl.textContent !== text && priceEl.textContent !== "—") {
-        card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
-      }
-      priceEl.textContent = text;
-      const ch = card.querySelector(".change");
-      const sign = q.change >= 0 ? "+" : "";
-      ch.textContent = `${sign}${q.change.toFixed(2)} (${sign}${q.change_pct.toFixed(2)}%)`;
-      ch.className = "change ltr " + (q.change >= 0 ? "up" : "down");
-    });
+    const ctx = new AudioContext(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.2);
+  } catch {}
+}
+
+function checkAlerts() {
+  const n = names(), today = new Date().toISOString().slice(0, 10);
+  const fresh = [];
+  for (const [symbol, q] of Object.entries(quotes)) {
+    if (!n[symbol]) continue;
+    const checks = [];
+    if (Math.abs(q.change_pct) >= ALERT_PCT) checks.push([q.change_pct > 0 ? "up" : "down", `${q.change_pct > 0 ? "🟢 ارتفاع" : "🔴 انخفاض"} ${q.change_pct > 0 ? "+" : ""}${q.change_pct}% · ${fmt(q.price)} ${CURRENCY}`]);
+    if (q.rsi != null && q.rsi < 30) checks.push(["oversold", `🟡 تشبع بيعي · RSI ${q.rsi}`]);
+    if (q.rsi != null && q.rsi > 70) checks.push(["overbought", `🟡 تشبع شرائي · RSI ${q.rsi}`]);
+    if (q.vol_ratio >= 2) checks.push(["volume", `💧 سيولة عالية · ${q.vol_ratio}× المعتاد`]);
+    for (const [type, text] of checks) {
+      const key = `${symbol}|${today}|${type}`;
+      if (sentKeys.has(key)) continue;
+      sentKeys.add(key);
+      fresh.push({ symbol, name: n[symbol], text, time: new Date().toLocaleTimeString("ar-SA") });
+    }
+  }
+  if (!fresh.length) return;
+  alerts = [...fresh, ...alerts].slice(0, 50);
+  store.set("alerts_" + MARKET, alerts);
+  store.set("alert_keys_" + MARKET, [...sentKeys].filter(k => k.includes(today)));
+  renderAlerts();
+  beep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    fresh.slice(0, 3).forEach(a => new Notification(`${a.name} (${a.symbol})`, { body: a.text }));
+  }
+}
+
+async function refresh() {
+  const symbols = Object.keys(names());
+  try {
+    const res = await fetch("/api/quotes?symbols=" + encodeURIComponent(symbols.join(",")));
+    quotes = await res.json();
+    render();
+    checkAlerts();
     document.getElementById("updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-SA");
-  } catch (e) {
+  } catch {
     document.getElementById("updated").textContent = "تعذر التحديث";
   }
 }
+
+// ===== التفاعل =====
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === c));
+  filter = c.dataset.filter; render();
+});
+document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+  const k = th.dataset.sort;
+  sortAsc = sortKey === k ? !sortAsc : k === "name";
+  sortKey = k;
+  document.querySelectorAll("th").forEach(x => x.classList.remove("sorted", "asc"));
+  th.classList.add("sorted"); if (sortAsc) th.classList.add("asc");
+  render();
+});
+document.getElementById("rows").onclick = e => {
+  const rm = e.target.closest("[data-remove]");
+  if (rm) {
+    custom = custom.filter(s => s !== rm.dataset.remove);
+    store.set("custom_" + MARKET, custom); render(); return;
+  }
+  const tr = e.target.closest("tr[data-symbol]");
+  if (tr) location.href = "/stock/" + tr.dataset.symbol;
+};
+document.getElementById("add-form").onsubmit = e => {
+  e.preventDefault();
+  const input = document.getElementById("add-input");
+  let s = input.value.trim().toUpperCase();
+  if (!s) return;
+  if (MARKET === "sa" && /^\d{4}$/.test(s)) s += ".SR";
+  if (!BASE[s] && !custom.includes(s)) { custom.push(s); store.set("custom_" + MARKET, custom); }
+  input.value = ""; refresh();
+};
+const notifyBtn = document.getElementById("notify-btn");
+if (!("Notification" in window) || Notification.permission === "granted") notifyBtn.style.display = "none";
+notifyBtn.onclick = () => Notification.requestPermission().then(p => { if (p === "granted") notifyBtn.style.display = "none"; });
+
+renderAlerts();
+render();
 refresh();
 setInterval(refresh, 20000);
 </script>

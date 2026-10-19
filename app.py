@@ -1,10 +1,12 @@
-from flask import Flask, abort, jsonify, render_template
+from flask import Flask, abort, jsonify, render_template, request
 
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, MARKETS, find_stock
-from market import get_quotes
+from market import get_quotes, valid_symbol
 
 app = Flask(__name__)
+
+MAX_SYMBOLS = 40
 
 
 def tradingview_symbol(symbol):
@@ -25,10 +27,10 @@ def home(market_id="us"):
 
 @app.route("/stock/<symbol>")
 def stock(symbol):
-    found = find_stock(symbol)
-    if not found:
+    symbol = symbol.upper()
+    if not valid_symbol(symbol):
         abort(404)
-    market_id, name = found
+    market_id, name = find_stock(symbol)
     return render_template(
         "stock.html",
         markets=MARKETS,
@@ -40,18 +42,19 @@ def stock(symbol):
     )
 
 
-@app.route("/api/quotes/<market_id>")
-def api_quotes(market_id):
-    if market_id not in MARKETS:
-        abort(404)
-    return jsonify(get_quotes(list(MARKETS[market_id]["stocks"])))
+@app.route("/api/quotes")
+def api_quotes():
+    """?symbols=AAPL,MSFT,2222.SR"""
+    symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
+    symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:MAX_SYMBOLS]
+    return jsonify(get_quotes(symbols) if symbols else {})
 
 
 @app.route("/test")
 def test():
     if send_telegram("✅ اختبار من منصة الأسهم"):
         return "✅ تم إرسال رسالة اختبار إلى البوت"
-    return "❌ فشل الإرسال — تأكد من BOT_TOKEN و CHAT_ID", 500
+    return "❌ تيليجرام غير مفعّل — المنصة تعمل بدونه، اضبط BOT_TOKEN و CHAT_ID لتفعيله", 500
 
 
 start_alerts()
