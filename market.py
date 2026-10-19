@@ -382,6 +382,10 @@ def name_for(symbol):
 
 def row_for(symbol):
     """آخر صف محسوب للسهم من الماسح (فيه القيمة والتدوير والسرعة) إن وُجد."""
+    if not _markets:
+        # صفحة السهم فُتحت قبل الصفحة الرئيسية: شغّل الماسح أولًا
+        for market_id in MARKETS:
+            get_market(market_id)
     for cached in list(_markets.values()):
         for r in cached["rows"]:
             if r["symbol"] == symbol:
