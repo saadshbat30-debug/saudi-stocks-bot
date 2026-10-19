@@ -345,14 +345,14 @@ RIYADH_OFFSET = 3 * 3600  # الشارت يعرض الوقت بتوقيت الر
 _charts = {}
 
 
-def get_chart(symbol, interval):
+def get_chart(symbol, interval, prepost=False):
     period, yf_interval, max_age = CHART_INTERVALS[interval]
-    key = (symbol, interval)
+    key = (symbol, interval, prepost)
     cached = _charts.get(key)
     if cached and time.time() - cached["at"] < max_age:
         return cached["bars"]
     try:
-        df = yf.Ticker(symbol).history(period=period, interval=yf_interval, prepost=False, auto_adjust=False)
+        df = yf.Ticker(symbol).history(period=period, interval=yf_interval, prepost=prepost, auto_adjust=False)
     except Exception as e:
         print(f"⚠️ فشل سحب الشموع {symbol}: {e}")
         return cached["bars"] if cached else []
@@ -395,17 +395,19 @@ def row_for(symbol):
 
 
 def _flow(bars):
+    """يقسم قيمة كل شمعة بين داخلة وخارجة حسب موقع الإغلاق داخل مدى الشمعة
+    (مثل Chaikin Money Flow): الإغلاق عند القمة = داخلة بالكامل، عند القاع = خارجة بالكامل.
+    الشمعة بلا مدى تُصنَّف حسب تغيرها عن الشمعة السابقة."""
     inflow = outflow = 0.0
     for prev, b in zip([None] + bars[:-1], bars):
-        value = b["close"] * b["volume"]
-        ref = prev["close"] if prev else b["open"]
-        if b["close"] > ref or (b["close"] == ref and b["close"] > b["open"]):
-            inflow += value
-        elif b["close"] < ref or (b["close"] == ref and b["close"] < b["open"]):
-            outflow += value
+        value = (b["high"] + b["low"] + b["close"]) / 3 * b["volume"]
+        if b["high"] > b["low"]:
+            share = (b["close"] - b["low"]) / (b["high"] - b["low"])
         else:
-            inflow += value / 2
-            outflow += value / 2
+            ref = prev["close"] if prev else b["open"]
+            share = 1.0 if b["close"] > ref else 0.0 if b["close"] < ref else 0.5
+        inflow += value * share
+        outflow += value * (1 - share)
     return inflow, outflow
 
 
@@ -422,11 +424,12 @@ def _flow_dict(inflow, outflow):
 def get_flow(symbol):
     """السيولة الداخلة/الخارجة لليوم من شموع الدقيقة.
 
-    تقدير شائع: قيمة الشمعة تُحسب داخلة إذا أغلقت أعلى من سابقتها وخارجة إذا أغلقت أدنى.
     شموع ياهو لا تسجل كل الحجم في الأسهم الصغيرة، لذلك تُؤخذ منها النسبة فقط
     وتُطبَّق على القيمة الكلية (متوسط السعر × حجم اليوم اللحظي).
+    المنصات المدفوعة تحسبها من كل صفقة (هل نُفذت عند سعر الطلب أو العرض)، فالأرقام تقريبية.
     """
-    bars = get_chart(symbol, "1m")
+    # تشمل ما قبل الافتتاح وما بعد الإغلاق، لأن جزءًا كبيرًا من تداول الأسهم الصغيرة يحدث فيها
+    bars = get_chart(symbol, "1m", prepost=True)
     if bars:
         # شموع آخر يوم تداول فقط (الأوقات مزاحة لتوقيت الرياض)
         last_day = (bars[-1]["time"] - RIYADH_OFFSET - 4 * 3600) // 86400
