@@ -22,6 +22,14 @@ MARKETS = {
     },
 }
 
+# شريط المؤشرات أعلى الصفحة
+INDICES = {
+    "^DJI": "داو جونز",
+    "^IXIC": "ناسداك",
+    "^GSPC": "S&P 500",
+    "^RUT": "راسل 2000",
+}
+
 # تيليجرام اختياري: المنصة تعمل بدونه، والتنبيهات تظهر داخل الموقع
 # اضبط المتغيرين فقط إذا أردت التنبيهات على البوت أيضًا
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -31,6 +39,8 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 ALERT_PCT = float(os.environ.get("ALERT_PCT", "10"))
 # التنبيه عندما يكون حجم التداول أضعاف المعتاد
 ALERT_VOL_RATIO = float(os.environ.get("ALERT_VOL_RATIO", "3"))
+# التنبيه عندما يتحرك السهم هذه النسبة (%) خلال 5 دقائق (زخم)
+ALERT_SPEED = float(os.environ.get("ALERT_SPEED", "3"))
 # كل كم ثانية يفحص التنبيهات
 ALERT_INTERVAL = int(os.environ.get("ALERT_INTERVAL", "60"))
 # مدة تخزين الأسعار مؤقتًا (ثوانٍ) لتجنب الحظر من ياهو

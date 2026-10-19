@@ -15,7 +15,12 @@
   nav { display:flex; gap:8px; }
   nav a { padding:8px 14px; border-radius:8px; background:var(--card); color:var(--muted); }
   nav a.active { background:var(--accent); color:#fff; }
-  main { max-width:1100px; margin:0 auto; padding:16px; }
+  main { max-width:1400px; margin:0 auto; padding:16px; }
+  .indices { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .indices a { display:flex; gap:6px; align-items:baseline; }
+  .indices b { font-weight:600; }
+  .session { padding:4px 10px; border-radius:999px; font-size:12px; background:var(--card); border:1px solid var(--line); }
+  .session.open { color:var(--up); border-color:#14532d; } .session.ext { color:#facc15; border-color:#713f12; }
   .muted { color:var(--muted); font-size:13px; }
   .up { color:var(--up); } .down { color:var(--down); }
   .ltr { direction:ltr; unicode-bidi:isolate; }
@@ -23,13 +28,42 @@
 </head>
 <body>
 <header>
-  <h1>📊 منصة الأسهم</h1>
+  <a href="/"><h1>📊 منصة الأسهم</h1></a>
+  <div class="indices" id="indices"></div>
+  <span class="session" id="session">—</span>
   <nav>
     {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>
     {% endfor %}{% endif %}
   </nav>
 </header>
+<script>
+// حالة السوق بتوقيت نيويورك (بدون العطل الرسمية)
+function marketSession() {
+  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const m = ny.getHours() * 60 + ny.getMinutes(), day = ny.getDay();
+  if (day === 0 || day === 6) return ["السوق مغلق", ""];
+  if (m >= 570 && m < 960) return ["السوق مفتوح", "open"];
+  if (m >= 240 && m < 570) return ["قبل الافتتاح", "ext"];
+  if (m >= 960 && m < 1200) return ["بعد الإغلاق", "ext"];
+  return ["السوق مغلق", ""];
+}
+function renderSession() {
+  const [text, cls] = marketSession(), el = document.getElementById("session");
+  el.textContent = text; el.className = "session " + cls;
+}
+async function loadIndices() {
+  try {
+    const list = await (await fetch("/api/indices")).json();
+    document.getElementById("indices").innerHTML = list.map(i => {
+      const cls = i.change_pct >= 0 ? "up" : "down", sign = i.change_pct >= 0 ? "+" : "";
+      return `<a href="/stock/${encodeURIComponent(i.symbol)}"><span class="muted">${i.name}</span><b class="ltr">${i.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b><span class="ltr ${cls}">${sign}${i.change_pct.toFixed(2)}%</span></a>`;
+    }).join("");
+  } catch {}
+}
+renderSession(); loadIndices();
+setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
+</script>
 <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

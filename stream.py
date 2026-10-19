@@ -6,7 +6,8 @@ import yfinance as yf
 
 REGULAR_MARKET = 1  # market_hours في رسائل ياهو: 0 قبل الافتتاح، 1 الجلسة، 2 بعد الإغلاق
 
-_prices = {}  # الرمز ← آخر سعر من البث
+_prices = {}  # الرمز ← آخر سعر من البث (الجلسة الرسمية)
+_ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بعد الإغلاق
 _wanted = set()
 _state = {"ws": None, "started": False}
 _lock = threading.Lock()
@@ -14,9 +15,10 @@ _lock = threading.Lock()
 
 def _on_message(msg):
     symbol, price = msg.get("id"), msg.get("price")
-    if not symbol or price is None or msg.get("market_hours", 0) != REGULAR_MARKET:
+    if not symbol or price is None:
         return
-    _prices[symbol] = {
+    target = _prices if msg.get("market_hours", 0) == REGULAR_MARKET else _ext_prices
+    target[symbol] = {
         "price": price,
         "change": msg.get("change"),
         "change_pct": msg.get("change_percent"),
@@ -80,4 +82,9 @@ def watch(symbols):
 
 def latest(symbol, max_age=900):
     p = _prices.get(symbol)
+    return p if p and time.time() - p["at"] < max_age else None
+
+
+def latest_ext(symbol, max_age=900):
+    p = _ext_prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None

@@ -1,12 +1,13 @@
 from flask import Flask, abort, jsonify, render_template, request
 
 from alerts import send_telegram, start_alerts
-from config import ALERT_PCT, ALERT_VOL_RATIO, MARKETS, find_stock
+from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, MARKETS, find_stock
 from market import CHART_INTERVALS, get_chart, get_market, get_quotes, name_for, valid_symbol
 
 app = Flask(__name__)
 
 MAX_SYMBOLS = 40
+TV_INDICES = {"^DJI": "DJ:DJI", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX", "^RUT": "TVC:RUT"}
 
 
 @app.route("/")
@@ -21,6 +22,7 @@ def home(market_id="us"):
         market=MARKETS[market_id],
         alert_pct=ALERT_PCT,
         alert_vol=ALERT_VOL_RATIO,
+        alert_speed=ALERT_SPEED,
     )
 
 
@@ -30,7 +32,7 @@ def stock(symbol):
     if not valid_symbol(symbol):
         abort(404)
     market_id, name = find_stock(symbol)
-    name = name_for(symbol) or name
+    name = INDICES.get(symbol) or name_for(symbol) or name
     return render_template(
         "stock.html",
         markets=MARKETS,
@@ -38,7 +40,7 @@ def stock(symbol):
         market=MARKETS[market_id],
         symbol=symbol,
         name=name,
-        tv_symbol=symbol,
+        tv_symbol=TV_INDICES.get(symbol, symbol),
     )
 
 
@@ -56,6 +58,12 @@ def api_chart(symbol):
     if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
         abort(404)
     return jsonify(get_chart(symbol, interval))
+
+
+@app.route("/api/indices")
+def api_indices():
+    quotes = get_quotes(list(INDICES))
+    return jsonify([{"symbol": s, "name": n, **quotes[s]} for s, n in INDICES.items() if s in quotes])
 
 
 @app.route("/api/quotes")

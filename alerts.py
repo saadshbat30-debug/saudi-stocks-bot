@@ -4,7 +4,7 @@ from datetime import date
 
 import requests
 
-from config import ALERT_INTERVAL, ALERT_PCT, ALERT_VOL_RATIO, BOT_TOKEN, CHAT_ID, MARKETS
+from config import ALERT_INTERVAL, ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, BOT_TOKEN, CHAT_ID, MARKETS
 from market import get_market
 
 _sent = set()  # (الرمز، التاريخ، النوع) حتى لا يتكرر التنبيه في نفس اليوم
@@ -34,6 +34,8 @@ def check_alerts():
             checks = []
             if abs(q["change_pct"]) >= ALERT_PCT:
                 checks.append(("move", f"{'🟢' if q['change_pct'] > 0 else '🔴'} {q['change_pct']:+.2f}%"))
+            if q.get("speed") is not None and abs(q["speed"]) >= ALERT_SPEED:
+                checks.append((f"speed{time.strftime('%H')}", f"🚀 زخم {q['speed']:+.2f}% في 5 دقائق"))
             if q.get("vol_ratio") and q["vol_ratio"] >= ALERT_VOL_RATIO:
                 checks.append(("volume", f"💧 سيولة {q['vol_ratio']}×"))
             for kind, text in checks:

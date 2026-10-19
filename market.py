@@ -1,6 +1,7 @@
 import re
 import threading
 import time
+from collections import deque
 
 import yfinance as yf
 
@@ -163,23 +164,35 @@ def _is_common_stock(symbol):
     return not (len(symbol) == 5 and symbol[-1] in "WRU")
 
 
+def _num(q, key, digits=2):
+    v = q.get(key)
+    return round(v, digits) if isinstance(v, (int, float)) else None
+
+
 def _row(q):
     price = q.get("regularMarketPrice")
     if price is None or not _is_common_stock(q["symbol"]):
         return None
-    avg_vol = q.get("averageDailyVolume3Month")
-    volume = q.get("regularMarketVolume") or 0
+    state = q.get("marketState", "")
+    ext = "preMarket" if state.startswith("PRE") else "postMarket" if state.startswith("POST") else None
     return {
         "symbol": q["symbol"],
         "name": q.get("shortName") or q.get("longName") or q["symbol"],
-        "price": round(price, 4) if price < 1 else round(price, 2),
-        "change": round(q.get("regularMarketChange") or 0, 2),
-        "change_pct": round(q.get("regularMarketChangePercent") or 0, 2),
-        "volume": volume,
-        "vol_ratio": round(volume / avg_vol, 2) if avg_vol else None,
-        "avg_volume": avg_vol,
-        "sma50": round(q["fiftyDayAverage"], 2) if q.get("fiftyDayAverage") else None,
+        "price": price,
+        "change": q.get("regularMarketChange") or 0,
+        "change_pct": q.get("regularMarketChangePercent") or 0,
+        "prev_close": q.get("regularMarketPreviousClose"),
+        "day_high": q.get("regularMarketDayHigh"),
+        "day_low": q.get("regularMarketDayLow"),
+        "volume": q.get("regularMarketVolume") or 0,
+        "avg_volume": q.get("averageDailyVolume3Month"),
+        "shares": q.get("sharesOutstanding"),
+        "sma50": _num(q, "fiftyDayAverage"),
+        "pe": _num(q, "trailingPE"),
+        "pb": _num(q, "priceToBook"),
         "market_cap": q.get("marketCap"),
+        "ext_price": q.get(f"{ext}Price") if ext else None,
+        "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
     }
 
 
@@ -200,7 +213,7 @@ def _refresh_market_history(symbols):
 
 
 def get_market(market_id):
-    """أسهم السوق في النطاق السعري مرتبة بالأكثر تداولًا، مع RSI ومتوسط 20 عند توفرهما."""
+    """أسهم السوق في النطاق السعري مع مقاييس الزخم والسيولة وRSI ومتوسط 20."""
     market = MARKETS[market_id]
     now = time.time()
     with _market_lock:
@@ -223,31 +236,85 @@ def get_market(market_id):
             symbols = missing if missing and not stale else [r["symbol"] for r in rows]
             threading.Thread(target=_refresh_market_history, args=(symbols,), daemon=True).start()
 
-    result = []
-    for r in rows:
-        r = dict(r)
-        live = stream.latest(r["symbol"])
-        if live:
-            # السعر اللحظي من البث يتقدم على بيانات الماسح
-            r["price"] = round(live["price"], 4) if live["price"] < 1 else round(live["price"], 2)
-            if live["change"] is not None:
-                r["change"] = round(live["change"], 4)
-            if live["change_pct"] is not None:
-                r["change_pct"] = round(live["change_pct"], 2)
-            if live["volume"]:
-                r["volume"] = live["volume"]
-                if r["avg_volume"]:
-                    r["vol_ratio"] = round(live["volume"] / r["avg_volume"], 2)
-            r["live"] = True
-        del r["avg_volume"]
-        closes = _market_history.get(r["symbol"])
-        if closes:
-            closes = closes[:-1] + [r["price"]]
-            value, s20 = rsi(closes), sma(closes, 20)
-            r["rsi"] = round(value, 1) if value is not None else None
-            r["sma20"] = round(s20, 2) if s20 else None
-        result.append(r)
-    return result
+    return [_enrich(dict(r), now) for r in rows]
+
+
+_samples = {}  # الرمز ← (الوقت، السعر) لحساب سرعة التغير
+_samples_lock = threading.Lock()
+SPEED_WINDOW = 300  # سرعة التغير = نسبة التغير في آخر 5 دقائق
+
+
+def _speed(symbol, price, now):
+    """نسبة تغير السعر خلال آخر 5 دقائق (الزخم اللحظي)."""
+    with _samples_lock:
+        dq = _samples.setdefault(symbol, deque())
+        if not dq or now - dq[-1][0] >= 10:
+            dq.append((now, price))
+        while len(dq) > 2 and now - dq[1][0] >= SPEED_WINDOW:
+            dq.popleft()
+        t0, p0 = dq[0]
+    if now - t0 < 60 or not p0:
+        return None
+    return round((price / p0 - 1) * 100, 2)
+
+
+def _price_round(p):
+    return round(p, 4) if p < 1 else round(p, 2)
+
+
+def _enrich(r, now):
+    """يدمج البث اللحظي ويحسب مقاييس الزخم والسيولة."""
+    symbol = r["symbol"]
+    live = stream.latest(symbol)
+    if live:
+        # السعر اللحظي من البث يتقدم على بيانات الماسح
+        r["price"] = live["price"]
+        if live["change"] is not None:
+            r["change"] = live["change"]
+        if live["change_pct"] is not None:
+            r["change_pct"] = live["change_pct"]
+        if live["volume"]:
+            r["volume"] = live["volume"]
+        r["live"] = True
+    price = r["price"]
+    if r["day_high"] is not None:
+        r["day_high"] = max(r["day_high"], price)
+    if r["day_low"] is not None:
+        r["day_low"] = min(r["day_low"], price)
+
+    ext = stream.latest_ext(symbol)
+    if ext:
+        r["ext_price"], r["ext_change_pct"] = ext["price"], ext["change_pct"]
+
+    # ===== السيولة =====
+    avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]
+    r["value"] = round(price * volume)
+    r["vol_ratio"] = round(volume / avg_vol, 2) if avg_vol else None
+    r["turnover"] = round(volume / shares * 100, 2) if shares else None
+
+    # ===== الزخم =====
+    prev = r.pop("prev_close")
+    high, low = r["day_high"], r["day_low"]
+    r["amplitude"] = round((high - low) / prev * 100, 2) if prev and high is not None and low is not None else None
+    r["speed"] = _speed(symbol, price, now)
+    r["at_high"] = bool(high and r["change_pct"] > 0 and price >= high * 0.995)
+
+    closes = _market_history.get(symbol)
+    if closes:
+        closes = closes[:-1] + [price]
+        value, s20 = rsi(closes), sma(closes, 20)
+        r["rsi"] = round(value, 1) if value is not None else None
+        r["sma20"] = round(s20, 2) if s20 else None
+
+    r["price"] = _price_round(price)
+    r["change"] = round(r["change"], 4)
+    r["change_pct"] = round(r["change_pct"], 2)
+    for k in ("day_high", "day_low", "ext_price"):
+        if r.get(k) is not None:
+            r[k] = _price_round(r[k])
+    if r.get("ext_change_pct") is not None:
+        r["ext_change_pct"] = round(r["ext_change_pct"], 2)
+    return r
 
 
 # ===== شموع الشارت اللحظي =====

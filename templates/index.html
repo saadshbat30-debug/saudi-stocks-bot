@@ -2,68 +2,96 @@
 {% block title %}{{ market.title }} — منصة الأسهم{% endblock %}
 {% block content %}
 <style>
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(140px,45%),1fr)); gap:10px; margin-bottom:14px; }
-  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
-  .stat b { display:block; font-size:22px; margin-top:4px; }
-  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
-  .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .top { display:grid; grid-template-columns:1.2fr repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  @media (max-width:1100px) { .top { grid-template-columns:1fr 1fr; } }
+  @media (max-width:600px) { .top { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:13px; font-weight:500; color:var(--muted); }
+  .breadth { display:flex; height:8px; border-radius:4px; overflow:hidden; margin:8px 0; background:#26303b; }
+  .breadth span { display:block; height:100%; }
+  .kv { display:flex; justify-content:space-between; font-size:13px; margin-top:4px; }
+  .mini { list-style:none; margin:0; padding:0; }
+  .mini li { display:flex; justify-content:space-between; gap:8px; padding:4px 0; font-size:13px; cursor:pointer; border-bottom:1px solid #222a33; }
+  .mini li:last-child { border-bottom:0; }
+  .mini li:hover { color:var(--accent); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .chip { padding:6px 11px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
   .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .sep { width:1px; height:22px; background:var(--line); }
+  .chip.sig.active { background:#3d3315; border-color:#713f12; color:#facc15; }
+  .lbl { color:var(--muted); font-size:12px; margin-inline-end:2px; }
   input.field { padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; }
-  .add { display:flex; gap:6px; margin-inline-start:auto; }
-  .add input { width:120px; direction:ltr; }
   .btn { padding:6px 12px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; font:inherit; font-size:13px; }
   .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--line); }
-  .layout { display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start; }
+  .layout { display:grid; grid-template-columns:1fr 290px; gap:14px; align-items:start; }
   .layout > * { min-width:0; }
-  @media (max-width:900px) { .layout { grid-template-columns:1fr; } }
+  @media (max-width:1000px) { .layout { grid-template-columns:1fr; } }
   .table-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th, td { padding:9px 10px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }
-  th { color:var(--muted); font-weight:500; cursor:pointer; user-select:none; background:var(--card); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:8px 9px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:500; cursor:pointer; user-select:none; }
+  th[title] { text-decoration:underline dotted #4b5563; text-underline-offset:4px; }
   th.sorted::after { content:" ▾"; } th.sorted.asc::after { content:" ▴"; }
   tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
   td.num { font-variant-numeric:tabular-nums; }
-  .nm { max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+  .rank { color:var(--muted); font-size:12px; }
+  .nm { max-width:170px; overflow:hidden; text-overflow:ellipsis; }
   .sym { color:var(--muted); font-size:12px; direction:ltr; }
-  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; margin-inline-end:4px; background:#26303b; }
-  .tag.up { background:#14361f; } .tag.down { background:#3d1717; } .tag.warn { background:#3d3315; color:#facc15; }
-  .star, .x { background:none; border:0; color:var(--muted); cursor:pointer; font-size:16px; padding:0; }
+  .tag { display:inline-block; padding:2px 7px; border-radius:6px; font-size:11px; margin-inline-end:3px; background:#26303b; }
+  .tag.up { background:#14361f; } .tag.down { background:#3d1717; } .tag.warn { background:#3d3315; color:#facc15; } .tag.hot { background:#3b1d4a; color:#e9d5ff; }
+  .star, .x { background:none; border:0; color:var(--muted); cursor:pointer; font-size:15px; padding:0; }
   .star.on { color:#facc15; }
+  .bar { display:inline-block; height:6px; border-radius:3px; vertical-align:middle; margin-inline-start:6px; }
   .more { display:block; width:100%; padding:12px; background:none; border:0; color:var(--accent); cursor:pointer; font:inherit; }
-  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
-  .panel h3 { margin:0 0 8px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
-  .alerts { list-style:none; margin:0; padding:0; max-height:60vh; overflow-y:auto; }
-  .alerts li { padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .alerts { list-style:none; margin:0; padding:0; max-height:65vh; overflow-y:auto; }
+  .alerts li { padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .alerts li a { font-weight:600; }
 </style>
 
-<div class="stats">
-  <div class="stat"><span class="muted">عدد الأسهم</span><b id="s-count">—</b></div>
-  <div class="stat"><span class="muted">مرتفعة / منخفضة</span><b><span class="up" id="s-up">—</span> / <span class="down" id="s-down">—</span></b></div>
-  <div class="stat"><span class="muted">الأعلى ارتفاعًا</span><b id="s-top">—</b></div>
-  <div class="stat"><span class="muted">الأكثر تداولًا</span><b id="s-active">—</b></div>
+<div class="top">
+  <div class="card">
+    <h4>نظرة على السوق (<span id="b-total">—</span> سهم)</h4>
+    <div class="kv"><span class="up">▲ مرتفع <b id="b-up">—</b></span><span class="muted">ثابت <b id="b-flat">—</b></span><span class="down">▼ منخفض <b id="b-down">—</b></span></div>
+    <div class="breadth"><span id="bb-up" style="background:var(--up)"></span><span id="bb-flat" style="background:#4b5563"></span><span id="bb-down" style="background:var(--down)"></span></div>
+    <div class="kv"><span class="muted">قيمة التداول</span><b class="ltr" id="b-value">—</b></div>
+    <div class="kv"><span class="muted">أسهم بسيولة عالية (2×+)</span><b id="b-hot">—</b></div>
+    <div class="kv"><span class="muted">أسهم عند قمة اليوم</span><b id="b-high">—</b></div>
+  </div>
+  <div class="card"><h4>🚀 أقوى زخم (آخر 5 دقائق)</h4><ul class="mini" id="m-speed"></ul></div>
+  <div class="card"><h4>💧 أعلى سيولة نسبية</h4><ul class="mini" id="m-rvol"></ul></div>
+  <div class="card"><h4>💰 الأعلى قيمة تداول</h4><ul class="mini" id="m-value"></ul></div>
 </div>
 
-<div class="toolbar" id="bands">
-  <button class="chip active" data-band="-1">كل الأسعار ({{ market.min_price|int }}–{{ market.max_price|int }}$)</button>
-  {% for band in market.price_bands %}
-  <button class="chip" data-band="{{ loop.index0 }}">{{ band[0] }}</button>
-  {% endfor %}
-  <input class="field" id="search" placeholder="🔍 بحث بالرمز أو الاسم" autocomplete="off" style="margin-inline-start:auto;width:180px">
+<div class="toolbar" id="tabs">
+  <button class="chip active" data-tab="gainers">الأكثر ارتفاعًا</button>
+  <button class="chip" data-tab="losers">الأكثر انخفاضًا</button>
+  <button class="chip" data-tab="active">الأكثر نشاطًا</button>
+  <button class="chip" data-tab="value">الأعلى قيمة</button>
+  <button class="chip" data-tab="momentum">🚀 الزخم</button>
+  <button class="chip" data-tab="liquidity">💧 السيولة</button>
+  <button class="chip" data-tab="high">عند قمة اليوم</button>
+  <button class="chip" data-tab="fav">★ المفضلة</button>
+  <span style="margin-inline-start:auto" id="session-tabs">
+    <button class="chip active" data-ext="0">الجلسة الرسمية</button>
+    <button class="chip" data-ext="1">قبل / بعد الجلسة</button>
+  </span>
 </div>
-<div class="toolbar" id="filters">
-  <button class="chip active" data-filter="all">الكل</button>
-  <button class="chip" data-filter="fav">★ المفضلة</button>
-  <button class="chip" data-filter="gainers">الأكثر ارتفاعًا</button>
-  <button class="chip" data-filter="losers">الأكثر انخفاضًا</button>
-  <button class="chip" data-filter="volume">سيولة عالية</button>
-  <button class="chip" data-filter="oversold">تشبع بيعي</button>
-  <button class="chip" data-filter="overbought">تشبع شرائي</button>
-  <button class="chip" data-filter="uptrend">اتجاه صاعد</button>
-  <form class="add" id="add-form">
-    <input class="field" id="add-input" placeholder="رمز آخر" autocomplete="off">
-    <button class="btn">+ إضافة</button>
+<div class="toolbar">
+  <span class="lbl">السعر:</span>
+  <span id="bands">
+    <button class="chip active" data-band="-1">الكل</button>
+    {% for band in market.price_bands %}<button class="chip" data-band="{{ loop.index0 }}">{{ band[0] }}</button>{% endfor %}
+  </span>
+  <span class="lbl" style="margin-inline-start:8px">إشارة:</span>
+  <span id="signals">
+    <button class="chip sig" data-sig="oversold">تشبع بيعي</button>
+    <button class="chip sig" data-sig="overbought">تشبع شرائي</button>
+    <button class="chip sig" data-sig="uptrend">اتجاه صاعد</button>
+    <button class="chip sig" data-sig="downtrend">اتجاه هابط</button>
+  </span>
+  <input class="field" id="search" placeholder="🔍 رمز أو اسم" autocomplete="off" style="margin-inline-start:auto;width:150px">
+  <form id="add-form" style="display:flex;gap:6px">
+    <input class="field" id="add-input" placeholder="رمز آخر" autocomplete="off" style="width:100px;direction:ltr">
+    <button class="btn">+</button>
   </form>
 </div>
 
@@ -71,13 +99,21 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
+        <th>#</th>
         <th></th>
         <th data-sort="name">السهم</th>
         <th data-sort="price">السعر</th>
-        <th data-sort="change_pct">التغير</th>
-        <th data-sort="volume" class="sorted">الحجم</th>
-        <th data-sort="vol_ratio">السيولة ×</th>
-        <th data-sort="rsi">RSI</th>
+        <th data-sort="change_pct">التغير %</th>
+        <th data-sort="change">التغير</th>
+        <th data-sort="speed" title="نسبة تغير السعر خلال آخر 5 دقائق">سرعة 5د</th>
+        <th data-sort="volume">الحجم</th>
+        <th data-sort="value" title="السعر × الحجم بالدولار">القيمة</th>
+        <th data-sort="vol_ratio" title="حجم اليوم مقارنة بمتوسط 3 أشهر">السيولة ×</th>
+        <th data-sort="turnover" title="الحجم ÷ عدد الأسهم القائمة">التدوير %</th>
+        <th data-sort="amplitude" title="(أعلى − أدنى) ÷ إغلاق أمس">الاهتزاز %</th>
+        <th data-sort="rsi" title="مؤشر القوة النسبية 14 يوم">RSI</th>
+        <th data-sort="pe" title="مكرر الأرباح">P/E</th>
+        <th data-sort="pb" title="مضاعف القيمة الدفترية">P/B</th>
         <th data-sort="market_cap">القيمة السوقية</th>
         <th>الإشارات</th>
         <th></th>
@@ -86,22 +122,32 @@
     </table>
     <button class="more" id="more" hidden>عرض المزيد</button>
   </div>
-  <aside class="panel">
-    <h3>🔔 التنبيهات <button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></h3>
-    <div class="muted" style="margin-bottom:6px">تغير ±{{ alert_pct }}% أو سيولة {{ alert_vol }}× المعتاد</div>
-    <label class="muted" style="display:block;margin-bottom:8px"><input type="checkbox" id="fav-only"> للمفضلة فقط</label>
-    <ul class="alerts" id="alerts"><li class="muted">لا توجد تنبيهات بعد</li></ul>
+  <aside class="card">
+    <h4 style="display:flex;justify-content:space-between;align-items:center">🔔 التنبيهات <button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></h4>
+    <div class="muted" style="margin-bottom:6px">تغير ±{{ alert_pct }}% · زخم ±{{ alert_speed }}% في 5 دقائق · سيولة {{ alert_vol }}×</div>
+    <label class="muted" style="display:block;margin-bottom:6px"><input type="checkbox" id="fav-only"> للمفضلة فقط</label>
+    <button class="btn ghost" id="clear-alerts" style="font-size:12px;padding:3px 8px">مسح</button>
+    <ul class="alerts" id="alerts"></ul>
   </aside>
 </div>
-<div class="muted" style="margin-top:10px">يتحدث كل 5 ثوانٍ · ⚡ = سعر لحظي من البث المباشر · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
+<div class="muted" style="margin-top:10px">يتحدث كل 5 ثوانٍ · ⚡ سعر لحظي · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
 
 <script>
 const MARKET = {{ market_id|tojson }};
 const CURRENCY = {{ market.currency|tojson }};
 const BANDS = {{ market.price_bands|tojson }};
-const ALERT_PCT = {{ alert_pct|tojson }};
-const ALERT_VOL = {{ alert_vol|tojson }};
+const ALERT_PCT = {{ alert_pct|tojson }}, ALERT_VOL = {{ alert_vol|tojson }}, ALERT_SPEED = {{ alert_speed|tojson }};
 const PAGE = 100;
+const TABS = {
+  gainers:   { sort: "change_pct", asc: false, filter: q => q.change_pct > 0 },
+  losers:    { sort: "change_pct", asc: true,  filter: q => q.change_pct < 0 },
+  active:    { sort: "volume",     asc: false },
+  value:     { sort: "value",      asc: false },
+  momentum:  { sort: "speed",      asc: false, filter: q => q.speed != null },
+  liquidity: { sort: "vol_ratio",  asc: false, filter: q => q.vol_ratio != null },
+  high:      { sort: "change_pct", asc: false, filter: q => q.at_high },
+  fav:       { sort: "change_pct", asc: false, filter: q => favs.has(q.symbol) },
+};
 
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
@@ -110,75 +156,106 @@ const store = {
 let custom = store.get("custom_" + MARKET, []);
 let favs = new Set(store.get("favs_" + MARKET, []));
 let rows = [];
-let band = -1, filter = "all", search = "", sortKey = "volume", sortAsc = false, shown = PAGE;
+let tab = store.get("tab_" + MARKET, "gainers"), sig = null, band = -1, search = "", ext = false;
+let sortKey = TABS[tab].sort, sortAsc = TABS[tab].asc, shown = PAGE;
 let favOnly = store.get("fav_only_" + MARKET, false);
 
 const fmtPrice = n => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: n < 1 ? 4 : 2, maximumFractionDigits: n < 1 ? 4 : 2 });
 const fmt = (n, d = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtBig = v => v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(v);
+const fmtBig = v => v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(v);
+const signed = (n, d = 2, suffix = "%") => n == null ? "—" : `${n > 0 ? "+" : ""}${fmt(n, d)}${suffix}`;
+const cls = n => n > 0 ? "up" : n < 0 ? "down" : "muted";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 function signals(q) {
   const s = [];
+  if (q.speed >= 2) s.push(["🚀 زخم", "hot", "momentum"]);
+  if (q.at_high) s.push(["قمة اليوم", "up", "high"]);
+  if (q.vol_ratio >= 2) s.push(["سيولة عالية", "up", "volume"]);
   if (q.rsi != null && q.rsi < 30) s.push(["تشبع بيعي", "warn", "oversold"]);
   if (q.rsi != null && q.rsi > 70) s.push(["تشبع شرائي", "warn", "overbought"]);
-  const ma = q.sma20 ?? null, ma50 = q.sma50 ?? null;
-  if (ma && ma50 && q.price > ma && ma > ma50) s.push(["اتجاه صاعد", "up", "uptrend"]);
-  if (ma && ma50 && q.price < ma && ma < ma50) s.push(["اتجاه هابط", "down", "downtrend"]);
-  if (q.vol_ratio >= 2) s.push(["سيولة عالية", "up", "volume"]);
+  if (q.sma20 && q.sma50 && q.price > q.sma20 && q.sma20 > q.sma50) s.push(["اتجاه صاعد", "up", "uptrend"]);
+  if (q.sma20 && q.sma50 && q.price < q.sma20 && q.sma20 < q.sma50) s.push(["اتجاه هابط", "down", "downtrend"]);
   return s;
 }
 
+// في وضع "قبل / بعد الجلسة" يُعرض السعر والتغير الممتد
+function view(q) {
+  if (!ext) return q;
+  return { ...q, price: q.ext_price, change_pct: q.ext_change_pct, change: q.ext_price != null && q.ext_change_pct != null ? q.ext_price - q.ext_price / (1 + q.ext_change_pct / 100) : null };
+}
+
+function miniList(id, list, metric) {
+  document.getElementById(id).innerHTML = list.length ? list.map(q =>
+    `<li data-go="${esc(q.symbol)}"><span><b class="ltr">${esc(q.symbol)}</b> <span class="muted ltr">${CURRENCY}${fmtPrice(q.price)}</span></span>${metric(q)}</li>`
+  ).join("") : `<li class="muted">—</li>`;
+}
+
+function renderTop() {
+  const up = rows.filter(q => q.change_pct > 0).length, down = rows.filter(q => q.change_pct < 0).length;
+  const flat = rows.length - up - down, total = rows.length || 1;
+  document.getElementById("b-total").textContent = rows.length;
+  document.getElementById("b-up").textContent = up;
+  document.getElementById("b-down").textContent = down;
+  document.getElementById("b-flat").textContent = flat;
+  document.getElementById("bb-up").style.width = (up / total * 100) + "%";
+  document.getElementById("bb-flat").style.width = (flat / total * 100) + "%";
+  document.getElementById("bb-down").style.width = (down / total * 100) + "%";
+  document.getElementById("b-value").textContent = "$" + fmtBig(rows.reduce((s, q) => s + (q.value || 0), 0));
+  document.getElementById("b-hot").textContent = rows.filter(q => q.vol_ratio >= 2).length;
+  document.getElementById("b-high").textContent = rows.filter(q => q.at_high).length;
+  const top = (key, n = 5) => rows.filter(q => q[key] != null).sort((a, b) => b[key] - a[key]).slice(0, n);
+  miniList("m-speed", top("speed"), q => `<span class="ltr ${cls(q.speed)}">${signed(q.speed)}</span>`);
+  miniList("m-rvol", top("vol_ratio"), q => `<span class="ltr">${fmt(q.vol_ratio, 1)}× <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
+  miniList("m-value", top("value"), q => `<span class="ltr">$${fmtBig(q.value)} <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
+}
+
 function render() {
-  const up = rows.filter(q => q.change_pct > 0), down = rows.filter(q => q.change_pct < 0);
-  document.getElementById("s-count").textContent = rows.length;
-  document.getElementById("s-up").textContent = up.length;
-  document.getElementById("s-down").textContent = down.length;
-  if (rows.length) {
-    const top = rows.reduce((a, b) => b.change_pct > a.change_pct ? b : a);
-    const active = rows.reduce((a, b) => b.volume > a.volume ? b : a);
-    document.getElementById("s-top").innerHTML = `<bdi dir="ltr">${esc(top.symbol)} <span class="up">+${top.change_pct}%</span></bdi>`;
-    document.getElementById("s-active").innerHTML = `<bdi dir="ltr">${esc(active.symbol)} <span class="muted">${fmtBig(active.volume)}</span></bdi>`;
-  }
-
-  const has = key => q => signals(q).some(s => s[2] === key);
-  const filters = {
-    all: () => true, fav: q => favs.has(q.symbol), gainers: q => q.change_pct > 0, losers: q => q.change_pct < 0,
-    volume: has("volume"), oversold: has("oversold"), overbought: has("overbought"), uptrend: has("uptrend"),
-  };
-  let list = rows.filter(filters[filter]);
-  if (band >= 0) {
-    const [, lo, hi] = BANDS[band];
-    list = list.filter(q => q.price >= lo && q.price < hi);
-  }
-  if (search) list = list.filter(q => q.symbol.includes(search.toUpperCase()) || q.name.toLowerCase().includes(search.toLowerCase()));
-
-  const key = filter === "gainers" || filter === "losers" ? "change_pct" : sortKey;
-  const asc = filter === "losers" ? true : filter === "gainers" ? false : sortAsc;
+  renderTop();
+  let list = rows.map(view).filter(q => q.price != null && q.change_pct != null);
+  const t = TABS[tab];
+  if (t.filter) list = list.filter(t.filter);
+  if (sig) list = list.filter(q => signals(q).some(s => s[2] === sig));
+  if (band >= 0) { const [, lo, hi] = BANDS[band]; list = list.filter(q => q.price >= lo && q.price < hi); }
+  if (search) { const s = search.toLowerCase(); list = list.filter(q => q.symbol.toLowerCase().includes(s) || q.name.toLowerCase().includes(s)); }
   list.sort((a, b) => {
-    const x = a[key] ?? -Infinity, y = b[key] ?? -Infinity;
+    const x = a[sortKey] ?? -Infinity, y = b[sortKey] ?? -Infinity;
     const c = typeof x === "string" ? x.localeCompare(y) : x - y;
-    return asc ? c : -c;
+    return sortAsc ? c : -c;
+  });
+  document.querySelectorAll("th[data-sort]").forEach(th => {
+    th.classList.toggle("sorted", th.dataset.sort === sortKey);
+    th.classList.toggle("asc", th.dataset.sort === sortKey && sortAsc);
   });
 
   const tbody = document.getElementById("rows");
   document.getElementById("more").hidden = list.length <= shown;
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">${rows.length ? "لا توجد أسهم بهذا الفلتر" : "جارٍ تحميل البيانات…"}</td></tr>`;
+    const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
+    tbody.innerHTML = `<tr><td colspan="18" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
     return;
   }
-  tbody.innerHTML = list.slice(0, shown).map(q => {
-    const cls = q.change_pct >= 0 ? "up" : "down", sign = q.change_pct >= 0 ? "+" : "";
-    const rsiStyle = q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : "";
+  const maxSpeed = Math.max(1, ...list.slice(0, shown).map(q => Math.abs(q.speed || 0)));
+  tbody.innerHTML = list.slice(0, shown).map((q, i) => {
     const s = esc(q.symbol);
+    const speedBar = q.speed ? `<span class="bar" style="width:${Math.round(Math.abs(q.speed) / maxSpeed * 30)}px;background:${q.speed > 0 ? "var(--up)" : "var(--down)"}"></span>` : "";
+    const rsiStyle = q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : "";
     return `<tr data-symbol="${s}">
+      <td class="rank">${i + 1}</td>
       <td><button class="star ${favs.has(q.symbol) ? "on" : ""}" data-fav="${s}" title="المفضلة">★</button></td>
-      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live ? ' <span title="سعر لحظي" style="color:#facc15">⚡</span>' : ""}</div></td>
+      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live && !ext ? ' <span style="color:#facc15" title="سعر لحظي">⚡</span>' : ""}</div></td>
       <td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>
-      <td class="num ${cls}"><bdi dir="ltr">${sign}${fmt(q.change_pct)}%</bdi></td>
+      <td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>
+      <td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>
+      <td class="num ${cls(q.speed)}"><bdi dir="ltr">${signed(q.speed)}</bdi>${speedBar}</td>
       <td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>
-      <td class="num"><bdi dir="ltr">${q.vol_ratio == null ? "—" : q.vol_ratio + "×"}</bdi></td>
+      <td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>
+      <td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi></td>
+      <td class="num"><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%"}</bdi></td>
+      <td class="num"><bdi dir="ltr">${q.amplitude == null ? "—" : fmt(q.amplitude) + "%"}</bdi></td>
       <td class="num" ${rsiStyle}>${fmt(q.rsi, 1)}</td>
+      <td class="num">${fmt(q.pe)}</td>
+      <td class="num">${fmt(q.pb)}</td>
       <td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>
       <td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>
       <td>${custom.includes(q.symbol) ? `<button class="x" data-remove="${s}" title="حذف">✕</button>` : ""}</td>
@@ -192,8 +269,7 @@ const sentKeys = new Set(store.get("alert_keys_" + MARKET, []));
 let firstLoad = true;
 
 function renderAlerts() {
-  const ul = document.getElementById("alerts");
-  ul.innerHTML = alerts.length ? alerts.map(a =>
+  document.getElementById("alerts").innerHTML = alerts.length ? alerts.map(a =>
     `<li><a href="/stock/${esc(a.symbol)}">${esc(a.symbol)}</a> <span class="muted">${esc(a.name)}</span><br>${a.text}<div class="muted">${a.time}</div></li>`
   ).join("") : `<li class="muted">لا توجد تنبيهات بعد</li>`;
 }
@@ -207,13 +283,16 @@ function beep() {
 }
 
 function checkAlerts() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10), hour = new Date().getHours();
   const fresh = [];
   for (const q of rows) {
     if (favOnly && !favs.has(q.symbol)) continue;
+    const price = `<bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi>`;
     const checks = [];
-    if (Math.abs(q.change_pct) >= ALERT_PCT) checks.push([q.change_pct > 0 ? "up" : "down", `${q.change_pct > 0 ? "🟢 ارتفاع" : "🔴 انخفاض"} ${q.change_pct > 0 ? "+" : ""}${q.change_pct}% · <bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi>`]);
-    if (q.vol_ratio >= ALERT_VOL) checks.push(["volume", `💧 سيولة ${q.vol_ratio}× المعتاد · <bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi>`]);
+    if (Math.abs(q.change_pct) >= ALERT_PCT) checks.push([q.change_pct > 0 ? "up" : "down", `${q.change_pct > 0 ? "🟢 ارتفاع" : "🔴 انخفاض"} <bdi dir="ltr">${signed(q.change_pct)}</bdi> · ${price}`]);
+    // الزخم قد يتكرر في اليوم، فيُسمح بتنبيه واحد لكل ساعة
+    if (q.speed != null && Math.abs(q.speed) >= ALERT_SPEED) checks.push(["speed" + hour, `🚀 زخم <bdi dir="ltr">${signed(q.speed)}</bdi> في 5 دقائق · ${price}`]);
+    if (q.vol_ratio >= ALERT_VOL) checks.push(["volume", `💧 سيولة ${fmt(q.vol_ratio, 1)}× المعتاد · ${price}`]);
     for (const [type, text] of checks) {
       const key = `${q.symbol}|${today}|${type}`;
       if (sentKeys.has(key)) continue;
@@ -223,10 +302,10 @@ function checkAlerts() {
   }
   store.set("alert_keys_" + MARKET, [...sentKeys].filter(k => k.includes(today)));
   if (!fresh.length) return;
-  alerts = [...fresh, ...alerts].slice(0, 100);
+  alerts = [...fresh, ...alerts].slice(0, 150);
   store.set("alerts_" + MARKET, alerts);
   renderAlerts();
-  // أول تحميل يسجل الحالة الحالية بدون إزعاج؛ الصوت والإشعار للتنبيهات الجديدة فقط
+  // أول تحميل يسجل الحالة الحالية بهدوء؛ الصوت والإشعار للتنبيهات الجديدة فقط
   if (firstLoad) return;
   beep();
   if ("Notification" in window && Notification.permission === "granted") {
@@ -242,7 +321,7 @@ async function refresh() {
     let extraRows = [];
     if (extra.length) {
       const q = await (await fetch("/api/quotes?symbols=" + encodeURIComponent(extra.join(",")))).json();
-      extraRows = Object.entries(q).map(([symbol, v]) => ({ symbol, name: symbol, ...v }));
+      extraRows = Object.entries(q).map(([symbol, v]) => ({ symbol, name: symbol, value: Math.round(v.price * v.volume), ...v }));
     }
     rows = [...market, ...extraRows];
     render();
@@ -255,24 +334,35 @@ async function refresh() {
 }
 
 // ===== التفاعل =====
-function group(id, attr, set) {
-  document.querySelectorAll(`#${id} .chip`).forEach(c => c.onclick = () => {
-    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.toggle("active", x === c));
-    set(c.dataset[attr]); shown = PAGE; render();
+function chips(containerId, attr, onPick, toggle = false) {
+  const all = document.querySelectorAll(`#${containerId} [data-${attr}]`);
+  all.forEach(c => c.onclick = () => {
+    const off = toggle && c.classList.contains("active");
+    all.forEach(x => x.classList.toggle("active", x === c && !off));
+    onPick(off ? null : c.dataset[attr]);
+    shown = PAGE; render();
   });
 }
-group("bands", "band", v => band = Number(v));
-group("filters", "filter", v => filter = v);
+function setTab(t) {
+  tab = t; sortKey = TABS[t].sort; sortAsc = TABS[t].asc; store.set("tab_" + MARKET, t);
+  document.querySelectorAll("#tabs [data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === t));
+}
+setTab(tab);
+chips("tabs", "tab", setTab);
+chips("session-tabs", "ext", v => ext = v === "1");
+chips("bands", "band", v => band = Number(v));
+chips("signals", "sig", v => sig = v, true);
 document.getElementById("search").oninput = e => { search = e.target.value.trim(); shown = PAGE; render(); };
 document.getElementById("more").onclick = () => { shown += PAGE; render(); };
 document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
   const k = th.dataset.sort;
   sortAsc = sortKey === k ? !sortAsc : k === "name";
-  sortKey = k;
-  document.querySelectorAll("th").forEach(x => x.classList.remove("sorted", "asc"));
-  th.classList.add("sorted"); if (sortAsc) th.classList.add("asc");
-  render();
+  sortKey = k; render();
 });
+document.querySelector(".top").onclick = e => {
+  const li = e.target.closest("[data-go]");
+  if (li) location.href = "/stock/" + encodeURIComponent(li.dataset.go);
+};
 document.getElementById("rows").onclick = e => {
   const fav = e.target.closest("[data-fav]");
   if (fav) {
@@ -287,7 +377,7 @@ document.getElementById("rows").onclick = e => {
     store.set("custom_" + MARKET, custom); render(); return;
   }
   const tr = e.target.closest("tr[data-symbol]");
-  if (tr) location.href = "/stock/" + tr.dataset.symbol;
+  if (tr) location.href = "/stock/" + encodeURIComponent(tr.dataset.symbol);
 };
 document.getElementById("add-form").onsubmit = e => {
   e.preventDefault();
@@ -301,9 +391,13 @@ document.getElementById("add-form").onsubmit = e => {
 const favOnlyBox = document.getElementById("fav-only");
 favOnlyBox.checked = favOnly;
 favOnlyBox.onchange = () => { favOnly = favOnlyBox.checked; store.set("fav_only_" + MARKET, favOnly); };
+document.getElementById("clear-alerts").onclick = () => { alerts = []; store.set("alerts_" + MARKET, []); renderAlerts(); };
 const notifyBtn = document.getElementById("notify-btn");
 if (!("Notification" in window) || Notification.permission === "granted") notifyBtn.style.display = "none";
 notifyBtn.onclick = () => Notification.requestPermission().then(p => { if (p === "granted") notifyBtn.style.display = "none"; });
+
+// إذا كانت جلسة ممتدة الآن، افتح تبويبها تلقائيًا
+if (marketSession()[1] === "ext") document.querySelector('[data-ext="1"]').click();
 
 renderAlerts();
 render();
