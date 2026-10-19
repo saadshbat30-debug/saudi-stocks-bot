@@ -35,7 +35,7 @@ def _download(symbols, period):
             df = data[symbol].dropna(subset=["Close"])
         except KeyError:
             continue
-        if len(df) >= 2:
+        if len(df):
             frames[symbol] = df
     return frames
 
@@ -56,7 +56,8 @@ def _refresh(cache, symbols, period, max_age, build):
 
 def _snapshot(df):
     price = float(df["Close"].iloc[-1])
-    prev = float(df["Close"].iloc[-2])
+    # سهم مدرج اليوم: لا يوجد إغلاق سابق، فيُقارن بسعر الافتتاح
+    prev = float(df["Close"].iloc[-2]) if len(df) >= 2 else float(df["Open"].iloc[-1])
     return {"price": price, "prev_close": prev, "volume": int(df["Volume"].iloc[-1] or 0)}
 
 
@@ -87,12 +88,23 @@ def sma(values, n):
 
 
 def get_quotes(symbols):
-    """السعر والتغير والحجم + مؤشرات RSI والمتوسطات لكل رمز."""
+    """السعر والتغير والحجم + مؤشرات RSI والمتوسطات لكل رمز.
+
+    الأسهم الموجودة في الماسح تؤخذ منه (نفس أرقام الصفحة الرئيسية، وتعمل حتى للأسهم
+    المدرجة حديثًا)، والباقي من التاريخ اليومي.
+    """
     stream.watch(symbols)
+    result = {}
+    for s in symbols:
+        row = row_for(s)
+        if row:
+            result[s] = row
+    symbols = [s for s in symbols if s not in result]
+    if not symbols:
+        return result
     with _lock:
         _refresh(_quotes, symbols, "5d", CACHE_SECONDS, _snapshot)
         _refresh(_history, symbols, "6mo", HISTORY_CACHE_SECONDS, _closes)
-        result = {}
         for s in symbols:
             q = _quotes.get(s)
             if not q:
