@@ -13,6 +13,12 @@
   .sep { width:1px; height:22px; background:var(--line); }
   .chart-box { height:65vh; min-height:400px; margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; position:relative; }
   #live-chart, #tv_chart { position:absolute; inset:0; }
+  #live-chart { left:42px; direction:ltr; }
+  .draw-toolbar { position:absolute; left:0; top:0; bottom:0; width:42px; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-right:1px solid var(--line); background:var(--card); z-index:4; overflow-y:auto; }
+  .draw-toolbar button { width:32px; height:30px; border:0; border-radius:6px; background:none; color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; }
+  .draw-toolbar button:hover { background:#26303b; color:var(--text); }
+  .draw-toolbar button.active { background:var(--accent); color:#fff; }
+  .draw-toolbar .tb-sep { width:24px; height:1px; background:var(--line); margin:4px 0; }
   .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   [hidden] { display:none !important; }
   .flow { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:12px; }
@@ -75,13 +81,15 @@
   </span>
 </div>
 <div class="chart-box">
+  <div class="draw-toolbar" id="draw-toolbar"></div>
   <div id="live-chart"></div>
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
-<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
+<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · أدوات الرسم على اليسار (Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
+<script src="{{ url_for('static', filename='drawings.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
 const CURRENCY = {{ market.currency|tojson }};
@@ -103,6 +111,12 @@ const candles = chart.addCandlestickSeries({
 const volume = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" } });
 volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
 const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+
+// أدوات الرسم (خطوط، فيبوناتشي، مستطيلات، قياس...) — تُحفظ لكل سهم
+initDrawings({
+  chart, series: candles, container: el, symbol: SYMBOL, getBars: () => bars,
+  toolbar: document.getElementById("draw-toolbar"),
+});
 
 function precisionFor(price) {
   const p = price < 1 ? 4 : 2;
@@ -206,6 +220,7 @@ document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => {
   const tv = b.dataset.view === "tv";
   document.getElementById("tv_chart").hidden = !tv;
   el.hidden = tv;
+  document.getElementById("draw-toolbar").hidden = tv;
   document.getElementById("intervals").style.visibility = tv ? "hidden" : "visible";
   if (tv) loadTradingView();
 });
