@@ -313,6 +313,7 @@ def _enrich(r, now):
     ext = stream.latest_ext(symbol)
     if ext:
         r["ext_price"], r["ext_change_pct"] = ext["price"], ext["change_pct"]
+        r["ext_live"] = True
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]

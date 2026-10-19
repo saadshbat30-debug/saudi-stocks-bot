@@ -57,7 +57,8 @@ def api_chart(symbol):
     interval = request.args.get("interval", "5m")
     if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
         abort(404)
-    return jsonify(get_chart(symbol, interval))
+    # شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق (مثل موموو)، والشموع اليومية للجلسة الرسمية
+    return jsonify(get_chart(symbol, interval, prepost=interval != "1d"))
 
 
 @app.route("/api/flow/<symbol>")

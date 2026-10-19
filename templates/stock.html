@@ -31,7 +31,7 @@
 <div class="kpis">
   <div class="kpi"><span class="muted">السعر <span id="k-live"></span></span><b id="k-price">—</b></div>
   <div class="kpi"><span class="muted">التغير</span><b id="k-change">—</b></div>
-  <div class="kpi" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span><b id="k-ext">—</b></div>
+  <div class="kpi" id="k-ext-box" hidden><span class="muted"><span id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span></span><b id="k-ext">—</b></div>
   <div class="kpi"><span class="muted">RSI 14</span><b id="k-rsi">—</b></div>
   <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
   <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
@@ -79,7 +79,7 @@
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
-<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · الخط البرتقالي متوسط 20 شمعة · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
+<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script>
@@ -138,7 +138,10 @@ async function loadChart(fit) {
 
 // تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
 function applyLive(q) {
-  if (!q.live || !bars.length) return;
+  // خلال الجلسة: سعر البث؛ قبل الافتتاح/بعد الإغلاق: سعر البث الممتد
+  const price = q.live ? q.price : q.ext_live ? q.ext_price : null;
+  if (price == null || !bars.length) return;
+  q = { ...q, price };
   const last = bars[bars.length - 1];
   const step = STEP[interval];
   const now = Math.floor(Date.now() / 1000) + 3 * 3600;
@@ -167,6 +170,7 @@ async function loadKpis() {
     if (q.ext_price != null) {
       const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
       document.getElementById("k-ext-label").textContent = ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
+      document.getElementById("k-ext-live").innerHTML = q.ext_live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
       const e = document.getElementById("k-ext"), pct = q.ext_change_pct;
       e.innerHTML = `${CURRENCY}${f(q.ext_price, q.ext_price < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
     }
