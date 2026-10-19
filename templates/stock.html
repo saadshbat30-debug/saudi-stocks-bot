@@ -11,13 +11,17 @@
   .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
   .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
   .sep { width:1px; height:22px; background:var(--line); }
-  .chart-box { height:65vh; min-height:400px; margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; position:relative; }
+  .chart-box { height:52vh; min-height:360px; margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; position:relative; }
   #live-chart, #tv_chart { position:absolute; inset:0; }
   #live-chart { left:42px; direction:ltr; }
   .draw-toolbar { position:absolute; left:0; top:0; bottom:0; width:42px; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-right:1px solid var(--line); background:var(--card); z-index:4; overflow-y:auto; }
   .draw-toolbar button { width:32px; height:30px; border:0; border-radius:6px; background:none; color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; }
   .draw-toolbar button:hover { background:#26303b; color:var(--text); }
   .draw-toolbar button.active { background:var(--accent); color:#fff; }
+  .ind-pane { position:relative; height:140px; margin-top:6px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .ind-pane .ind-chart { position:absolute; inset:0 0 0 42px; direction:ltr; }
+  .ind-pane .ind-label { position:absolute; top:6px; left:52px; z-index:2; font-size:12px; direction:ltr; color:var(--muted); pointer-events:none; }
+  .ind-pane .ind-label b { color:var(--text); font-weight:600; }
   .draw-toolbar .tb-sep { width:24px; height:1px; background:var(--line); margin:4px 0; }
   .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   [hidden] { display:none !important; }
@@ -79,6 +83,12 @@
     <button class="chip" data-interval="1h">ساعة</button>
     <button class="chip" data-interval="1d">يوم</button>
   </span>
+  <span id="ind-buttons" style="display:flex;gap:6px;align-items:center">
+    <span class="sep"></span>
+    <span class="muted">مؤشرات:</span>
+    <button class="chip" data-ind="macd">MACD</button>
+    <button class="chip" data-ind="rsi">RSI</button>
+  </span>
 </div>
 <div class="chart-box">
   <div class="draw-toolbar" id="draw-toolbar"></div>
@@ -86,10 +96,12 @@
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
+<div id="ind-panes"></div>
 <div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · أدوات الرسم على اليسار (Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
+<script src="{{ url_for('static', filename='indicators.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
 const CURRENCY = {{ market.currency|tojson }};
@@ -116,6 +128,12 @@ const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisi
 initDrawings({
   chart, series: candles, container: el, symbol: SYMBOL, getBars: () => bars,
   toolbar: document.getElementById("draw-toolbar"),
+});
+
+// مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
+const indicators = initIndicators({
+  mainChart: chart, getBars: () => bars, container: document.getElementById("ind-panes"),
+  buttons: [...document.querySelectorAll("[data-ind]")], storageKey: "indicators",
 });
 
 function precisionFor(price) {
@@ -145,6 +163,7 @@ async function loadChart(fit) {
     candles.setData(bars);
     volume.setData(bars.map(volBar));
     ma20.setData(maData());
+    indicators.update();
     if (fit) chart.timeScale().fitContent();
     if (lastQuote) applyLive(lastQuote);
   } catch {}
@@ -170,6 +189,7 @@ function applyLive(q) {
   const b = bars[bars.length - 1];
   candles.update(b);
   volume.update(volBar(b));
+  indicators.update();
 }
 
 async function loadKpis() {
@@ -221,6 +241,8 @@ document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => {
   document.getElementById("tv_chart").hidden = !tv;
   el.hidden = tv;
   document.getElementById("draw-toolbar").hidden = tv;
+  document.getElementById("ind-buttons").style.visibility = tv ? "hidden" : "visible";
+  indicators.setVisible(!tv);
   document.getElementById("intervals").style.visibility = tv ? "hidden" : "visible";
   if (tv) loadTradingView();
 });
