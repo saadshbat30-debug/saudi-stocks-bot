@@ -99,6 +99,18 @@ def get_quotes(symbols):
         row = row_for(s)
         if row:
             result[s] = row
+    # صفوف الماسح التي لم يُحسب لها RSI بعد (التاريخ يُحمَّل في الخلفية): احسبه لها الآن
+    pending = [s for s, r in result.items() if r.get("rsi") is None]
+    if pending:
+        with _lock:
+            _refresh(_history, pending, "6mo", HISTORY_CACHE_SECONDS, _closes)
+        for s in pending:
+            h = _history.get(s)
+            if h:
+                closes = h["closes"][:-1] + [result[s]["price"]]
+                r, s20 = rsi(closes), sma(closes, 20)
+                result[s]["rsi"] = round(r, 1) if r is not None else None
+                result[s]["sma20"] = round(s20, 2) if s20 else None
     symbols = [s for s in symbols if s not in result]
     if not symbols:
         return result
