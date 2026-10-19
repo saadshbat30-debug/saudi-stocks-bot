@@ -178,6 +178,8 @@ async function loadKpis() {
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
+    // لون السعر على الشارت حسب التغير اليومي (مثل المنصات الأخرى) لا حسب آخر شمعة
+    candles.applyOptions({ priceLineColor: q.change_pct >= 0 ? "#22c55e" : "#ef4444" });
     applyLive(q);
   } catch {}
 }
