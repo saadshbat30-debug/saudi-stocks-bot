@@ -4,7 +4,7 @@ import time
 
 import yfinance as yf
 
-from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS
+from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS
 
 SYMBOL_RE = re.compile(r"^[A-Z0-9.\-^=]{1,15}$")
 
@@ -115,3 +115,102 @@ def get_quotes(symbols):
                 )
             result[s] = item
         return result
+
+
+# ===== السوق كاملًا عبر ماسح ياهو (طلب واحد لكل 250 سهم) =====
+
+def _universe(market):
+    return yf.EquityQuery("and", [
+        yf.EquityQuery("eq", ["region", "us"]),
+        yf.EquityQuery("is-in", ["exchange", *market["exchanges"]]),
+        yf.EquityQuery("btwn", ["intradayprice", market["min_price"], market["max_price"]]),
+    ])
+
+
+_markets = {}
+_market_history = {}  # الرمز ← قائمة الإغلاقات اليومية لحساب RSI
+_history_state = {"at": 0, "running": False}
+_market_lock = threading.Lock()
+
+
+def _screen(query, limit):
+    quotes = []
+    while len(quotes) < limit:
+        size = min(250, limit - len(quotes))
+        page = yf.screen(query, offset=len(quotes), size=size, sortField="dayvolume", sortAsc=False)
+        batch = page.get("quotes", [])
+        quotes += batch
+        if len(batch) < size:
+            break
+    return quotes
+
+
+def _row(q):
+    price = q.get("regularMarketPrice")
+    if price is None:
+        return None
+    avg_vol = q.get("averageDailyVolume3Month")
+    volume = q.get("regularMarketVolume") or 0
+    return {
+        "symbol": q["symbol"],
+        "name": q.get("shortName") or q.get("longName") or q["symbol"],
+        "price": round(price, 4) if price < 1 else round(price, 2),
+        "change": round(q.get("regularMarketChange") or 0, 2),
+        "change_pct": round(q.get("regularMarketChangePercent") or 0, 2),
+        "volume": volume,
+        "vol_ratio": round(volume / avg_vol, 2) if avg_vol else None,
+        "sma50": round(q["fiftyDayAverage"], 2) if q.get("fiftyDayAverage") else None,
+        "market_cap": q.get("marketCap"),
+    }
+
+
+def _refresh_market_history(symbols):
+    try:
+        for i in range(0, len(symbols), 100):
+            batch = symbols[i:i + 100]
+            frames = _download(batch, "3mo")
+            for symbol in batch:
+                # قائمة فارغة للرموز بلا بيانات حتى لا يُعاد طلبها كل مرة
+                df = frames.get(symbol)
+                _market_history[symbol] = [float(c) for c in df["Close"]] if df is not None else []
+        _history_state["at"] = time.time()
+    except Exception as e:
+        print(f"⚠️ فشل تحديث المؤشرات: {e}")
+    finally:
+        _history_state["running"] = False
+
+
+def get_market(market_id):
+    """أسهم السوق في النطاق السعري مرتبة بالأكثر تداولًا، مع RSI ومتوسط 20 عند توفرهما."""
+    market = MARKETS[market_id]
+    now = time.time()
+    with _market_lock:
+        cached = _markets.get(market_id)
+        if not cached or now - cached["at"] > CACHE_SECONDS:
+            try:
+                rows = [r for r in map(_row, _screen(_universe(market), market["limit"])) if r]
+                if rows:
+                    cached = _markets[market_id] = {"rows": rows, "at": now}
+            except Exception as e:
+                print(f"⚠️ فشل سحب السوق {market_id}: {e}")
+        rows = cached["rows"] if cached else []
+
+        # تحديث التاريخ في الخلفية حتى لا تتأخر الصفحة
+        missing = [r["symbol"] for r in rows if r["symbol"] not in _market_history]
+        stale = now - _history_state["at"] > HISTORY_CACHE_SECONDS
+        if rows and (missing or stale) and not _history_state["running"]:
+            _history_state["running"] = True
+            symbols = missing if missing and not stale else [r["symbol"] for r in rows]
+            threading.Thread(target=_refresh_market_history, args=(symbols,), daemon=True).start()
+
+    result = []
+    for r in rows:
+        r = dict(r)
+        closes = _market_history.get(r["symbol"])
+        if closes:
+            closes = closes[:-1] + [r["price"]]
+            value, s20 = rsi(closes), sma(closes, 20)
+            r["rsi"] = round(value, 1) if value is not None else None
+            r["sma20"] = round(s20, 2) if s20 else None
+        result.append(r)
+    return result

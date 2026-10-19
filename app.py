@@ -1,18 +1,12 @@
 from flask import Flask, abort, jsonify, render_template, request
 
 from alerts import send_telegram, start_alerts
-from config import ALERT_PCT, MARKETS, find_stock
-from market import get_quotes, valid_symbol
+from config import ALERT_PCT, ALERT_VOL_RATIO, MARKETS, find_stock
+from market import get_market, get_quotes, valid_symbol
 
 app = Flask(__name__)
 
 MAX_SYMBOLS = 40
-
-
-def tradingview_symbol(symbol):
-    if symbol.endswith(".SR"):
-        return "TADAWUL:" + symbol[:-3]
-    return symbol
 
 
 @app.route("/")
@@ -21,7 +15,12 @@ def home(market_id="us"):
     if market_id not in MARKETS:
         abort(404)
     return render_template(
-        "index.html", markets=MARKETS, market_id=market_id, market=MARKETS[market_id], alert_pct=ALERT_PCT
+        "index.html",
+        markets=MARKETS,
+        market_id=market_id,
+        market=MARKETS[market_id],
+        alert_pct=ALERT_PCT,
+        alert_vol=ALERT_VOL_RATIO,
     )
 
 
@@ -38,8 +37,15 @@ def stock(symbol):
         market=MARKETS[market_id],
         symbol=symbol,
         name=name,
-        tv_symbol=tradingview_symbol(symbol),
+        tv_symbol=symbol,
     )
+
+
+@app.route("/api/market/<market_id>")
+def api_market(market_id):
+    if market_id not in MARKETS:
+        abort(404)
+    return jsonify(get_market(market_id))
 
 
 @app.route("/api/quotes")

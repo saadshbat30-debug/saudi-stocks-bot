@@ -4,10 +4,10 @@ from datetime import date
 
 import requests
 
-from config import ALERT_INTERVAL, ALERT_PCT, BOT_TOKEN, CHAT_ID, MARKETS
-from market import get_quotes
+from config import ALERT_INTERVAL, ALERT_PCT, ALERT_VOL_RATIO, BOT_TOKEN, CHAT_ID, MARKETS
+from market import get_market
 
-_sent = set()  # (الرمز، التاريخ، الاتجاه) حتى لا يتكرر التنبيه في نفس اليوم
+_sent = set()  # (الرمز، التاريخ، النوع) حتى لا يتكرر التنبيه في نفس اليوم
 
 
 def send_telegram(text):
@@ -26,24 +26,26 @@ def send_telegram(text):
 
 
 def check_alerts():
+    """يجمع التنبيهات الجديدة في رسالة واحدة لكل دورة بدل رسالة لكل سهم."""
     today = date.today().isoformat()
-    for market in MARKETS.values():
-        quotes = get_quotes(list(market["stocks"]))
-        for symbol, q in quotes.items():
-            if abs(q["change_pct"]) < ALERT_PCT:
-                continue
-            direction = "up" if q["change_pct"] > 0 else "down"
-            key = (symbol, today, direction)
-            if key in _sent:
-                continue
-            arrow = "🟢📈" if direction == "up" else "🔴📉"
-            text = (
-                f"{arrow} {market['stocks'][symbol]} ({symbol})\n"
-                f"السعر: {q['price']} {market['currency']}\n"
-                f"التغير: {q['change_pct']:+.2f}%"
-            )
-            if send_telegram(text):
-                _sent.add(key)
+    for market_id, market in MARKETS.items():
+        lines, keys = [], []
+        for q in get_market(market_id):
+            checks = []
+            if abs(q["change_pct"]) >= ALERT_PCT:
+                checks.append(("move", f"{'🟢' if q['change_pct'] > 0 else '🔴'} {q['change_pct']:+.2f}%"))
+            if q.get("vol_ratio") and q["vol_ratio"] >= ALERT_VOL_RATIO:
+                checks.append(("volume", f"💧 سيولة {q['vol_ratio']}×"))
+            for kind, text in checks:
+                key = (q["symbol"], today, kind)
+                if key not in _sent:
+                    keys.append(key)
+                    lines.append(f"{q['symbol']} · {market['currency']}{q['price']} · {text}")
+        if not lines:
+            continue
+        extra = f"\n… و{len(lines) - 30} تنبيه آخر" if len(lines) > 30 else ""
+        if send_telegram(f"🔔 {market['title']}\n" + "\n".join(lines[:30]) + extra):
+            _sent.update(keys)
 
 
 def _loop():
@@ -57,6 +59,6 @@ def _loop():
 
 def start_alerts():
     if not BOT_TOKEN or not CHAT_ID:
-        print("ℹ️ التنبيهات متوقفة: اضبط BOT_TOKEN و CHAT_ID")
+        print("ℹ️ تنبيهات تيليجرام متوقفة (اختيارية) — تنبيهات الموقع تعمل")
         return
     threading.Thread(target=_loop, daemon=True).start()

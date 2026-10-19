@@ -25,9 +25,9 @@
 <header>
   <h1>📊 منصة الأسهم</h1>
   <nav>
-    {% for id, m in markets.items() %}
+    {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>
-    {% endfor %}
+    {% endfor %}{% endif %}
   </nav>
 </header>
 <main>{% block content %}{% endblock %}</main>

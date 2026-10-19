@@ -23,7 +23,7 @@ async function loadKpis() {
     if (!q) return;
     const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
     const sign = q.change >= 0 ? "+" : "";
-    document.getElementById("k-price").textContent = f(q.price) + " " + {{ market.currency|tojson }};
+    document.getElementById("k-price").textContent = {{ market.currency|tojson }} + f(q.price, q.price < 1 ? 4 : 2);
     const ch = document.getElementById("k-change");
     ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change >= 0 ? "up" : "down";
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
