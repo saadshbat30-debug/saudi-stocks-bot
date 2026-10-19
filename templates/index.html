@@ -93,7 +93,7 @@
     <ul class="alerts" id="alerts"><li class="muted">لا توجد تنبيهات بعد</li></ul>
   </aside>
 </div>
-<div class="muted" style="margin-top:10px">يتحدث تلقائيًا كل 20 ثانية · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
+<div class="muted" style="margin-top:10px">يتحدث كل 5 ثوانٍ · ⚡ = سعر لحظي من البث المباشر · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
 
 <script>
 const MARKET = {{ market_id|tojson }};
@@ -130,7 +130,7 @@ function signals(q) {
 }
 
 function render() {
-  const up = rows.filter(q => q.change > 0), down = rows.filter(q => q.change < 0);
+  const up = rows.filter(q => q.change_pct > 0), down = rows.filter(q => q.change_pct < 0);
   document.getElementById("s-count").textContent = rows.length;
   document.getElementById("s-up").textContent = up.length;
   document.getElementById("s-down").textContent = down.length;
@@ -168,12 +168,12 @@ function render() {
     return;
   }
   tbody.innerHTML = list.slice(0, shown).map(q => {
-    const cls = q.change >= 0 ? "up" : "down", sign = q.change >= 0 ? "+" : "";
+    const cls = q.change_pct >= 0 ? "up" : "down", sign = q.change_pct >= 0 ? "+" : "";
     const rsiStyle = q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : "";
     const s = esc(q.symbol);
     return `<tr data-symbol="${s}">
       <td><button class="star ${favs.has(q.symbol) ? "on" : ""}" data-fav="${s}" title="المفضلة">★</button></td>
-      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}</div></td>
+      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live ? ' <span title="سعر لحظي" style="color:#facc15">⚡</span>' : ""}</div></td>
       <td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>
       <td class="num ${cls}"><bdi dir="ltr">${sign}${fmt(q.change_pct)}%</bdi></td>
       <td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>
@@ -308,6 +308,6 @@ notifyBtn.onclick = () => Notification.requestPermission().then(p => { if (p ===
 renderAlerts();
 render();
 refresh();
-setInterval(refresh, 20000);
+setInterval(refresh, 5000);
 </script>
 {% endblock %}

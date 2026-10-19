@@ -22,17 +22,17 @@ async function loadKpis() {
     const q = (await (await fetch("/api/quotes?symbols=" + encodeURIComponent({{ symbol|tojson }}))).json())[{{ symbol|tojson }}];
     if (!q) return;
     const f = (n, d = 2) => n == null ? "—" : n.toFixed(d);
-    const sign = q.change >= 0 ? "+" : "";
+    const sign = q.change_pct >= 0 ? "+" : "";
     document.getElementById("k-price").textContent = {{ market.currency|tojson }} + f(q.price, q.price < 1 ? 4 : 2);
     const ch = document.getElementById("k-change");
-    ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change >= 0 ? "up" : "down";
+    ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change_pct >= 0 ? "up" : "down";
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
     document.getElementById("k-vol").textContent = q.vol_ratio == null ? "—" : q.vol_ratio + "×";
   } catch {}
 }
-loadKpis(); setInterval(loadKpis, 20000);
+loadKpis(); setInterval(loadKpis, 5000);
 </script>
 <div style="height:70vh;min-height:420px;margin-top:12px">
   <div class="tradingview-widget-container" style="height:100%">

@@ -35,6 +35,8 @@ ALERT_VOL_RATIO = float(os.environ.get("ALERT_VOL_RATIO", "3"))
 ALERT_INTERVAL = int(os.environ.get("ALERT_INTERVAL", "60"))
 # مدة تخزين الأسعار مؤقتًا (ثوانٍ) لتجنب الحظر من ياهو
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "20"))
+# كل كم ثانية تُحدّث قائمة الأسهم من الماسح (الأسعار نفسها تأتي لحظيًا من البث المباشر)
+SCREEN_SECONDS = int(os.environ.get("SCREEN_SECONDS", "60"))
 # مدة تخزين التاريخ اليومي المستخدم للمؤشرات
 HISTORY_CACHE_SECONDS = int(os.environ.get("HISTORY_CACHE_SECONDS", "600"))
 

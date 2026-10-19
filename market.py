@@ -4,7 +4,8 @@ import time
 
 import yfinance as yf
 
-from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS
+import stream
+from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
 
 SYMBOL_RE = re.compile(r"^[A-Z0-9.\-^=]{1,15}$")
 
@@ -86,6 +87,7 @@ def sma(values, n):
 
 def get_quotes(symbols):
     """السعر والتغير والحجم + مؤشرات RSI والمتوسطات لكل رمز."""
+    stream.watch(symbols)
     with _lock:
         _refresh(_quotes, symbols, "5d", CACHE_SECONDS, _snapshot)
         _refresh(_history, symbols, "6mo", HISTORY_CACHE_SECONDS, _closes)
@@ -94,6 +96,9 @@ def get_quotes(symbols):
             q = _quotes.get(s)
             if not q:
                 continue
+            live = stream.latest(s)
+            if live:
+                q = {**q, "price": live["price"], "volume": live["volume"] or q["volume"]}
             change = q["price"] - q["prev_close"]
             item = {
                 "price": round(q["price"], 2),
@@ -145,9 +150,17 @@ def _screen(query, limit):
     return quotes
 
 
+def _is_common_stock(symbol):
+    """يستبعد الوارنتات والحقوق والوحدات والأسهم الممتازة (GME-WT, SEATW, NEE-PS ...)."""
+    if "-" in symbol:
+        suffix = symbol.split("-", 1)[1]
+        return len(suffix) == 1 and suffix not in "WRUP"
+    return not (len(symbol) == 5 and symbol[-1] in "WRU")
+
+
 def _row(q):
     price = q.get("regularMarketPrice")
-    if price is None:
+    if price is None or not _is_common_stock(q["symbol"]):
         return None
     avg_vol = q.get("averageDailyVolume3Month")
     volume = q.get("regularMarketVolume") or 0
@@ -159,6 +172,7 @@ def _row(q):
         "change_pct": round(q.get("regularMarketChangePercent") or 0, 2),
         "volume": volume,
         "vol_ratio": round(volume / avg_vol, 2) if avg_vol else None,
+        "avg_volume": avg_vol,
         "sma50": round(q["fiftyDayAverage"], 2) if q.get("fiftyDayAverage") else None,
         "market_cap": q.get("marketCap"),
     }
@@ -186,11 +200,12 @@ def get_market(market_id):
     now = time.time()
     with _market_lock:
         cached = _markets.get(market_id)
-        if not cached or now - cached["at"] > CACHE_SECONDS:
+        if not cached or now - cached["at"] > SCREEN_SECONDS:
             try:
                 rows = [r for r in map(_row, _screen(_universe(market), market["limit"])) if r]
                 if rows:
                     cached = _markets[market_id] = {"rows": rows, "at": now}
+                    stream.watch([r["symbol"] for r in rows])
             except Exception as e:
                 print(f"⚠️ فشل سحب السوق {market_id}: {e}")
         rows = cached["rows"] if cached else []
@@ -206,6 +221,20 @@ def get_market(market_id):
     result = []
     for r in rows:
         r = dict(r)
+        live = stream.latest(r["symbol"])
+        if live:
+            # السعر اللحظي من البث يتقدم على بيانات الماسح
+            r["price"] = round(live["price"], 4) if live["price"] < 1 else round(live["price"], 2)
+            if live["change"] is not None:
+                r["change"] = round(live["change"], 4)
+            if live["change_pct"] is not None:
+                r["change_pct"] = round(live["change_pct"], 2)
+            if live["volume"]:
+                r["volume"] = live["volume"]
+                if r["avg_volume"]:
+                    r["vol_ratio"] = round(live["volume"] / r["avg_volume"], 2)
+            r["live"] = True
+        del r["avg_volume"]
         closes = _market_history.get(r["symbol"])
         if closes:
             closes = closes[:-1] + [r["price"]]
