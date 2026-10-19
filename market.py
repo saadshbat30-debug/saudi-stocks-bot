@@ -300,7 +300,8 @@ def _enrich(r, now):
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]
-    r["value"] = round(price * volume)
+    typical = (r["day_high"] + r["day_low"] + price) / 3 if r["day_high"] and r["day_low"] else price
+    r["value"] = round(typical * volume)
     r["vol_ratio"] = round(volume / avg_vol, 2) if avg_vol else None
     r["turnover"] = round(volume / shares * 100, 2) if shares else None
 
@@ -419,47 +420,45 @@ def _flow_dict(inflow, outflow):
 
 
 def get_flow(symbol):
-    """السيولة الداخلة/الخارجة لليوم من شموع الدقيقة + الحجم اللحظي من البث.
+    """السيولة الداخلة/الخارجة لليوم من شموع الدقيقة.
 
     تقدير شائع: قيمة الشمعة تُحسب داخلة إذا أغلقت أعلى من سابقتها وخارجة إذا أغلقت أدنى.
+    شموع ياهو لا تسجل كل الحجم في الأسهم الصغيرة، لذلك تُؤخذ منها النسبة فقط
+    وتُطبَّق على القيمة الكلية (متوسط السعر × حجم اليوم اللحظي).
     """
     bars = get_chart(symbol, "1m")
     if bars:
         # شموع آخر يوم تداول فقط (الأوقات مزاحة لتوقيت الرياض)
         last_day = (bars[-1]["time"] - RIYADH_OFFSET - 4 * 3600) // 86400
         bars = [b for b in bars if (b["time"] - RIYADH_OFFSET - 4 * 3600) // 86400 == last_day]
-    inflow, outflow = _flow(bars)
 
     row = row_for(symbol)
     quote = row or get_quotes([symbol]).get(symbol) or {}
     price, volume = quote.get("price"), quote.get("volume") or 0
 
-    # حجم وصل من البث ولم يدخل شموع ياهو بعد → يُصنَّف حسب اتجاه السعر الآن
+    # متوسط سعر الصفقات (VWAP) من السعر النموذجي لكل شمعة
     bars_volume = sum(b["volume"] for b in bars)
-    pending = volume - bars_volume
-    if bars and price and pending > 0:
-        value = pending * price
-        if price > bars[-1]["close"]:
-            inflow += value
-        elif price < bars[-1]["close"]:
-            outflow += value
-        else:
-            inflow += value / 2
-            outflow += value / 2
+    vwap = (sum((b["high"] + b["low"] + b["close"]) / 3 * b["volume"] for b in bars) / bars_volume
+            if bars_volume else price)
+    value = vwap * volume if vwap else None
+
+    inflow, outflow = _flow(bars)
+    scale = value / (inflow + outflow) if value and inflow + outflow else 0
 
     recent = {}
     for minutes in (5, 15):
         i, o = _flow(bars[-minutes:]) if bars else (0, 0)
-        recent[f"m{minutes}"] = _flow_dict(i, o)
+        recent[f"m{minutes}"] = _flow_dict(i * scale, o * scale)
 
     return {
         "price": price,
         "volume": volume,
-        "value": round(price * volume) if price else None,
+        "vwap": _price_round(vwap) if vwap else None,
+        "value": round(value) if value else None,
         "vol_ratio": quote.get("vol_ratio"),
         "turnover": quote.get("turnover"),
         "speed": quote.get("speed"),
         "live": bool(quote.get("live")),
-        **_flow_dict(inflow, outflow),
+        **_flow_dict(inflow * scale, outflow * scale),
         **recent,
     }
