@@ -24,6 +24,8 @@ def _on_message(msg):
         "change_pct": msg.get("change_percent"),
         "volume": int(msg.get("day_volume", 0) or 0),
         "at": time.time(),
+        # وقت الصفقة من ياهو (بالملي ثانية) لمقارنته بوقت بيانات الماسح
+        "trade_time": int(msg.get("time", 0) or 0) / 1000 or time.time(),
     }
 
 
@@ -80,11 +82,11 @@ def watch(symbols):
             pass
 
 
-def latest(symbol, max_age=900):
+def latest(symbol, max_age=120):
     p = _prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None
 
 
-def latest_ext(symbol, max_age=900):
+def latest_ext(symbol, max_age=300):
     p = _ext_prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None

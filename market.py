@@ -215,6 +215,7 @@ def _row(q):
         "pe": _num(q, "trailingPE"),
         "pb": _num(q, "priceToBook"),
         "market_cap": q.get("marketCap"),
+        "quote_time": q.get("regularMarketTime") or 0,
         "ext_price": q.get(f"{ext}Price") if ext else None,
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
     }
@@ -290,6 +291,9 @@ def _enrich(r, now):
     """يدمج البث اللحظي ويحسب مقاييس الزخم والسيولة."""
     symbol = r["symbol"]
     live = stream.latest(symbol)
+    quote_time = r.pop("quote_time", 0)
+    if live and live["trade_time"] < quote_time:
+        live = None  # الماسح أحدث من آخر صفقة وصلت من البث
     if live:
         # السعر اللحظي من البث يتقدم على بيانات الماسح
         r["price"] = live["price"]
