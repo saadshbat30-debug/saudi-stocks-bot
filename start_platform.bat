@@ -24,9 +24,20 @@ REM Add to Windows startup + desktop shortcut the first time
 if not exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Stocks Platform.lnk" call "%~dp0install_startup.bat" silent
 
 echo Starting the platform...
+REM UTF-8 so Arabic messages never crash Python in a cmd window
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 start "Stocks Platform - close this window to stop" /min cmd /k "py app.py"
 REM Wait until the server answers (up to 60 seconds)
-powershell -NoProfile -Command "for ($i=0; $i -lt 60; $i++) { try { Invoke-WebRequest -UseBasicParsing http://localhost:5000/ -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 1 } }"
+powershell -NoProfile -Command "for ($i=0; $i -lt 60; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/ -TimeoutSec 2 | Out-Null; exit 0 } catch { Start-Sleep 1 } }; exit 1"
+if errorlevel 1 (
+    echo.
+    echo The platform did not start. Open the "Stocks Platform" window in the taskbar
+    echo to see the error, and send it to Claude.
+    echo.
+    pause
+    exit /b 1
+)
 
 :open
-start "" http://localhost:5000
+start "" http://127.0.0.1:5000
