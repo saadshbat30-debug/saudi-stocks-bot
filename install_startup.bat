@@ -10,6 +10,8 @@ powershell -NoProfile -Command ^
   "  $s.TargetPath = '%TARGET%'; $s.WorkingDirectory = '%WORKDIR%'; $s.WindowStyle = 7;" ^
   "  $s.IconLocation = 'shell32.dll,13'; $s.Save() }"
 
+echo Added to Windows startup and desktop.
+if /i "%~1"=="silent" exit /b
 echo.
 echo Done! The platform will open automatically when Windows starts.
 echo A "Stocks Platform" shortcut was also added to your desktop.

@@ -62,11 +62,15 @@ py app.py
 - Build: `pip install -r requirements.txt`
 - Start: `gunicorn wsgi:app --workers 1 --threads 4`
 
-## تشغيل المنصة تلقائيًا مع ويندوز
-1. افتح مجلد المشروع (`C:\Users\<اسمك>\saudi-stocks-bot`)
-2. اضغط مرتين على **`install_startup.bat`** (مرة واحدة فقط)
-3. من الآن: المنصة تشتغل وتفتح في المتصفح تلقائيًا عند تشغيل الكمبيوتر، وتجد اختصار **Stocks Platform** على سطح المكتب
+## تشغيل المنصة تلقائيًا مع ويندوز (مرة واحدة فقط)
+في PowerShell:
+```powershell
+cd $HOME\saudi-stocks-bot
+git pull
+.\start_platform.bat
+```
+بعدها كل شيء تلقائي: عند تشغيل الكمبيوتر تتحدث المنصة من GitHub، وتثبّت المكتبات الجديدة،
+وتشتغل وتفتح في المتصفح. ويُضاف اختصار **Stocks Platform** على سطح المكتب.
 
-- `start_platform.bat`: يشغّل المنصة ويفتح المتصفح (إن كانت تعمل يفتح المتصفح فقط)
-- `uninstall_startup.bat`: يلغي التشغيل التلقائي
 - لإيقاف المنصة: أغلق نافذة **Stocks Platform** المصغّرة في شريط المهام
+- لإلغاء التشغيل التلقائي: `uninstall_startup.bat`
