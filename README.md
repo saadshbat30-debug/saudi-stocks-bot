@@ -61,3 +61,12 @@ py app.py
 ## التشغيل على Render
 - Build: `pip install -r requirements.txt`
 - Start: `gunicorn wsgi:app --workers 1 --threads 4`
+
+## تشغيل المنصة تلقائيًا مع ويندوز
+1. افتح مجلد المشروع (`C:\Users\<اسمك>\saudi-stocks-bot`)
+2. اضغط مرتين على **`install_startup.bat`** (مرة واحدة فقط)
+3. من الآن: المنصة تشتغل وتفتح في المتصفح تلقائيًا عند تشغيل الكمبيوتر، وتجد اختصار **Stocks Platform** على سطح المكتب
+
+- `start_platform.bat`: يشغّل المنصة ويفتح المتصفح (إن كانت تعمل يفتح المتصفح فقط)
+- `uninstall_startup.bat`: يلغي التشغيل التلقائي
+- لإيقاف المنصة: أغلق نافذة **Stocks Platform** المصغّرة في شريط المهام
