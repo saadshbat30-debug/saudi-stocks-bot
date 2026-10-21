@@ -69,6 +69,7 @@ async function loadIndices() {
 async function loadStatus() {
   try {
     const st = await (await fetch("/api/status")).json();
+    window.platformStatus = st;
     const banner = document.getElementById("stale-banner"), age = st.screener_age;
     const stale = age != null && age > 180 && marketSession()[1] !== "";
     banner.hidden = !stale;

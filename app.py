@@ -1,10 +1,11 @@
+import time
 from flask import Flask, abort, jsonify, render_template, request
 
 import extras
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 import stream
-from market import STATUS, screener_age, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
+from market import STATUS, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
 
@@ -35,6 +36,7 @@ def stock(symbol):
     if not valid_symbol(symbol):
         abort(404)
     market_id, name = find_stock(symbol)
+    watch_night(symbol)  # يُضاف لجلب أسعار التداول الليلي
     name = INDICES.get(symbol) or name_for(symbol) or name
     return render_template(
         "stock.html",
@@ -107,7 +109,12 @@ def api_trades(symbol):
 @app.route("/api/status")
 def api_status():
     age = screener_age()
-    return jsonify({"screener_age": round(age) if age is not None else None, "screener_error": STATUS["screener_error"], "stream": stream.status()})
+    night_age = time.time() - STATUS["night_at"] if STATUS["night_at"] else None
+    return jsonify({
+        "screener_age": round(age) if age is not None else None, "screener_error": STATUS["screener_error"],
+        "stream": stream.status(),
+        "night": {"count": STATUS["night_count"], "age": round(night_age) if night_age is not None else None, "error": STATUS["night_error"]},
+    })
 
 
 @app.route("/api/indices")
@@ -133,6 +140,19 @@ def api_raw(symbol):
         get_market("us")
         q = raw_quote(symbol)
     return jsonify(q or {"error": "الرمز غير موجود في قائمة الماسح"})
+
+
+@app.route("/api/raw_quote/<symbol>")
+def api_raw_quote(symbol):
+    """رد ياهو الخام من نقطة الأسعار — لفحص حقول التداول الليلي (overnight)."""
+    symbol = symbol.upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    try:
+        q = (raw_quotes([symbol]) or [{}])[0]
+    except Exception as e:
+        return jsonify({"error": str(e)})
+    return jsonify({"overnight_fields": {k: v for k, v in q.items() if "overnight" in k.lower()}, "quote": q})
 
 
 @app.route("/test")

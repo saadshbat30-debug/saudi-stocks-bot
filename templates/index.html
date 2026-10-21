@@ -217,6 +217,15 @@ function signals(q) {
   return s;
 }
 
+// رسالة تبويب التداول الليلي عندما لا توجد أسعار
+function nightMsg() {
+  const n = window.platformStatus?.night;
+  if (marketSession()[1] !== "night") return "التداول الليلي يعمل من 8 مساءً إلى 4 فجرًا بتوقيت نيويورك (3 فجرًا – 11 صباحًا بتوقيت الرياض في التوقيت الصيفي الأمريكي)";
+  if (n?.error) return `تعذر جلب أسعار التداول الليلي من ياهو: <span dir="ltr">${esc(n.error)}</span>`;
+  if (n?.age == null) return "جارٍ جلب أسعار التداول الليلي… (تتحدث كل دقيقة)";
+  return `ياهو لم يرسل أسعار تداول ليلي (فُحص ${n.count} سهم قبل ${n.age} ثانية). افتح <a href="/api/raw_quote/AAPL" target="_blank" style="text-decoration:underline">/api/raw_quote/AAPL</a> وأرسل محتواها لمعرفة السبب`;
+}
+
 // ===== الأعمدة: الترتيب والإظهار قابلان للتعديل ويُحفظان في المتصفح =====
 const rsiCell = q => `<td class="num" ${q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : ""}>${fmt(q.rsi, 1)}</td>`;
 const COLUMNS = [
@@ -315,7 +324,7 @@ function render() {
     ? `${Math.min(shown, list.length)} من ${list.length} سهم${shown < list.length ? " · مرّر للأسفل لتحميل المزيد" : ""} · اسحب عنوان أي عمود لنقله · اضغط العنوان للترتيب`
     : "";
   if (!list.length) {
-    const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? "لا توجد أسعار تداول ليلي الآن (8 مساءً – 4 فجرًا بتوقيت نيويورك)" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
+    const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? nightMsg() : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
     tbody.innerHTML = `<tr><td colspan="${cols.length + 4}" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
     return;
   }

@@ -260,7 +260,54 @@ def _refresh_market_history(symbols):
         _history_state["running"] = False
 
 
-STATUS = {"screener_at": 0, "screener_error": None}  # آخر تحديث ناجح للماسح
+STATUS = {"screener_at": 0, "screener_error": None, "night_at": 0, "night_count": 0, "night_error": None}
+
+# ===== التداول الليلي من نقطة الأسعار (v7/finance/quote) — نفس ما يستخدمه موقع ياهو =====
+QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
+_night_quotes = {}  # الرمز ← {price, change_pct, at}
+_night_extra = set()  # أسهم تُفتح صفحاتها (تُضاف للجلب الليلي)
+_night_state = {"started": False}
+
+
+def raw_quotes(symbols):
+    """رد ياهو الخام لعدة رموز (مع طلب سعر التداول الليلي)."""
+    from yfinance.data import YfData
+    data = YfData().get_raw_json(QUOTE_URL, params={
+        "symbols": ",".join(symbols), "formatted": "false", "overnightPrice": "true",
+        "lang": "en-US", "region": "US",
+    })
+    return (data.get("quoteResponse") or {}).get("result") or []
+
+
+def _night_loop():
+    while True:
+        if stream.is_overnight():
+            # الأكثر قيمة تداول أولًا + الأسهم المفتوحة صفحاتها
+            rows = [r for c in list(_markets.values()) for r in c["rows"]]
+            rows.sort(key=lambda r: -((r.get("price") or 0) * (r.get("volume") or 0)))
+            symbols = list(dict.fromkeys(list(_night_extra) + [r["symbol"] for r in rows[:300]]))
+            found = 0
+            try:
+                for i in range(0, len(symbols), 100):
+                    for q in raw_quotes(symbols[i:i + 100]):
+                        price, pct = _overnight_fields(q)
+                        if price:
+                            _night_quotes[q["symbol"]] = {"price": price, "change_pct": pct, "at": time.time()}
+                            found += 1
+                STATUS.update(night_at=time.time(), night_count=found, night_error=None)
+            except Exception as e:
+                STATUS["night_error"] = str(e)[:200]
+                print(f"⚠️ فشل جلب أسعار التداول الليلي: {e}")
+            time.sleep(60)
+        else:
+            time.sleep(120)
+
+
+def watch_night(symbol):
+    _night_extra.add(symbol)
+    if not _night_state["started"]:
+        _night_state["started"] = True
+        threading.Thread(target=_night_loop, daemon=True).start()  # آخر تحديث ناجح للماسح
 
 
 def screener_age():
@@ -305,6 +352,9 @@ def get_market(market_id):
                     cached = _markets[market_id] = {"rows": rows, "at": now}
                     stream.watch([r["symbol"] for r in rows])
                     extras.start_floats(_float_priority)
+                    if not _night_state["started"]:
+                        _night_state["started"] = True
+                        threading.Thread(target=_night_loop, daemon=True).start()
                     STATUS["screener_at"], STATUS["screener_error"] = now, None
             except Exception as e:
                 STATUS["screener_error"] = str(e)[:200]
@@ -373,7 +423,11 @@ def _enrich(r, now):
         r["ext_price"], r["ext_change_pct"] = ext["price"], ext["change_pct"]
         r["ext_live"] = True
     night = stream.latest_night(symbol)
-    if night:
+    nq = _night_quotes.get(symbol)
+    if not night and nq and time.time() - nq["at"] < 600:
+        night = {**nq, "live": False}
+        r["night_price"], r["night_change_pct"] = nq["price"], nq["change_pct"]
+    elif night:
         r["night_price"], r["night_change_pct"] = night["price"], night["change_pct"]
         r["night_live"] = True
     if r.get("night_price"):
