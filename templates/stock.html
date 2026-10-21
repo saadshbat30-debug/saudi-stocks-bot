@@ -297,8 +297,13 @@ async function loadChart(fit) {
 
 // تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
 function applyLive(q) {
-  // خلال الجلسة: سعر البث؛ قبل الافتتاح/بعد الإغلاق: سعر البث الممتد
-  const price = q.live ? q.price : q.night_live ? q.night_price : q.ext_live ? q.ext_price : null;
+  // آخر شمعة تتبع نفس السعر المعروض أعلى الصفحة (من البث أو الماسح) حسب الجلسة الحالية،
+  // حتى لا يختلف سعر الشارت عن السعر المعروض عندما لا يصل البث المباشر للسهم
+  const session = marketSession()[1];
+  const price = session === "open" || q.live ? q.price
+    : session === "night" ? q.night_price ?? null
+    : session === "ext" ? q.ext_price ?? null
+    : null;
   if (price == null || !bars.length) return;
   q = { ...q, price };
   const last = bars[bars.length - 1];
