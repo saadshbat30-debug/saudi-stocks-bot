@@ -123,7 +123,7 @@
     <button class="chip sig" data-sig="uptrend">اتجاه صاعد</button>
     <button class="chip sig" data-sig="downtrend">اتجاه هابط</button>
   </span>
-  <input class="field" id="search" placeholder="🔍 رمز أو اسم" autocomplete="off" style="margin-inline-start:auto;width:150px">
+  <input class="field" id="search" placeholder="🔍 رمز أو اسم (Enter لفتح أي سهم)" autocomplete="off" style="margin-inline-start:auto;width:150px">
   <button class="btn ghost" id="col-btn" type="button" title="إظهار/إخفاء الأعمدة وترتيبها">⚙️ الأعمدة</button>
   <form id="add-form" style="display:flex;gap:6px">
     <input class="field" id="add-input" placeholder="رمز آخر" autocomplete="off" style="width:100px;direction:ltr">
@@ -518,6 +518,12 @@ chips("session-tabs", "ext", v => ext = Number(v));
 chips("bands", "band", v => band = Number(v));
 chips("signals", "sig", v => sig = v, true);
 document.getElementById("search").oninput = e => { search = e.target.value.trim(); shown = PAGE; render(); };
+// Enter: إن لم يكن السهم في القائمة افتح صفحته مباشرة
+document.getElementById("search").onkeydown = e => {
+  if (e.key !== "Enter") return;
+  const v = e.target.value.trim().toUpperCase();
+  if (v && !rows.some(q => q.symbol === v)) location.href = "/stock/" + encodeURIComponent(v);
+};
 const headRow = document.getElementById("head-row"), wrap = document.querySelector(".table-wrap");
 
 // الضغط على العنوان: من الأعلى للأقل، ثم العكس

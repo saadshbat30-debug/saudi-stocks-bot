@@ -169,16 +169,36 @@ _history_state = {"at": 0, "running": False}
 _market_lock = threading.Lock()
 
 
-def _screen(query, limit):
+def _screen_one(query, limit, sort_field, asc=False):
     quotes = []
     while len(quotes) < limit:
         size = min(250, limit - len(quotes))
-        page = yf.screen(query, offset=len(quotes), size=size, sortField="dayvolume", sortAsc=False)
+        page = yf.screen(query, offset=len(quotes), size=size, sortField=sort_field, sortAsc=asc)
         batch = page.get("quotes", [])
         quotes += batch
         if len(batch) < size:
             break
     return quotes
+
+
+def _screen(query, limit):
+    """قائمة السوق من عدة ترتيبات مدمجة حتى لا يغيب سهم متحرك:
+    الأعلى حجمًا اليوم + الأكثر ارتفاعًا + الأكثر انخفاضًا + الأعلى متوسط حجم (3 أشهر).
+    متوسط الحجم يُبقي الأسهم النشطة قبل الافتتاح حين يكون حجم اليوم صفرًا للجميع."""
+    sources = [("dayvolume", False, limit), ("percentchange", False, 250), ("percentchange", True, 250), ("avgdailyvol3m", False, 250)]
+    seen, merged = set(), []
+    for field, asc, n in sources:
+        try:
+            batch = _screen_one(query, n, field, asc)
+        except Exception as e:
+            if not merged and field == "dayvolume":
+                raise  # الترتيب الأساسي فشل: أبلغ عن الخطأ
+            print(f"⚠️ فشل ترتيب الماسح {field}: {e}")
+            continue
+        for q in batch:
+            if q.get("symbol") and q["symbol"] not in seen:
+                seen.add(q["symbol"]); merged.append(q)
+    return merged
 
 
 def _is_common_stock(symbol):

@@ -9,7 +9,7 @@ MARKETS = {
         "min_price": float(os.environ.get("MIN_PRICE", "0")),
         "max_price": float(os.environ.get("MAX_PRICE", "60")),
         # بورصات ناسداك ونيويورك وأمكس (بدون OTC)
-        "exchanges": ["NMS", "NGM", "NCM", "NYQ", "ASE"],
+        "exchanges": ["NMS", "NGM", "NCM", "NYQ", "ASE", "PCX", "BTS"],
         "limit": int(os.environ.get("US_LIMIT", "750")),
         # فلاتر السعر في الصفحة: (الاسم، من، إلى)
         "price_bands": [
