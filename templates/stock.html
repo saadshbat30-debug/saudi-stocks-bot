@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ symbol }} — منصة الأسهم{% endblock %}
 {% block content %}
-<a href="/market/{{ market_id }}" class="muted">→ رجوع إلى {{ market.title }}</a>
-<h2 style="margin:12px 0 4px">{{ name }} <span class="muted ltr">{{ symbol }}</span></h2>
-<div id="halt-banner" class="halt-banner" hidden></div>
 <style>
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:12px; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
@@ -91,75 +88,134 @@
   .flow-rows bdi { font-variant-numeric:tabular-nums; }
   .pulse { animation:pulse .8s; }
   @keyframes pulse { from { color:#facc15; } }
-</style>
-<div class="kpis">
-  <div class="kpi"><span class="muted">السعر <span id="k-live"></span></span><b id="k-price">—</b></div>
-  <div class="kpi"><span class="muted">التغير</span><b id="k-change">—</b></div>
-  <div class="kpi" id="k-ext-box" hidden><span class="muted"><span id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span></span><b id="k-ext">—</b></div>
-  <div class="kpi"><span class="muted" title="RSI على الشموع اليومية — المؤشر أسفل الشارت يُحسب على فاصل الشارت المختار">RSI 14 (يومي)</span><b id="k-rsi">—</b></div>
-  <div class="kpi"><span class="muted">متوسط 20</span><b id="k-sma20">—</b></div>
-  <div class="kpi"><span class="muted">متوسط 50</span><b id="k-sma50">—</b></div>
-</div>
 
-<section class="detail">
-  <div><span class="muted">الافتتاح</span><b id="d-open">—</b></div>
-  <div><span class="muted">الإغلاق السابق</span><b id="d-prev">—</b></div>
-  <div><span class="muted">أعلى اليوم</span><b id="d-high" class="up">—</b></div>
-  <div><span class="muted">أدنى اليوم</span><b id="d-low" class="down">—</b></div>
-  <div class="range"><span class="muted">نطاق اليوم <bdi dir="ltr" id="d-range-pct"></bdi></span>
+  /* ===== محطة التداول: لوحات قابلة للتصغير والتكبير والإغلاق والتبديل ===== */
+  main { max-width:none !important; padding:6px 8px !important; }
+  body { font-size:12.5px; }
+  .strip { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+  .st-name { display:flex; align-items:baseline; gap:6px; max-width:240px; overflow:hidden; white-space:nowrap; }
+  .st-name b { font-size:16px; }
+  .st-price { display:flex; align-items:baseline; gap:6px; direction:ltr; }
+  .st-price #k-price { font-size:22px; } .st-price #k-change { font-size:14px; }
+  .st-cell { display:flex; flex-direction:column; gap:1px; min-width:64px; }
+  .st-cell b { font-size:13px; direction:ltr; text-align:start; font-variant-numeric:tabular-nums; }
+  .st-cell.range { min-width:140px; }
+  .st-cell .range-bar { margin:5px 0 2px; }
+  .st-tools { margin-inline-start:auto; display:flex; gap:6px; }
+  .st-btn { padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer; font:inherit; font-size:12px; }
+  .st-btn:hover { border-color:var(--accent); }
+  .ws { display:grid; grid-template-columns:250px minmax(0,1fr) 360px; gap:6px; height:calc(100vh - 150px); min-height:560px; margin-top:6px; }
+  @media (max-width:1200px) { .ws { grid-template-columns:minmax(0,1fr); height:auto; } .ws-col { min-height:auto; } .slot { min-height:320px; } }
+  .ws-col { display:flex; flex-direction:column; gap:6px; min-height:0; min-width:0; }
+  .slot { display:flex; min-height:0; min-width:0; }
+  .slot.no-panel { display:none; }
+  .slot.min-slot { flex:0 0 auto !important; }
+  .pn { flex:1; display:flex; flex-direction:column; background:var(--card); border:1px solid var(--line); border-radius:8px; min-height:0; min-width:0; overflow:hidden; }
+  .pn-h { display:flex; align-items:center; gap:8px; padding:3px 8px; min-height:30px; border-bottom:1px solid var(--line); background:#1f2831; cursor:grab; user-select:none; font-size:13px; flex:0 0 auto; }
+  .pn-h .grip { color:var(--muted); }
+  .pn-tools { display:flex; gap:4px; align-items:center; flex-wrap:wrap; font-size:12px; }
+  .pn-btns { margin-inline-start:auto; display:flex; gap:2px; }
+  .pn-btns button { width:22px; height:20px; border:0; background:none; color:var(--muted); cursor:pointer; border-radius:4px; font-size:13px; line-height:1; }
+  .pn-btns button:hover { background:#26303b; color:var(--text); }
+  .pn-b { flex:1; min-height:0; overflow:auto; position:relative; display:flex; flex-direction:column; }
+  .pn.min .pn-b { display:none; }
+  .pn.max { position:fixed; inset:8px; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,.6); }
+  .pn.drop-target { outline:2px dashed var(--accent); outline-offset:-2px; }
+  .pn.dragging { opacity:.45; }
+  .pad { padding:8px; }
+  .ws-note { font-size:11px; color:var(--muted); margin-top:4px; }
+  /* الشارت داخل لوحته */
+  .pn[data-panel="chart"] .chart-bar { margin:0; padding:4px 6px; gap:4px; border-bottom:1px solid var(--line); }
+  .pn .chip { padding:3px 8px; font-size:12px; }
+  .pn .ov { font-size:12px; padding:2px 4px; }
+  .pn[data-panel="chart"] .chart-box { height:auto; min-height:180px; flex:1; margin:0; border:0; border-radius:0; }
+  .pn .sig-legend { font-size:11px; gap:8px; margin:0; padding:3px 8px; border-top:1px solid var(--line); }
+  /* المؤشرات تتقاسم ارتفاع اللوحة */
+  .pn #ind-panes { display:flex; flex-direction:column; flex:1; min-height:0; }
+  .pn .ind-pane { flex:1; height:auto; min-height:50px; margin:0; border:0; border-bottom:1px solid var(--line); border-radius:0; }
+  /* التفاصيل بتبويبات */
+  .d-tabs { display:flex; gap:2px; align-items:center; padding:3px 6px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .d-tabs > button { padding:4px 10px; border:0; background:none; color:var(--muted); cursor:pointer; font:inherit; font-size:12px; border-bottom:2px solid transparent; }
+  .d-tabs > button.active { color:var(--text); border-bottom-color:var(--accent); }
+  .d-fill { flex:1; min-height:0; overflow:auto; }
+  .pn .ws-body { max-height:none; flex:1; }
+  .pn .ws-body table { font-size:12px; }
+  .pn .ws-body td, .pn .ws-body th { padding:4px 7px; }
+  .pn .news-list { max-height:none; }
+  /* السيولة اللحظية مضغوطة */
+  .pn .flow-grid { grid-template-columns:repeat(2, 1fr); gap:5px; }
+  .pn .flow-grid div { padding:5px 7px; }
+  .pn .flow-grid b { font-size:14px; }
+  .pn .flow-bar { height:16px; margin:8px 0 4px; }
+  .pn .flow-rows { font-size:12px; gap:4px 10px; }
+  /* القائمة */
+  .watch-tabs { display:flex; flex-wrap:wrap; border-bottom:1px solid var(--line); }
+  .watch-tabs button { flex:1; padding:5px 2px; border:0; background:none; color:var(--muted); cursor:pointer; font:inherit; font-size:11.5px; border-bottom:2px solid transparent; }
+  .watch-tabs button.active { color:var(--text); border-bottom-color:var(--accent); }
+  .watch-search { margin:6px; padding:5px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; }
+  .watch-list { list-style:none; margin:0; padding:0; overflow:auto; flex:1; }
+  .watch-list li { display:grid; grid-template-columns:1fr auto; gap:0 6px; padding:6px 8px; border-bottom:1px solid #222a33; cursor:pointer; }
+  .watch-list li:hover { background:#222b35; }
+  .watch-list li.cur { background:#1e3a5f; box-shadow:inset -3px 0 0 var(--accent); }
+  .watch-list .w-sym { font-weight:600; direction:ltr; text-align:start; }
+  .watch-list .w-name { color:var(--muted); font-size:11px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .watch-list .w-price { direction:ltr; text-align:end; font-variant-numeric:tabular-nums; }
+  .watch-list .w-pct { direction:ltr; text-align:end; font-size:11px; }
+  .panels-menu { position:absolute; z-index:300; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,.5); min-width:200px; }
+  .panels-menu label { display:flex; gap:8px; align-items:center; padding:4px 2px; cursor:pointer; }
+</style>
+<div class="strip">
+  <div class="st-name"><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
+  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b></div>
+  <div class="st-cell" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span><b id="k-ext">—</b></div>
+  <div class="st-cell"><span class="muted">افتتاح</span><b id="d-open">—</b></div>
+  <div class="st-cell"><span class="muted">أعلى</span><b id="d-high" class="up">—</b></div>
+  <div class="st-cell"><span class="muted">أدنى</span><b id="d-low" class="down">—</b></div>
+  <div class="st-cell"><span class="muted">الإغلاق السابق</span><b id="d-prev">—</b></div>
+  <div class="st-cell range"><span class="muted">نطاق اليوم <bdi dir="ltr" id="d-range-pct"></bdi></span>
     <div class="range-bar"><span id="d-range-dot"></span></div>
     <div class="range-ends"><bdi dir="ltr" id="d-range-low">—</bdi><bdi dir="ltr" id="d-range-high">—</bdi></div></div>
-  <div><span class="muted">أعلى 52 أسبوع</span><b id="d-h52">—</b></div>
-  <div><span class="muted">أدنى 52 أسبوع</span><b id="d-l52">—</b></div>
-  <div class="range"><span class="muted">نطاق 52 أسبوع</span>
+  <div class="st-cell range"><span class="muted">52 أسبوع</span>
     <div class="range-bar"><span id="d-r52-dot"></span></div>
-    <div class="range-ends"><bdi dir="ltr" id="d-r52-low">—</bdi><bdi dir="ltr" id="d-r52-high">—</bdi></div></div>
-</section>
-
-<div class="side-grid">
-  <section class="box">
-    <h3>🎯 تنبيهات السعر</h3>
-    <form class="alert-form" id="alert-form">
-      <input id="alert-price" type="number" step="any" min="0" placeholder="السعر المستهدف" required>
-      <button>🔔 أضف تنبيه</button>
-    </form>
-    <div class="quick" id="alert-quick"></div>
-    <div class="muted" style="margin:8px 0 4px">يتنبه عند الوصول للسعر (اختراق للأعلى أو كسر للأسفل) بصوت وإشعار، ويظهر خطًا متقطعًا على الشارت</div>
-    <div id="alert-list"></div>
-  </section>
-  <section class="box">
-    <h3>📰 الأخبار</h3>
-    <ul class="news-list" id="news-list"><li class="muted">جارٍ التحميل…</li></ul>
-  </section>
+    <div class="range-ends"><bdi dir="ltr" id="d-r52-low">—</bdi><bdi dir="ltr" id="d-r52-high">—</bdi></div>
+    <span hidden><b id="d-h52"></b><b id="d-l52"></b></span></div>
+  <div class="st-cell"><span class="muted" title="RSI على الشموع اليومية">RSI يومي</span><b id="k-rsi">—</b></div>
+  <div class="st-cell"><span class="muted">متوسط 20 / 50</span><b><span id="k-sma20">—</span> / <span id="k-sma50">—</span></b></div>
+  <div class="st-tools">
+    <a href="/market/{{ market_id }}" class="st-btn">⌂ الرئيسية</a>
+    <button class="st-btn" id="panels-btn" type="button">▦ اللوحات</button>
+  </div>
 </div>
-
-
-<section class="flow">
-  <h3>💧 السيولة اللحظية <span class="muted" id="f-updated"></span></h3>
-  <div class="flow-grid">
-    <div><span class="muted">حجم اليوم</span><b id="f-volume">—</b></div>
-    <div><span class="muted">قيمة التداول</span><b id="f-value">—</b></div>
-    <div><span class="muted">متوسط السعر (VWAP)</span><b id="f-vwap">—</b></div>
-    <div><span class="muted">السيولة × المعتاد</span><b id="f-ratio">—</b></div>
-    <div><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
-    <div><span class="muted">سرعة 5 دقائق</span><b id="f-speed">—</b></div>
-    <div><span class="muted">صافي السيولة</span><b id="f-net">—</b></div>
+<div id="halt-banner" class="halt-banner" hidden></div>
+<div class="ws" id="ws">
+  <div class="ws-col" data-col="r"><div class="slot" data-slot="r1" style="flex:1"></div></div>
+  <div class="ws-col" data-col="c">
+    <div class="slot" data-slot="c1" style="flex:3"></div>
+    <div class="slot" data-slot="c2" style="flex:1.25"></div>
+    <div class="slot" data-slot="c3" style="flex:1.45"></div>
   </div>
-  <div class="flow-bar"><span id="f-in-bar" style="background:#15803d;width:50%"></span><span id="f-out-bar" style="background:#b91c1c;width:50%"></span></div>
-  <div style="display:flex;justify-content:space-between;font-size:13px">
-    <span class="up">▲ داخلة <bdi dir="ltr" id="f-in">—</bdi></span>
-    <span class="down">▼ خارجة <bdi dir="ltr" id="f-out">—</bdi></span>
+  <div class="ws-col" data-col="l">
+    <div class="slot" data-slot="l1" style="flex:1.15"></div>
+    <div class="slot" data-slot="l2" style="flex:1.6"></div>
   </div>
-  <div class="flow-rows">
-    <span class="h">الفترة</span><span class="h">داخلة</span><span class="h">خارجة</span><span class="h">الصافي</span>
-    <span>آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
-    <span>آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
-    <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
+</div>
+<div id="panel-store" hidden><section class="pn" data-panel="watch">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>القائمة</b><div class="pn-tools"></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div class="watch-tabs" id="watch-tabs">
+    <button class="active" data-w="gainers">الأكثر ارتفاعًا</button><button data-w="losers">الأكثر انخفاضًا</button>
+    <button data-w="active">الأكثر نشاطًا</button><button data-w="fav">★ المفضلة</button>
   </div>
-  <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ</div>
-</section>
-
-<div class="chart-bar">
+  <input class="watch-search" id="watch-search" placeholder="🔍 رمز أو اسم ثم Enter" autocomplete="off">
+  <ul class="watch-list" id="watch-list"><li class="muted">جارٍ التحميل…</li></ul></div>
+</section><section class="pn" data-panel="chart">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>الشارت</b><div class="pn-tools"></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div class="chart-bar">
   <button class="chip active" data-view="live">⚡ شارت لحظي</button>
   <button class="chip" data-view="tv">TradingView (متأخر 15 دقيقة)</button>
   <span class="sep"></span>
@@ -193,42 +249,183 @@
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
-<div class="sig-legend" id="sig-legend"></div>
-<div id="ind-panes"></div>
-<div class="ws-grid">
-  <section class="ws-box">
-    <div class="ws-head">
-      <h3>🪜 سلم السيولة</h3>
-      <div id="ladder-int">
+<div class="sig-legend" id="sig-legend"></div></div>
+</section><section class="pn" data-panel="ind">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>المؤشر السفلي</b><div class="pn-tools"></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div id="ind-panes"></div></div>
+</section><section class="pn" data-panel="details">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>التفاصيل</b><div class="pn-tools"></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div class="d-tabs" id="d-tabs">
+    <button class="active" data-d="ladder">🪜 سلم السيولة</button><button data-d="news">📰 الأخبار</button><button data-d="alerts">🎯 تنبيهات السعر</button>
+    <span id="d-tools" style="margin-inline-start:auto"><div id="ladder-int">
         <button class="mini-chip" data-m="1">1د</button><button class="mini-chip active" data-m="5">5د</button>
         <button class="mini-chip" data-m="15">15د</button><button class="mini-chip" data-m="30">30د</button><button class="mini-chip" data-m="60">ساعة</button>
-      </div>
-    </div>
-    <div class="ws-body"><table>
+      </div></span>
+  </div>
+  <div data-dpanel="ladder" class="d-fill"><div class="ws-body"><table>
       <thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th><th>داخلة</th><th>خارجة</th><th>الصافي</th><th>صافي الجلسة</th><th>الحجم</th></tr></thead>
       <tbody id="ladder"><tr><td colspan="8" class="muted">جارٍ التحميل…</td></tr></tbody>
     </table></div>
     <div class="ws-foot">من شموع الدقيقة لآخر يوم تداول (شاملة ما قبل الافتتاح وما بعد الإغلاق) · الأحدث أولًا</div>
-  </section>
-  <section class="ws-box">
-    <div class="ws-head">
-      <h3>🧾 الصفقات</h3>
-      <label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
+  </div>
+  <div data-dpanel="news" class="d-fill pad" hidden>
+    <ul class="news-list" id="news-list"><li class="muted">جارٍ التحميل…</li></ul>
+  </div>
+  <div data-dpanel="alerts" class="d-fill pad" hidden>
+    <form class="alert-form" id="alert-form">
+      <input id="alert-price" type="number" step="any" min="0" placeholder="السعر المستهدف" required>
+      <button>🔔 أضف تنبيه</button>
+    </form>
+    <div class="quick" id="alert-quick"></div>
+    <div class="muted" style="margin:8px 0 4px">يتنبه عند الوصول للسعر (اختراق للأعلى أو كسر للأسفل) بصوت وإشعار، ويظهر خطًا متقطعًا على الشارت</div>
+    <div id="alert-list"></div>
+  </div></div>
+</section><section class="pn" data-panel="flow">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>💧 السيولة اللحظية</b><div class="pn-tools"><span class="muted" id="f-updated"></span></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div class="pad">
+  <div class="flow-grid">
+    <div><span class="muted">حجم اليوم</span><b id="f-volume">—</b></div>
+    <div><span class="muted">قيمة التداول</span><b id="f-value">—</b></div>
+    <div><span class="muted">متوسط السعر (VWAP)</span><b id="f-vwap">—</b></div>
+    <div><span class="muted">السيولة × المعتاد</span><b id="f-ratio">—</b></div>
+    <div><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
+    <div><span class="muted">سرعة 5 دقائق</span><b id="f-speed">—</b></div>
+    <div><span class="muted">صافي السيولة</span><b id="f-net">—</b></div>
+  </div>
+  <div class="flow-bar"><span id="f-in-bar" style="background:#15803d;width:50%"></span><span id="f-out-bar" style="background:#b91c1c;width:50%"></span></div>
+  <div style="display:flex;justify-content:space-between;font-size:13px">
+    <span class="up">▲ داخلة <bdi dir="ltr" id="f-in">—</bdi></span>
+    <span class="down">▼ خارجة <bdi dir="ltr" id="f-out">—</bdi></span>
+  </div>
+  <div class="flow-rows">
+    <span class="h">الفترة</span><span class="h">داخلة</span><span class="h">خارجة</span><span class="h">الصافي</span>
+    <span>آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
+    <span>آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
+    <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
+  </div>
+  <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ</div>
+</div></div>
+</section><section class="pn" data-panel="trades">
+  <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
+    <span class="grip">⠿</span><b>🧾 الصفقات</b><div class="pn-tools"><label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
         <select id="big-min" style="background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px">
           <option value="5000">$5K</option><option value="10000" selected>$10K</option><option value="50000">$50K</option><option value="100000">$100K</option>
-        </select></label>
-    </div>
-    <div class="ws-body"><table>
+        </select></label></div>
+    <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
+  </header>
+  <div class="pn-b"><div class="ws-body"><table>
       <thead><tr><th>الوقت</th><th>السعر</th><th>الكمية</th><th>القيمة</th></tr></thead>
       <tbody id="trades"><tr><td colspan="4" class="muted">جارٍ التحميل…</td></tr></tbody>
     </table></div>
     <div class="ws-foot" id="trades-foot">من البث المباشر لياهو</div>
-  </section>
-</div>
-<div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · الخط السماوي VWAP · مرّر على أي شمعة لرؤية افتتاحها وأعلاها وأدناها وإغلاقها · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
+  </div>
+</section></div>
+<div class="ws-note">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · الخط السماوي VWAP · مرّر على أي شمعة لرؤية افتتاحها وأعلاها وأدناها وإغلاقها · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
+<script>
+// ===== إدارة اللوحات: تصغير، تكبير، إغلاق، وسحب العنوان لتبديل الأماكن (تُحفظ في المتصفح) =====
+(function () {
+  const DEFAULT = { r1: "watch", c1: "chart", c2: "ind", c3: "details", l1: "flow", l2: "trades" };
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const panels = {};
+  document.querySelectorAll("#panel-store > .pn").forEach(p => { panels[p.dataset.panel] = p; });
+  const slots = {};
+  document.querySelectorAll("#ws .slot").forEach(sl => { slots[sl.dataset.slot] = sl; });
 
+  let layout = load("ws_layout", null);
+  const valid = l => l && Object.keys(DEFAULT).every(k => panels[l[k]]) && new Set(Object.values(l)).size === Object.keys(DEFAULT).length;
+  if (!valid(layout)) layout = { ...DEFAULT };
+  let closed = new Set(load("ws_closed", [])), minimized = new Set(load("ws_min", []));
 
+  function place() {
+    for (const [slot, pid] of Object.entries(layout)) {
+      const p = panels[pid], sl = slots[slot];
+      if (p.parentElement !== sl) sl.appendChild(p);
+      p.hidden = closed.has(pid);
+      p.classList.toggle("min", minimized.has(pid));
+      sl.classList.toggle("no-panel", closed.has(pid));
+      sl.classList.toggle("min-slot", minimized.has(pid) && !closed.has(pid));
+    }
+    save("ws_layout", layout); save("ws_closed", [...closed]); save("ws_min", [...minimized]);
+  }
+  place();
+
+  // أزرار اللوحة
+  document.getElementById("ws").addEventListener("click", e => {
+    const b = e.target.closest(".pn-btns button");
+    if (!b) return;
+    const p = b.closest(".pn"), pid = p.dataset.panel, act = b.dataset.act;
+    if (act === "min") { minimized.has(pid) ? minimized.delete(pid) : minimized.add(pid); p.classList.remove("max"); }
+    if (act === "max") { const on = !p.classList.contains("max"); document.querySelectorAll(".pn.max").forEach(x => x.classList.remove("max")); p.classList.toggle("max", on); minimized.delete(pid); }
+    if (act === "close") { closed.add(pid); p.classList.remove("max"); }
+    place();
+  });
+  // تكبير بالنقر المزدوج على العنوان، و Esc للرجوع
+  document.getElementById("ws").addEventListener("dblclick", e => {
+    const h = e.target.closest(".pn-h");
+    if (h && !e.target.closest("button, input, select, label")) h.querySelector('[data-act="max"]').click();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".pn.max").forEach(x => x.classList.remove("max")); });
+
+  // السحب والإفلات لتبديل مكان لوحتين
+  let dragPid = null;
+  document.getElementById("ws").addEventListener("dragstart", e => {
+    const h = e.target.closest(".pn-h");
+    if (!h) return;
+    dragPid = h.closest(".pn").dataset.panel;
+    h.closest(".pn").classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragPid);
+  });
+  document.getElementById("ws").addEventListener("dragover", e => {
+    const p = e.target.closest(".pn");
+    if (!dragPid || !p || p.dataset.panel === dragPid) return;
+    e.preventDefault();
+    document.querySelectorAll(".pn.drop-target").forEach(x => x !== p && x.classList.remove("drop-target"));
+    p.classList.add("drop-target");
+  });
+  document.getElementById("ws").addEventListener("drop", e => {
+    const p = e.target.closest(".pn");
+    if (!dragPid || !p) return;
+    e.preventDefault();
+    const target = p.dataset.panel;
+    const a = Object.keys(layout).find(k => layout[k] === dragPid), b = Object.keys(layout).find(k => layout[k] === target);
+    [layout[a], layout[b]] = [layout[b], layout[a]];
+    place();
+  });
+  document.getElementById("ws").addEventListener("dragend", () => {
+    dragPid = null;
+    document.querySelectorAll(".pn.dragging, .pn.drop-target").forEach(x => x.classList.remove("dragging", "drop-target"));
+  });
+
+  // قائمة اللوحات: إعادة فتح المغلقة واستعادة الترتيب
+  document.getElementById("panels-btn").onclick = e => {
+    e.stopPropagation();
+    let m = document.getElementById("panels-menu");
+    if (m) { m.remove(); return; }
+    m = document.createElement("div"); m.id = "panels-menu"; m.className = "panels-menu";
+    m.innerHTML = Object.entries(panels).map(([pid, p]) =>
+      `<label><input type="checkbox" data-p="${pid}" ${closed.has(pid) ? "" : "checked"}> ${p.querySelector(".pn-h b").textContent}</label>`).join("") +
+      `<button class="st-btn" id="ws-reset" style="width:100%;margin-top:8px">↺ الترتيب الافتراضي</button>`;
+    const r = e.currentTarget.getBoundingClientRect();
+    m.style.top = (r.bottom + scrollY + 6) + "px"; m.style.left = (r.left + scrollX) + "px";
+    document.body.appendChild(m);
+    m.onclick = ev => ev.stopPropagation();
+    m.onchange = ev => { const pid = ev.target.dataset.p; ev.target.checked ? closed.delete(pid) : closed.add(pid); place(); };
+    m.querySelector("#ws-reset").onclick = () => { layout = { ...DEFAULT }; closed = new Set(); minimized = new Set(); place(); m.remove(); };
+  };
+  document.addEventListener("click", () => document.getElementById("panels-menu")?.remove());
+})();
+</script>
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
 <script src="{{ url_for('static', filename='indicators.js') }}"></script>
@@ -692,6 +889,59 @@ async function loadTrades() {
 }
 document.getElementById("big-only").onchange = loadTrades;
 document.getElementById("big-min").onchange = loadTrades;
+
+// ===== تبويبات لوحة التفاصيل =====
+document.getElementById("d-tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]");
+  if (!b) return;
+  document.querySelectorAll("#d-tabs [data-d]").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll("[data-dpanel]").forEach(x => x.hidden = x.dataset.dpanel !== b.dataset.d);
+  document.getElementById("d-tools").style.visibility = b.dataset.d === "ladder" ? "visible" : "hidden";
+});
+
+// ===== القائمة: التنقل بين الأسهم بدون الرجوع للرئيسية =====
+let watchTab = localStorage.getItem("watch_tab") || "gainers", watchRows = [];
+async function loadWatch() {
+  try { watchRows = await (await fetch("/api/market/{{ market_id }}")).json(); } catch { return; }
+  renderWatch();
+}
+function renderWatch() {
+  let favs = [];
+  try { favs = JSON.parse(localStorage.getItem("favs_{{ market_id }}")) || []; } catch {}
+  let list = watchRows.filter(q => q.price != null);
+  if (watchTab === "gainers") list.sort((a, b) => b.change_pct - a.change_pct);
+  if (watchTab === "losers") list.sort((a, b) => a.change_pct - b.change_pct);
+  if (watchTab === "active") list.sort((a, b) => (b.value || 0) - (a.value || 0));
+  if (watchTab === "fav") list = list.filter(q => favs.includes(q.symbol));
+  document.getElementById("watch-list").innerHTML = list.length ? list.slice(0, 80).map(q => `
+    <li data-go="${escH(q.symbol)}" class="${q.symbol === SYMBOL ? "cur" : ""}">
+      <span class="w-sym">${escH(q.symbol)}</span><span class="w-price">${CURRENCY}${fmtP(q.price)}</span>
+      <span class="w-name">${escH(q.name)}</span><span class="w-pct ${q.change_pct >= 0 ? "up" : "down"}">${q.change_pct >= 0 ? "+" : ""}${q.change_pct.toFixed(2)}%</span>
+    </li>`).join("") : `<li class="muted">${watchTab === "fav" ? "أضف أسهمًا للمفضلة بالنجمة ★ في الصفحة الرئيسية" : "جارٍ التحميل…"}</li>`;
+}
+document.getElementById("watch-tabs").onclick = e => {
+  const b = e.target.closest("[data-w]");
+  if (!b) return;
+  watchTab = b.dataset.w; localStorage.setItem("watch_tab", watchTab);
+  document.querySelectorAll("#watch-tabs [data-w]").forEach(x => x.classList.toggle("active", x === b));
+  renderWatch();
+};
+document.querySelectorAll("#watch-tabs [data-w]").forEach(x => x.classList.toggle("active", x.dataset.w === watchTab));
+document.getElementById("watch-list").onclick = e => {
+  const li = e.target.closest("[data-go]");
+  if (li) location.href = "/stock/" + encodeURIComponent(li.dataset.go);
+};
+document.getElementById("watch-search").onkeydown = e => {
+  if (e.key !== "Enter") return;
+  const v = e.target.value.trim().toUpperCase();
+  if (v) location.href = "/stock/" + encodeURIComponent(v);
+};
+document.getElementById("watch-search").oninput = e => {
+  const v = e.target.value.trim().toLowerCase();
+  document.querySelectorAll("#watch-list li[data-go]").forEach(li => { li.hidden = v && !li.textContent.toLowerCase().includes(v); });
+};
+loadWatch(); setInterval(loadWatch, 10000);
+
 loadLadder(); setInterval(loadLadder, 30000);
 loadTrades(); setInterval(loadTrades, 3000);
 
