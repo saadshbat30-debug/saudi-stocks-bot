@@ -25,6 +25,13 @@ _state = {"ws": None, "started": False}
 _lock = threading.Lock()
 
 
+def status():
+    with _lock:
+        connected = _state["ws"] is not None and _state["ws"]._ws is not None
+    last = max((p["at"] for p in list(_prices.values()) + list(_ext_prices.values()) + list(_night_prices.values())), default=0)
+    return {"connected": connected, "watching": len(_wanted), "last_tick_age": time.time() - last if last else None}
+
+
 def _on_message(msg):
     symbol, price = msg.get("id"), msg.get("price")
     if not symbol or price is None:

@@ -32,6 +32,7 @@
   <a href="/"><h1>📊 منصة الأسهم</h1></a>
   <div class="indices" id="indices"></div>
   <span class="session" id="session">—</span>
+  <span class="session" id="stream-status" title="البث المباشر للأسعار من ياهو">—</span>
   <nav>
     {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>
@@ -64,9 +65,25 @@ async function loadIndices() {
     }).join("");
   } catch {}
 }
-renderSession(); loadIndices();
+// حالة البيانات: تأخر الماسح أو انقطاع البث
+async function loadStatus() {
+  try {
+    const st = await (await fetch("/api/status")).json();
+    const banner = document.getElementById("stale-banner"), age = st.screener_age;
+    const stale = age != null && age > 180 && marketSession()[1] !== "";
+    banner.hidden = !stale;
+    if (stale) banner.innerHTML = `⚠️ قائمة الأسعار من ياهو متأخرة <b>${Math.round(age / 60)} دقيقة</b> — ياهو يحد الطلبات مؤقتًا عادةً، وستعود تلقائيًا. صفحة السهم تأخذ السعر من شموع الدقيقة في هذه الأثناء.` +
+      (st.screener_error ? `<div style="opacity:.7;font-size:12px;direction:ltr;text-align:left;margin-top:4px">${st.screener_error.replace(/[<>&]/g, "")}</div>` : "");
+    const ss = document.getElementById("stream-status"), s = st.stream;
+    const ok = s.connected && s.last_tick_age != null && s.last_tick_age < 120;
+    ss.textContent = ok ? "⚡ البث متصل" : s.connected ? "⚡ البث متصل (بلا صفقات)" : "البث غير متصل";
+    ss.className = "session " + (ok ? "open" : "ext");
+  } catch {}
+}
+renderSession(); loadIndices(); loadStatus(); setInterval(loadStatus, 15000);
 setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
+<div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>
 <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

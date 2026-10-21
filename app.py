@@ -3,7 +3,8 @@ from flask import Flask, abort, jsonify, render_template, request
 import extras
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
-from market import CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
+import stream
+from market import STATUS, screener_age, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
 
@@ -91,6 +92,12 @@ def api_news_multi():
 def api_halts():
     h = extras.get_halts()
     return jsonify({"items": h["items"], "error": h["error"]})
+
+
+@app.route("/api/status")
+def api_status():
+    age = screener_age()
+    return jsonify({"screener_age": round(age) if age is not None else None, "screener_error": STATUS["screener_error"], "stream": stream.status()})
 
 
 @app.route("/api/indices")

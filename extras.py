@@ -251,11 +251,17 @@ def _floats_loop(get_symbols):
             try:
                 info = yf.Ticker(s).info or {}
                 _floats[s] = {"float": info.get("floatShares"), "at": time.time()}
-            except Exception:
+            except Exception as e:
+                if "rate" in str(e).lower() or "too many" in str(e).lower():
+                    # ياهو يحد الطلبات: توقف 10 دقائق حتى لا يتأثر تحديث الأسعار
+                    print("⏳ ياهو يحد الطلبات — إيقاف جلب الأسهم الحرة 10 دقائق")
+                    _save_floats()
+                    time.sleep(600)
+                    continue
                 _floats[s] = {"float": None, "at": time.time() - FLOAT_MAX_AGE + 86400}  # أعد المحاولة غدًا
             if i % 20 == 19:
                 _save_floats()
-            time.sleep(1.5)
+            time.sleep(4)  # بطيء عمدًا: الأسعار أهم من الأسهم الحرة
         if todo:
             _save_floats()
         time.sleep(600)

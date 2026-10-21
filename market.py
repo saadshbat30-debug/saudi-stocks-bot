@@ -260,6 +260,32 @@ def _refresh_market_history(symbols):
         _history_state["running"] = False
 
 
+STATUS = {"screener_at": 0, "screener_error": None}  # آخر تحديث ناجح للماسح
+
+
+def screener_age():
+    return time.time() - STATUS["screener_at"] if STATUS["screener_at"] else None
+
+
+def _fresher_from_bars(r):
+    """إذا تأخر الماسح، خذ السعر من آخر شمعة دقيقة حديثة (إن وُجدت) لأنها أحدث."""
+    age = screener_age()
+    if r.get("live") or age is None or age < 120:
+        return r
+    for key in ((r["symbol"], "1m", True), (r["symbol"], "5m", True)):
+        c = _charts.get(key)
+        if c and c["bars"] and time.time() - c["at"] < 90:
+            last = c["bars"][-1]["close"]
+            prev = r.get("prev_close")
+            r["price"] = _price_round(last)
+            if prev:
+                r["change"] = round(last - prev, 4)
+                r["change_pct"] = round((last / prev - 1) * 100, 2)
+            r["from_bars"] = True
+            break
+    return r
+
+
 def _float_priority():
     """رموز السوق للأسهم الحرة: الأكثر حركة أولًا."""
     rows = [r for c in list(_markets.values()) for r in c["rows"]]
@@ -279,7 +305,9 @@ def get_market(market_id):
                     cached = _markets[market_id] = {"rows": rows, "at": now}
                     stream.watch([r["symbol"] for r in rows])
                     extras.start_floats(_float_priority)
+                    STATUS["screener_at"], STATUS["screener_error"] = now, None
             except Exception as e:
+                STATUS["screener_error"] = str(e)[:200]
                 print(f"⚠️ فشل سحب السوق {market_id}: {e}")
         rows = cached["rows"] if cached else []
 
@@ -455,7 +483,7 @@ def row_for(symbol):
     for cached in list(_markets.values()):
         for r in cached["rows"]:
             if r["symbol"] == symbol:
-                return _enrich(dict(r), time.time())
+                return _fresher_from_bars(_enrich(dict(r), time.time()))
     return None
 
 
