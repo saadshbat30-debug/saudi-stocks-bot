@@ -5,6 +5,7 @@ from collections import deque
 
 import yfinance as yf
 
+import extras
 import stream
 from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
 
@@ -256,6 +257,12 @@ def _refresh_market_history(symbols):
         _history_state["running"] = False
 
 
+def _float_priority():
+    """رموز السوق للأسهم الحرة: الأكثر حركة أولًا."""
+    rows = [r for c in list(_markets.values()) for r in c["rows"]]
+    return [r["symbol"] for r in sorted(rows, key=lambda r: -abs(r.get("change_pct") or 0))]
+
+
 def get_market(market_id):
     """أسهم السوق في النطاق السعري مع مقاييس الزخم والسيولة وRSI ومتوسط 20."""
     market = MARKETS[market_id]
@@ -268,6 +275,7 @@ def get_market(market_id):
                 if rows:
                     cached = _markets[market_id] = {"rows": rows, "at": now}
                     stream.watch([r["symbol"] for r in rows])
+                    extras.start_floats(_float_priority)
             except Exception as e:
                 print(f"⚠️ فشل سحب السوق {market_id}: {e}")
         rows = cached["rows"] if cached else []
@@ -351,6 +359,9 @@ def _enrich(r, now):
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]
+    # الأسهم الحرة (إن جُلبت) أدق للتدوير، مثل موموو
+    r["float"] = extras.float_for(symbol)
+    shares = r["float"] or shares
     typical = (r["day_high"] + r["day_low"] + price) / 3 if r["day_high"] and r["day_low"] else price
     r["value"] = round(typical * volume)
     r["vol_ratio"] = round(volume / avg_vol, 2) if avg_vol else None

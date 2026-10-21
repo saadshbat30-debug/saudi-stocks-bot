@@ -22,6 +22,9 @@ MARKETS = {
     },
 }
 
+# الأسهم قليلة الأسهم الحرة (Low Float): أقل من هذا العدد
+LOW_FLOAT = float(os.environ.get("LOW_FLOAT", "20000000"))
+
 # شريط المؤشرات أعلى الصفحة
 INDICES = {
     "^DJI": "داو جونز",

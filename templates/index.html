@@ -45,6 +45,14 @@
   .alerts { list-style:none; margin:0; padding:0; max-height:65vh; overflow-y:auto; }
   .alerts li { padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .alerts li a { font-weight:600; }
+  .side-tabs { display:flex; gap:4px; margin-bottom:10px; border-bottom:1px solid var(--line); }
+  .side-tabs button { flex:1; padding:7px 4px; border:0; background:none; color:var(--muted); cursor:pointer; font:inherit; font-size:13px; border-bottom:2px solid transparent; }
+  .side-tabs button.active { color:var(--text); border-bottom-color:var(--accent); }
+  .badge { background:var(--down); color:#fff; border-radius:999px; padding:0 6px; font-size:11px; }
+  .news-item a { font-weight:500 !important; line-height:1.5; display:block; direction:ltr; text-align:left; }
+  .news-item a:hover { color:var(--accent); }
+  .pill { display:inline-block; padding:1px 6px; border-radius:5px; background:#26303b; font-size:11px; margin-inline-end:4px; direction:ltr; }
+  .pill.red { background:#3d1717; color:#fca5a5; } .pill.green { background:#14361f; color:#86efac; }
 </style>
 
 <div class="top">
@@ -69,6 +77,8 @@
   <button class="chip" data-tab="momentum">🚀 الزخم</button>
   <button class="chip" data-tab="liquidity">💧 السيولة</button>
   <button class="chip" data-tab="high">عند قمة اليوم</button>
+  <button class="chip" data-tab="lowfloat" title="الأسهم الحرة أقل من {{ (low_float / 1e6)|int }} مليون سهم — أقوى تحركات الأسهم الصغيرة">🎯 أسهم حرة قليلة</button>
+  <button class="chip" data-tab="halted">⏸️ موقوفة</button>
   <button class="chip" data-tab="fav">★ المفضلة</button>
   <span style="margin-inline-start:auto" id="session-tabs">
     <button class="chip active" data-ext="0">الجلسة الرسمية</button>
@@ -116,6 +126,7 @@
         <th data-sort="pe" title="مكرر الأرباح">P/E</th>
         <th data-sort="pb" title="مضاعف القيمة الدفترية">P/B</th>
         <th data-sort="market_cap">القيمة السوقية</th>
+        <th data-sort="float" title="الأسهم الحرة المتاحة للتداول (Float) — تُجلب تدريجيًا في الخلفية">الأسهم الحرة</th>
         <th>الإشارات</th>
         <th></th>
       </tr></thead>
@@ -124,11 +135,27 @@
     <button class="more" id="more" hidden>عرض المزيد</button>
   </div>
   <aside class="card">
+    <div class="side-tabs" id="side-tabs">
+      <button class="active" data-side="alerts">🔔 التنبيهات</button>
+      <button data-side="halts">⏸️ الإيقافات <span id="halt-count" class="badge" hidden></span></button>
+      <button data-side="news">📰 الأخبار</button>
+    </div>
+    <div data-panel="halts" hidden>
+      <div class="muted" style="margin-bottom:6px">إيقافات التداول اليوم من Nasdaq (كل البورصات الأمريكية) · تتحدث كل 30 ثانية</div>
+      <ul class="alerts" id="halts"><li class="muted">جارٍ التحميل…</li></ul>
+    </div>
+    <div data-panel="news" hidden>
+      <div class="muted" style="margin-bottom:6px">آخر أخبار الأسهم الأكثر حركة الآن</div>
+      <ul class="alerts" id="news"><li class="muted">جارٍ التحميل…</li></ul>
+    </div>
+    <div data-panel="alerts">
     <h4 style="display:flex;justify-content:space-between;align-items:center">🔔 التنبيهات <button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></h4>
     <div class="muted" style="margin-bottom:6px">تغير ±{{ alert_pct }}% · زخم ±{{ alert_speed }}% في 5 دقائق · سيولة {{ alert_vol }}×</div>
     <label class="muted" style="display:block;margin-bottom:6px"><input type="checkbox" id="fav-only"> للمفضلة فقط</label>
     <button class="btn ghost" id="clear-alerts" style="font-size:12px;padding:3px 8px">مسح</button>
     <ul class="alerts" id="alerts"></ul>
+    <div id="price-alerts-box" style="margin-top:10px"></div>
+    </div>
   </aside>
 </div>
 <div class="muted" style="margin-top:10px">يتحدث كل 5 ثوانٍ · ⚡ سعر لحظي · <span id="updated">جارٍ التحميل…</span> · المؤشرات للمتابعة وليست توصية</div>
@@ -137,6 +164,7 @@
 const MARKET = {{ market_id|tojson }};
 const CURRENCY = {{ market.currency|tojson }};
 const BANDS = {{ market.price_bands|tojson }};
+const LOW_FLOAT = {{ low_float|tojson }};
 const ALERT_PCT = {{ alert_pct|tojson }}, ALERT_VOL = {{ alert_vol|tojson }}, ALERT_SPEED = {{ alert_speed|tojson }};
 const PAGE = 100;
 const TABS = {
@@ -148,6 +176,8 @@ const TABS = {
   liquidity: { sort: "vol_ratio",  asc: false, filter: q => q.vol_ratio != null },
   high:      { sort: "change_pct", asc: false, filter: q => q.at_high },
   fav:       { sort: "change_pct", asc: false, filter: q => favs.has(q.symbol) },
+  lowfloat:  { sort: "change_pct", asc: false, filter: q => q.float != null && q.float < LOW_FLOAT },
+  halted:    { sort: "change_pct", asc: false, filter: q => haltedNow.has(q.symbol) },
 };
 
 const store = {
@@ -170,6 +200,8 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;"
 
 function signals(q) {
   const s = [];
+  if (haltedNow.has(q.symbol)) s.push(["⏸️ موقوف", "down", "halted"]);
+  if (q.float != null && q.float < LOW_FLOAT) s.push(["🎯 Float " + fmtBig(q.float), "hot", "lowfloat"]);
   if (q.speed >= 2) s.push(["🚀 زخم", "hot", "momentum"]);
   if (q.at_high) s.push(["قمة اليوم", "up", "high"]);
   if (q.vol_ratio >= 2) s.push(["سيولة عالية", "up", "volume"]);
@@ -240,7 +272,7 @@ function render() {
   document.getElementById("more").hidden = list.length <= shown;
   if (!list.length) {
     const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? "لا توجد أسعار تداول ليلي الآن (8 مساءً – 4 فجرًا بتوقيت نيويورك)" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
-    tbody.innerHTML = `<tr><td colspan="18" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="19" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
     return;
   }
   const maxSpeed = Math.max(1, ...list.slice(0, shown).map(q => Math.abs(q.speed || 0)));
@@ -265,6 +297,7 @@ function render() {
       <td class="num"><bdi dir="ltr">${fmt(q.pe)}</bdi></td>
       <td class="num"><bdi dir="ltr">${fmt(q.pb)}</bdi></td>
       <td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>
+      <td class="num" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi></td>
       <td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>
       <td>${custom.includes(q.symbol) ? `<button class="x" data-remove="${s}" title="حذف">✕</button>` : ""}</td>
     </tr>`;
@@ -321,6 +354,91 @@ function checkAlerts() {
   }
 }
 
+// ===== إيقافات التداول =====
+let haltedNow = new Set(), haltItems = [], haltsLoaded = false;
+async function loadHalts() {
+  try {
+    const res = await (await fetch("/api/halts")).json();
+    const prev = haltedNow;
+    haltItems = (res.items || []).filter(h => h.today);
+    haltedNow = new Set(haltItems.filter(h => h.halted).map(h => h.symbol));
+    const names = Object.fromEntries(rows.map(q => [q.symbol, q.name]));
+    // تنبيه عند إيقاف سهم جديد أو استئنافه (بعد أول تحميل)
+    if (haltsLoaded) {
+      const fresh = [];
+      for (const s of haltedNow) if (!prev.has(s)) {
+        const h = haltItems.find(x => x.symbol === s);
+        fresh.push({ symbol: s, name: names[s] || h.name, text: `⏸️ إيقاف تداول · ${h.reason}`, time: new Date().toLocaleTimeString("ar-SA") });
+      }
+      for (const s of prev) if (!haltedNow.has(s)) fresh.push({ symbol: s, name: names[s] || "", text: "▶️ استئناف التداول", time: new Date().toLocaleTimeString("ar-SA") });
+      pushAlerts(fresh);
+    }
+    haltsLoaded = true;
+    const badge = document.getElementById("halt-count");
+    badge.hidden = !haltedNow.size; badge.textContent = haltedNow.size;
+    document.getElementById("halts").innerHTML = res.error && !haltItems.length
+      ? `<li class="muted">${res.error}</li>`
+      : haltItems.length ? haltItems.map(h => `<li>
+          <a href="/stock/${esc(h.symbol)}">${esc(h.symbol)}</a> <span class="muted">${esc(h.name)}</span>
+          <span class="pill ${h.halted ? "red" : "green"}">${h.halted ? "موقوف" : "استؤنف"}</span><br>
+          ${esc(h.reason)} <span class="muted">(${esc(h.code)})</span>
+          <div class="muted"><bdi dir="ltr">${esc(h.halt_time)}${h.resume_trade ? " → " + esc(h.resume_trade) : ""}</bdi> بتوقيت نيويورك</div>
+        </li>`).join("") : `<li class="muted">لا توجد إيقافات اليوم</li>`;
+    render();
+  } catch {}
+}
+
+// ===== الأخبار =====
+const ago = t => {
+  if (!t) return "";
+  const m = Math.round((Date.now() / 1000 - t) / 60);
+  return m < 60 ? `قبل ${m} دقيقة` : m < 1440 ? `قبل ${Math.round(m / 60)} ساعة` : `قبل ${Math.round(m / 1440)} يوم`;
+};
+async function loadNews() {
+  const top = rows.filter(q => q.change_pct != null).sort((a, b) => Math.abs(b.change_pct) - Math.abs(a.change_pct)).slice(0, 8);
+  if (!top.length) return;
+  try {
+    const items = await (await fetch("/api/news?symbols=" + top.map(q => q.symbol).join(","))).json();
+    const pct = Object.fromEntries(top.map(q => [q.symbol, q.change_pct]));
+    document.getElementById("news").innerHTML = items.length ? items.slice(0, 30).map(a => `<li class="news-item">
+        <span class="pill ${pct[a.symbol] >= 0 ? "green" : "red"}">${esc(a.symbol)} ${signed(pct[a.symbol], 1)}</span>
+        <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>
+        <div class="muted">${esc(a.publisher)} · ${ago(a.time)}</div>
+      </li>`).join("") : `<li class="muted">لا توجد أخبار</li>`;
+  } catch {}
+}
+
+// ===== تنبيهات السعر =====
+function renderPriceAlerts() {
+  const list = PriceAlerts.all();
+  document.getElementById("price-alerts-box").innerHTML = list.length ? `<div class="muted" style="margin-bottom:4px">🎯 تنبيهات السعر (تُضاف من صفحة السهم):</div>` +
+    list.map(a => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+      <span><a href="/stock/${esc(a.symbol)}">${esc(a.symbol)}</a> ${a.dir === "above" ? "≥" : "≤"} <bdi dir="ltr">${CURRENCY}${fmtPrice(a.price)}</bdi></span>
+      <button class="x" data-del-alert="${a.id}" title="حذف">✕</button></div>`).join("") : "";
+}
+function checkPriceAlerts() {
+  const hit = PriceAlerts.check(Object.fromEntries(rows.map(q => [q.symbol, q.price])));
+  if (!hit.length) return;
+  const names = Object.fromEntries(rows.map(q => [q.symbol, q.name]));
+  pushAlerts(hit.map(a => ({ symbol: a.symbol, name: names[a.symbol] || "",
+    text: `🎯 وصل ${a.dir === "above" ? "إلى" : "إلى أقل من"} <bdi dir="ltr">${CURRENCY}${fmtPrice(a.price)}</bdi> · الآن <bdi dir="ltr">${CURRENCY}${fmtPrice(a.hitPrice)}</bdi>`,
+    time: new Date().toLocaleTimeString("ar-SA") })), true);
+  renderPriceAlerts();
+}
+
+// يضيف تنبيهات للقائمة مع صوت وإشعار (force: حتى في أول تحميل)
+function pushAlerts(fresh, force = false) {
+  if (!fresh.length) return;
+  alerts = [...fresh, ...alerts].slice(0, 150);
+  store.set("alerts_" + MARKET, alerts);
+  renderAlerts();
+  if (firstLoad && !force) return;
+  beep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    fresh.slice(0, 3).forEach(a => new Notification(a.symbol, { body: a.text.replace(/<[^>]+>/g, "") }));
+  }
+}
+
 async function refresh() {
   try {
     const market = await (await fetch("/api/market/" + MARKET)).json();
@@ -334,6 +452,7 @@ async function refresh() {
     rows = [...market, ...extraRows];
     render();
     checkAlerts();
+    checkPriceAlerts();
     firstLoad = false;
     document.getElementById("updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-SA");
   } catch {
@@ -413,5 +532,19 @@ renderAlerts();
 render();
 refresh();
 setInterval(refresh, 5000);
+renderPriceAlerts();
+loadHalts(); setInterval(loadHalts, 30000);
+setTimeout(loadNews, 3000); setInterval(loadNews, 180000);
+document.getElementById("side-tabs").onclick = e => {
+  const b = e.target.closest("[data-side]");
+  if (!b) return;
+  document.querySelectorAll("#side-tabs [data-side]").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll("aside [data-panel]").forEach(p => p.hidden = p.dataset.panel !== b.dataset.side);
+  if (b.dataset.side === "news") loadNews();
+};
+document.getElementById("price-alerts-box").onclick = e => {
+  const b = e.target.closest("[data-del-alert]");
+  if (b) { PriceAlerts.remove(b.dataset.delAlert); renderPriceAlerts(); }
+};
 </script>
 {% endblock %}

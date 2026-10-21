@@ -3,6 +3,7 @@
 {% block content %}
 <a href="/market/{{ market_id }}" class="muted">→ رجوع إلى {{ market.title }}</a>
 <h2 style="margin:12px 0 4px">{{ name }} <span class="muted ltr">{{ symbol }}</span></h2>
+<div id="halt-banner" class="halt-banner" hidden></div>
 <style>
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:12px; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
@@ -33,6 +34,23 @@
   .draw-toolbar .tb-sep { width:24px; height:1px; background:var(--line); margin:4px 0; }
   .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   [hidden] { display:none !important; }
+  .halt-banner { margin-top:10px; padding:10px 14px; border-radius:10px; background:#3d1717; border:1px solid #7f1d1d; color:#fecaca; font-weight:500; }
+  .side-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  @media (max-width:900px) { .side-grid { grid-template-columns:1fr; } }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0; }
+  .box h3 { margin:0 0 10px; font-size:15px; }
+  .news-list { list-style:none; margin:0; padding:0; max-height:420px; overflow-y:auto; }
+  .news-list li { padding:8px 0; border-bottom:1px solid var(--line); }
+  .news-list a { direction:ltr; text-align:left; display:block; font-weight:500; line-height:1.5; }
+  .news-list a:hover { color:var(--accent); }
+  .news-list p { direction:ltr; text-align:left; margin:4px 0 0; font-size:12px; color:var(--muted); }
+  .alert-form { display:flex; gap:6px; flex-wrap:wrap; }
+  .alert-form input { width:130px; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; direction:ltr; }
+  .alert-form button, .quick button { padding:7px 12px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; font:inherit; font-size:13px; }
+  .quick { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .quick button { background:#26303b; color:var(--text); }
+  .alert-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .alert-row button { background:none; border:0; color:var(--muted); cursor:pointer; }
   .flow { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:12px; }
   .flow h3 { margin:0 0 10px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
   .flow-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
@@ -105,6 +123,23 @@
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
 <div id="ind-panes"></div>
+
+<div class="side-grid">
+  <section class="box">
+    <h3>🎯 تنبيهات السعر</h3>
+    <form class="alert-form" id="alert-form">
+      <input id="alert-price" type="number" step="any" min="0" placeholder="السعر المستهدف" required>
+      <button>🔔 أضف تنبيه</button>
+    </form>
+    <div class="quick" id="alert-quick"></div>
+    <div class="muted" style="margin:8px 0 4px">يتنبه عند الوصول للسعر (اختراق للأعلى أو كسر للأسفل) بصوت وإشعار، ويظهر خطًا متقطعًا على الشارت</div>
+    <div id="alert-list"></div>
+  </section>
+  <section class="box">
+    <h3>📰 الأخبار</h3>
+    <ul class="news-list" id="news-list"><li class="muted">جارٍ التحميل…</li></ul>
+  </section>
+</div>
 <div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
@@ -304,6 +339,88 @@ async function loadFlow() {
     document.getElementById("f-updated").innerHTML = (f.live ? '<span style="color:#facc15">⚡ لحظي</span> · ' : "") + new Date().toLocaleTimeString("ar-SA");
   } catch {}
 }
+
+// ===== إيقاف التداول =====
+async function loadHalt() {
+  try {
+    const res = await (await fetch("/api/halts")).json();
+    const h = (res.items || []).find(x => x.symbol === SYMBOL && x.today);
+    const banner = document.getElementById("halt-banner");
+    banner.hidden = !h;
+    if (h) banner.innerHTML = h.halted
+      ? `⏸️ التداول موقوف منذ <bdi dir="ltr">${h.halt_time}</bdi> (نيويورك) · ${h.reason} <span style="opacity:.7">(${h.code})</span>`
+      : `▶️ أوقف اليوم <bdi dir="ltr">${h.halt_time}</bdi> واستؤنف <bdi dir="ltr">${h.resume_trade}</bdi> · ${h.reason}`;
+    banner.style.background = h && !h.halted ? "#1f2937" : "";
+  } catch {}
+}
+
+// ===== الأخبار =====
+function ago(t) {
+  if (!t) return "";
+  const m = Math.round((Date.now() / 1000 - t) / 60);
+  return m < 60 ? `قبل ${m} دقيقة` : m < 1440 ? `قبل ${Math.round(m / 60)} ساعة` : `قبل ${Math.round(m / 1440)} يوم`;
+}
+const escH = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+async function loadNews() {
+  try {
+    const items = await (await fetch(`/api/news/${encodeURIComponent(SYMBOL)}`)).json();
+    document.getElementById("news-list").innerHTML = items.length ? items.map(a => `<li>
+        <a href="${escH(a.url)}" target="_blank" rel="noopener">${escH(a.title)}</a>
+        ${a.summary ? `<p>${escH(a.summary)}</p>` : ""}
+        <div class="muted">${escH(a.publisher)} · ${ago(a.time)}</div>
+      </li>`).join("") : `<li class="muted">لا توجد أخبار حديثة لهذا السهم</li>`;
+  } catch {}
+}
+
+// ===== تنبيهات السعر =====
+let alertLines = [];
+function renderAlerts() {
+  const list = PriceAlerts.forSymbol(SYMBOL);
+  alertLines.forEach(l => candles.removePriceLine(l));
+  alertLines = list.map(a => candles.createPriceLine({ price: a.price, color: "#facc15", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "🔔" }));
+  document.getElementById("alert-list").innerHTML = list.length ? list.map(a => `<div class="alert-row">
+      <span>${a.dir === "above" ? "📈 عند الاختراق ≥" : "📉 عند الكسر ≤"} <bdi dir="ltr">${CURRENCY}${a.price}</bdi></span>
+      <button data-del="${a.id}" title="حذف">✕</button></div>`).join("") : `<div class="muted">لا توجد تنبيهات لهذا السهم</div>`;
+  const p = lastQuote?.price;
+  document.getElementById("alert-quick").innerHTML = p ? [5, 10, 20, -5, -10].map(pct => {
+    const v = +(p * (1 + pct / 100)).toFixed(p < 1 ? 4 : 2);
+    return `<button type="button" data-quick="${v}">${pct > 0 ? "+" : ""}${pct}% (<bdi dir="ltr">${v}</bdi>)</button>`;
+  }).join("") : "";
+}
+function checkMyAlerts() {
+  if (!lastQuote) return;
+  const hit = PriceAlerts.check({ [SYMBOL]: lastQuote.price });
+  if (!hit.length) return;
+  for (const a of hit) {
+    const text = `${SYMBOL} وصل ${CURRENCY}${lastQuote.price} (التنبيه: ${CURRENCY}${a.price})`;
+    try { const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.1; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.4); } catch {}
+    if ("Notification" in window && Notification.permission === "granted") new Notification("🎯 تنبيه سعر", { body: text });
+    else alert("🎯 " + text);
+  }
+  renderAlerts();
+}
+document.getElementById("alert-form").onsubmit = e => {
+  e.preventDefault();
+  const v = parseFloat(document.getElementById("alert-price").value);
+  if (!(v > 0)) return;
+  PriceAlerts.add(SYMBOL, v, lastQuote?.price);
+  document.getElementById("alert-price").value = "";
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  renderAlerts();
+};
+document.getElementById("alert-quick").onclick = e => {
+  const b = e.target.closest("[data-quick]");
+  if (b) { PriceAlerts.add(SYMBOL, +b.dataset.quick, lastQuote?.price); renderAlerts(); }
+};
+document.getElementById("alert-list").onclick = e => {
+  const b = e.target.closest("[data-del]");
+  if (b) { PriceAlerts.remove(b.dataset.del); renderAlerts(); }
+};
+
+loadHalt(); setInterval(loadHalt, 30000);
+loadNews(); setInterval(loadNews, 300000);
+renderAlerts();
+setInterval(() => { checkMyAlerts(); if (!document.getElementById("alert-quick").innerHTML) renderAlerts(); }, 5000);
 
 loadChart(true);
 loadKpis();

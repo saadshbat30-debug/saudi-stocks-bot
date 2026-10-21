@@ -1,7 +1,8 @@
 from flask import Flask, abort, jsonify, render_template, request
 
+import extras
 from alerts import send_telegram, start_alerts
-from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, MARKETS, find_stock
+from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 from market import CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
@@ -23,6 +24,7 @@ def home(market_id="us"):
         alert_pct=ALERT_PCT,
         alert_vol=ALERT_VOL_RATIO,
         alert_speed=ALERT_SPEED,
+        low_float=LOW_FLOAT,
     )
 
 
@@ -67,6 +69,28 @@ def api_flow(symbol):
     if not valid_symbol(symbol):
         abort(404)
     return jsonify(get_flow(symbol))
+
+
+@app.route("/api/news/<symbol>")
+def api_news(symbol):
+    symbol = symbol.upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    return jsonify(extras.get_news(symbol))
+
+
+@app.route("/api/news")
+def api_news_multi():
+    """?symbols=A,B,C — أخبار عدة أسهم مدمجة (حتى 10)."""
+    symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
+    symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:10]
+    return jsonify(extras.get_news_for(symbols) if symbols else [])
+
+
+@app.route("/api/halts")
+def api_halts():
+    h = extras.get_halts()
+    return jsonify({"items": h["items"], "error": h["error"]})
 
 
 @app.route("/api/indices")
