@@ -224,6 +224,9 @@ def _row(q):
         "change": q.get("regularMarketChange") or 0,
         "change_pct": q.get("regularMarketChangePercent") or 0,
         "prev_close": q.get("regularMarketPreviousClose"),
+        "open": q.get("regularMarketOpen"),
+        "high52": q.get("fiftyTwoWeekHigh"),
+        "low52": q.get("fiftyTwoWeekLow"),
         "day_high": q.get("regularMarketDayHigh"),
         "day_low": q.get("regularMarketDayLow"),
         "volume": q.get("regularMarketVolume") or 0,
@@ -368,7 +371,7 @@ def _enrich(r, now):
     r["turnover"] = round(volume / shares * 100, 2) if shares else None
 
     # ===== الزخم =====
-    prev = r.pop("prev_close")
+    prev = r["prev_close"]
     high, low = r["day_high"], r["day_low"]
     r["amplitude"] = round((high - low) / prev * 100, 2) if prev and high is not None and low is not None else None
     r["speed"] = _speed(symbol, price, now)
@@ -384,7 +387,7 @@ def _enrich(r, now):
     r["price"] = _price_round(price)
     r["change"] = round(r["change"], 4)
     r["change_pct"] = round(r["change_pct"], 2)
-    for k in ("day_high", "day_low", "ext_price"):
+    for k in ("day_high", "day_low", "ext_price", "prev_close", "open", "high52", "low52"):
         if r.get(k) is not None:
             r[k] = _price_round(r[k])
     if r.get("ext_change_pct") is not None:

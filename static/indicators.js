@@ -77,6 +77,7 @@
     rLine.createPriceLine({ price: 70, color: DOWN, lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "" });
     rLine.createPriceLine({ price: 30, color: UP, lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "" });
     rLine.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
+    r.chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: 0.06 } });
 
     const panes = [m, r];
     let data = { macd: null, rsi: null };
