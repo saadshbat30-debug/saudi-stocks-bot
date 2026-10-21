@@ -41,6 +41,24 @@
     return out;
   }
 
+  // السيولة لكل شمعة: قيمة الشمعة مقسومة حسب موقع الإغلاق داخل مداها (مثل لوحة السيولة)
+  function flow(bars) {
+    const net = [], cum = []; let day = null, total = 0;
+    bars.forEach((b, i) => {
+      const value = (b.high + b.low + b.close) / 3 * b.volume;
+      let share;
+      if (b.high > b.low) share = (b.close - b.low) / (b.high - b.low);
+      else { const ref = i ? bars[i - 1].close : b.open; share = b.close > ref ? 1 : b.close < ref ? 0 : 0.5; }
+      const n = value * (2 * share - 1);
+      const d = Math.floor((b.time - 7 * 3600) / 86400);  // صافي الجلسة يبدأ من جديد كل يوم
+      if (d !== day) { day = d; total = 0; }
+      total += n;
+      net.push({ in: value * share, out: value * (1 - share), net: n }); cum.push(total);
+    });
+    return { net, cum };
+  }
+  const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return s + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0)); };
+
   const series = (bars, values) => values.map((v, i) => v == null ? { time: bars[i].time } : { time: bars[i].time, value: v });
 
   window.initIndicators = function ({ mainChart, getBars, container, buttons, storageKey }) {
@@ -79,8 +97,13 @@
     rLine.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
     r.chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: 0.06 } });
 
-    const panes = [m, r];
-    let data = { macd: null, rsi: null };
+    // ===== السيولة =====
+    const q = makePane("liq", "السيولة");
+    const qHist = q.chart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "volume" } });
+    const qCum = q.chart.addLineSeries({ color: "#facc15", lineWidth: 1.5, priceLineVisible: false, priceFormat: { type: "volume" }, title: "صافي الجلسة" });
+
+    const panes = [m, r, q];
+    let data = { macd: null, rsi: null, liq: null };
 
     // ===== التزامن مع الشارت الرئيسي =====
     let syncing = false;
@@ -111,6 +134,11 @@
         const state = v == null ? "" : v >= 70 ? ' · <span style="color:' + DOWN + '">تشبع شرائي</span>' : v <= 30 ? ' · <span style="color:' + UP + '">تشبع بيعي</span>' : "";
         r.label.innerHTML = `<span style="color:#a855f7">${v == null ? "—" : v.toFixed(1)}</span>${state}`;
       }
+      if (data.liq && data.liq.net[i]) {
+        const n = data.liq.net[i], c = data.liq.cum[i];
+        const part = (name, v, col) => `<bdi dir="rtl" style="color:${col}">${name} <bdi dir="ltr">${v < 0 ? "-" : ""}$${money(Math.abs(v))}</bdi></bdi>`;
+        q.label.innerHTML = `${part("داخلة", n.in, UP)} · ${part("خارجة", n.out, DOWN)} · ${part("الصافي", n.net, n.net >= 0 ? UP : DOWN)} · ${part("صافي الجلسة", c, "#facc15")}`;
+      }
     }
     mainChart.subscribeCrosshairMove(p => {
       if (!p.time) { panes.forEach(x => x.chart.clearCrosshairPosition()); showLabels(null); return; }
@@ -119,6 +147,7 @@
       if (i == null) return;
       if (data.macd && data.macd.line[i] != null) m.chart.setCrosshairPosition(data.macd.line[i], p.time, mLine);
       if (data.rsi && data.rsi[i] != null) r.chart.setCrosshairPosition(data.rsi[i], p.time, rLine);
+      if (data.liq && data.liq.cum[i] != null) q.chart.setCrosshairPosition(data.liq.cum[i], p.time, qCum);
     });
 
     // ===== الحساب =====
@@ -143,6 +172,11 @@
         data.rsi = rsi(closes);
         rLine.setData(series(bars, data.rsi));
       }
+      if (!q.box.hidden) {
+        data.liq = flow(bars);
+        qHist.setData(bars.map((b, i) => ({ time: b.time, value: data.liq.net[i].net, color: data.liq.net[i].net >= 0 ? "rgba(34,197,94,.7)" : "rgba(239,68,68,.7)" })));
+        qCum.setData(bars.map((b, i) => ({ time: b.time, value: data.liq.cum[i] })));
+      }
       const range = mainChart.timeScale().getVisibleLogicalRange();
       if (range) panes.forEach(p => p.chart.timeScale().setVisibleLogicalRange(range));
       showLabels(null);
@@ -150,7 +184,7 @@
 
     // ===== أزرار التشغيل =====
     let enabled;
-    try { enabled = JSON.parse(localStorage.getItem(storageKey)) || ["macd", "rsi"]; } catch { enabled = ["macd", "rsi"]; }
+    try { enabled = JSON.parse(localStorage.getItem(storageKey)) || ["liq", "macd", "rsi"]; } catch { enabled = ["liq", "macd", "rsi"]; }
     function apply() {
       panes.forEach(p => { p.box.hidden = !enabled.includes(p.id); });
       buttons.forEach(b => b.classList.toggle("active", enabled.includes(b.dataset.ind)));

@@ -42,6 +42,24 @@
   .range-bar { position:relative; height:6px; border-radius:3px; margin:10px 2px 4px; background:linear-gradient(90deg, #ef4444, #facc15, #22c55e); direction:ltr; }
   .range-bar span { position:absolute; top:-4px; width:4px; height:14px; border-radius:2px; background:#fff; box-shadow:0 0 0 2px #0f1419; transform:translateX(-50%); transition:left .4s; left:50%; }
   .range-ends { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); direction:ltr; }
+  .ov { display:inline-flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; padding:4px 6px; border-radius:6px; direction:ltr; }
+  .ov:hover { background:#26303b; }
+  .ov input { accent-color:var(--accent); }
+  .sig-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin-top:6px; }
+  .sig-legend span b { font-size:14px; }
+  .ws-grid { display:grid; grid-template-columns:1.6fr 1fr; gap:12px; margin-top:12px; }
+  @media (max-width:1100px) { .ws-grid { grid-template-columns:1fr; } }
+  .ws-box { background:var(--card); border:1px solid var(--line); border-radius:12px; min-width:0; display:flex; flex-direction:column; }
+  .ws-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .ws-head h3 { margin:0; font-size:15px; }
+  .ws-body { max-height:360px; overflow:auto; }
+  .ws-body table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  .ws-body th { position:sticky; top:0; background:#1f2831; color:var(--muted); font-weight:500; padding:7px 9px; text-align:start; white-space:nowrap; }
+  .ws-body td { padding:6px 9px; border-bottom:1px solid #222a33; white-space:nowrap; }
+  .ws-foot { padding:7px 12px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .mini-chip { padding:3px 9px; border-radius:6px; border:1px solid var(--line); background:none; color:var(--muted); cursor:pointer; font:inherit; font-size:12px; }
+  .mini-chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .flowbar { display:inline-block; height:6px; border-radius:3px; vertical-align:middle; margin-inline-start:6px; }
   .legend { position:absolute; top:6px; left:52px; z-index:4; pointer-events:none; direction:ltr; font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; background:rgba(15,20,25,.6); padding:3px 8px; border-radius:6px; font-variant-numeric:tabular-nums; }
   .legend b { color:var(--text); }
   .halt-banner { margin-top:10px; padding:10px 14px; border-radius:10px; background:#3d1717; border:1px solid #7f1d1d; color:#fecaca; font-weight:500; }
@@ -151,14 +169,21 @@
     <button class="chip" data-interval="15m">15د</button>
     <button class="chip" data-interval="1h">ساعة</button>
     <button class="chip" data-interval="1d">يوم</button>
+    <button class="chip" data-interval="1w">أسبوع</button>
+    <button class="chip" data-interval="1mo">شهر</button>
   </span>
   <span id="ind-buttons" style="display:flex;gap:6px;align-items:center">
     <span class="sep"></span>
     <span class="muted">مؤشرات:</span>
+    <button class="chip" data-ind="liq">السيولة</button>
     <button class="chip" data-ind="macd">MACD</button>
     <button class="chip" data-ind="rsi">RSI</button>
-    <button class="chip" data-ov="vwap" title="متوسط السعر المرجح بالحجم لليوم">VWAP</button>
-    <button class="chip" data-ov="ma20" title="متوسط 20 شمعة">MA20</button>
+    <span class="sep"></span>
+    <label class="ov"><input type="checkbox" data-ov="ma20"> <span style="color:#f59e0b">SMA20</span></label>
+    <label class="ov"><input type="checkbox" data-ov="sma50"> <span style="color:#3b82f6">SMA50</span></label>
+    <label class="ov"><input type="checkbox" data-ov="sma200"> <span style="color:#ec4899">SMA200</span></label>
+    <label class="ov"><input type="checkbox" data-ov="vwap"> <span style="color:#06b6d4">VWAP</span></label>
+    <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
   </span>
 </div>
 <div class="chart-box">
@@ -168,7 +193,38 @@
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
+<div class="sig-legend" id="sig-legend"></div>
 <div id="ind-panes"></div>
+<div class="ws-grid">
+  <section class="ws-box">
+    <div class="ws-head">
+      <h3>🪜 سلم السيولة</h3>
+      <div id="ladder-int">
+        <button class="mini-chip" data-m="1">1د</button><button class="mini-chip active" data-m="5">5د</button>
+        <button class="mini-chip" data-m="15">15د</button><button class="mini-chip" data-m="30">30د</button><button class="mini-chip" data-m="60">ساعة</button>
+      </div>
+    </div>
+    <div class="ws-body"><table>
+      <thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th><th>داخلة</th><th>خارجة</th><th>الصافي</th><th>صافي الجلسة</th><th>الحجم</th></tr></thead>
+      <tbody id="ladder"><tr><td colspan="8" class="muted">جارٍ التحميل…</td></tr></tbody>
+    </table></div>
+    <div class="ws-foot">من شموع الدقيقة لآخر يوم تداول (شاملة ما قبل الافتتاح وما بعد الإغلاق) · الأحدث أولًا</div>
+  </section>
+  <section class="ws-box">
+    <div class="ws-head">
+      <h3>🧾 الصفقات</h3>
+      <label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
+        <select id="big-min" style="background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px">
+          <option value="5000">$5K</option><option value="10000" selected>$10K</option><option value="50000">$50K</option><option value="100000">$100K</option>
+        </select></label>
+    </div>
+    <div class="ws-body"><table>
+      <thead><tr><th>الوقت</th><th>السعر</th><th>الكمية</th><th>القيمة</th></tr></thead>
+      <tbody id="trades"><tr><td colspan="4" class="muted">جارٍ التحميل…</td></tr></tbody>
+    </table></div>
+    <div class="ws-foot" id="trades-foot">من البث المباشر لياهو</div>
+  </section>
+</div>
 <div class="muted" style="margin-top:6px">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · الخط السماوي VWAP · مرّر على أي شمعة لرؤية افتتاحها وأعلاها وأدناها وإغلاقها · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
 
 
@@ -197,11 +253,13 @@ const candles = chart.addCandlestickSeries({
 const volume = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
 volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
 const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+const sma50 = chart.addLineSeries({ color: "#3b82f6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+const sma200 = chart.addLineSeries({ color: "#ec4899", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const vwapLine = chart.addLineSeries({ color: "#06b6d4", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, title: "VWAP" });
 
 // VWAP يبدأ من جديد كل يوم تداول (بتوقيت نيويورك)
 function vwapData() {
-  if (interval === "1d") return [];
+  if (["1d", "1w", "1mo"].includes(interval)) return [];
   const out = []; let day = null, pv = 0, vol = 0;
   for (const b of bars) {
     const d = Math.floor((b.time - 7 * 3600) / 86400);
@@ -214,18 +272,53 @@ function vwapData() {
 
 // إظهار/إخفاء VWAP و MA20 (يُحفظ في المتصفح)
 let overlays;
-try { overlays = JSON.parse(localStorage.getItem("overlays")) || ["vwap", "ma20"]; } catch { overlays = ["vwap", "ma20"]; }
+try { overlays = JSON.parse(localStorage.getItem("overlays")) || ["vwap", "ma20", "signals"]; } catch { overlays = ["vwap", "ma20", "signals"]; }
 function applyOverlays() {
   vwapLine.applyOptions({ visible: overlays.includes("vwap") });
   ma20.applyOptions({ visible: overlays.includes("ma20") });
-  document.querySelectorAll("[data-ov]").forEach(b => b.classList.toggle("active", overlays.includes(b.dataset.ov)));
+  sma50.applyOptions({ visible: overlays.includes("sma50") });
+  sma200.applyOptions({ visible: overlays.includes("sma200") });
+  document.querySelectorAll("[data-ov]").forEach(b => { b.checked = overlays.includes(b.dataset.ov); });
+  document.getElementById("sig-legend").hidden = !overlays.includes("signals");
+  if (typeof bars !== "undefined" && bars.length) candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
   try { localStorage.setItem("overlays", JSON.stringify(overlays)); } catch {}
 }
-document.querySelectorAll("[data-ov]").forEach(b => b.onclick = () => {
+document.querySelectorAll("[data-ov]").forEach(b => b.onchange = () => {
   const k = b.dataset.ov;
-  overlays = overlays.includes(k) ? overlays.filter(x => x !== k) : [...overlays, k];
+  overlays = b.checked ? [...new Set([...overlays, k])] : overlays.filter(x => x !== k);
   applyOverlays();
 });
+
+// ===== إشارات على الشموع (تُحسب من السعر والحجم) =====
+const SIGNALS = {
+  start:  { color: "#f59e0b", label: "بداية حركة: اختراق قمة آخر 5 شموع بحجم ضعف المعتاد" },
+  burst:  { color: "#3b82f6", label: "قفزة نشاط: حجم 3 أضعاف المعتاد" },
+  accel:  { color: "#a855f7", label: "تسارع صاعد: 3 شموع صاعدة بحجم متزايد" },
+  accum:  { color: "#9ca3af", label: "تجميع هادئ: مدى ضيق بحجم أعلى من المعتاد" },
+  drop:   { color: "#ef4444", label: "بداية هبوط: كسر قاع آخر 5 شموع بحجم ضعف المعتاد" },
+};
+function signalMarkers() {
+  const out = [], last = {};
+  for (let i = 20; i < bars.length; i++) {
+    const b = bars[i], prev = bars.slice(i - 20, i);
+    const avgV = prev.reduce((s, x) => s + x.volume, 0) / 20, avgR = prev.reduce((s, x) => s + (x.high - x.low), 0) / 20;
+    if (!avgV) continue;
+    const hi5 = Math.max(...bars.slice(i - 5, i).map(x => x.high)), lo5 = Math.min(...bars.slice(i - 5, i).map(x => x.low));
+    const up = b.close >= b.open, v = b.volume / avgV;
+    let type = null;
+    if (b.close > hi5 && v >= 2 && up) type = "start";
+    else if (b.close < lo5 && v >= 2 && !up) type = "drop";
+    else if (v >= 3) type = "burst";
+    else if (i >= 2 && up && b.close > bars[i - 1].close && bars[i - 1].close > bars[i - 2].close && b.volume > bars[i - 1].volume && bars[i - 1].volume > bars[i - 2].volume && v >= 1) type = "accel";
+    else if (b.high - b.low < avgR * 0.6 && v >= 1.3 && up) type = "accum";
+    // لا تكرر نفس الإشارة خلال 3 شموع
+    if (!type || (last[type] != null && i - last[type] <= 3)) continue;
+    last[type] = i;
+    const down = type === "drop" || (type === "burst" && !up);
+    out.push({ time: b.time, position: down ? "aboveBar" : "belowBar", shape: down ? "arrowDown" : "arrowUp", color: SIGNALS[type].color, size: 1 });
+  }
+  return out;
+}
 applyOverlays();
 
 // شريط المعلومات: افتتاح/أعلى/أدنى/إغلاق/تغير/حجم للشمعة تحت المؤشر (أو آخر شمعة)
@@ -241,7 +334,7 @@ function showLegend(b, prev) {
     <span>O <b>${fmtP(b.open)}</b></span><span>H <b style="color:#22c55e">${fmtP(b.high)}</b></span>
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
-    <span>Vol <b>${fmtV(b.volume)}</b></span>${vw && interval !== "1d" ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}`;
+    <span>Vol <b>${fmtV(b.volume)}</b></span>${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}`;
 }
 chart.subscribeCrosshairMove(p => {
   const i = p.time ? bars.findIndex(b => b.time === p.time) : -1;
@@ -267,15 +360,16 @@ function precisionFor(price) {
 
 function volBar(b) { return { time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.4)" }; }
 
-function maData() {
-  const out = [];
-  for (let i = 19; i < bars.length; i++) {
-    let sum = 0;
-    for (let j = i - 19; j <= i; j++) sum += bars[j].close;
-    out.push({ time: bars[i].time, value: sum / 20 });
+function smaData(n) {
+  const out = []; let sum = 0;
+  for (let i = 0; i < bars.length; i++) {
+    sum += bars[i].close;
+    if (i >= n) sum -= bars[i - n].close;
+    if (i >= n - 1) out.push({ time: bars[i].time, value: sum / n });
   }
   return out;
 }
+const maData = () => smaData(20);
 
 async function loadChart(fit) {
   try {
@@ -287,7 +381,10 @@ async function loadChart(fit) {
     candles.setData(bars);
     volume.setData(bars.map(volBar));
     ma20.setData(maData());
+    sma50.setData(smaData(50));
+    sma200.setData(smaData(200));
     vwapLine.setData(vwapData());
+    candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
     showLegend(bars[bars.length - 1], bars[bars.length - 2]);
     indicators.update();
     if (fit) chart.timeScale().fitContent();
@@ -521,6 +618,82 @@ document.getElementById("alert-list").onclick = e => {
   const b = e.target.closest("[data-del]");
   if (b) { PriceAlerts.remove(b.dataset.del); renderAlerts(); }
 };
+
+// ===== وسيلة إيضاح الإشارات =====
+document.getElementById("sig-legend").innerHTML = Object.values(SIGNALS).map(s => `<span><b style="color:${s.color}">${s === SIGNALS.drop ? "⬇" : "⬆"}</b> ${s.label}</span>`).join("");
+applyOverlays();
+
+// ===== سلم السيولة: تجميع شموع الدقيقة حسب الفاصل =====
+const moneyS = v => { if (v == null) return "—"; const a = Math.abs(v), s = v < 0 ? "-" : ""; return s + "$" + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0)); };
+const hhmm = t => new Date(t * 1000).toISOString().slice(11, 16);  // أوقات الشموع مزاحة لتوقيت الرياض
+let ladderMin = 5, minuteBars = [];
+async function loadLadder() {
+  try { minuteBars = await (await fetch(`/api/chart/${encodeURIComponent(SYMBOL)}?interval=1m`)).json(); } catch { return; }
+  renderLadder();
+}
+function renderLadder() {
+  const el = document.getElementById("ladder");
+  if (!minuteBars.length) { el.innerHTML = `<tr><td colspan="8" class="muted">لا توجد شموع دقيقة</td></tr>`; return; }
+  const day = Math.floor((minuteBars[minuteBars.length - 1].time - 7 * 3600) / 86400);
+  const today = minuteBars.filter(b => Math.floor((b.time - 7 * 3600) / 86400) === day);
+  const step = ladderMin * 60, buckets = [];
+  for (const b of today) {
+    const t = b.time - (b.time % step);
+    let k = buckets[buckets.length - 1];
+    if (!k || k.time !== t) buckets.push(k = { time: t, open: b.open, close: b.close, in: 0, out: 0, volume: 0 });
+    const value = (b.high + b.low + b.close) / 3 * b.volume;
+    const share = b.high > b.low ? (b.close - b.low) / (b.high - b.low) : 0.5;
+    k.in += value * share; k.out += value * (1 - share); k.volume += b.volume; k.close = b.close;
+  }
+  let cum = 0;
+  buckets.forEach((k, i) => { cum += k.in - k.out; k.cum = cum; k.prev = i ? buckets[i - 1].close : k.open; });
+  const maxNet = Math.max(1, ...buckets.map(k => Math.abs(k.in - k.out)));
+  el.innerHTML = buckets.slice().reverse().slice(0, 200).map(k => {
+    const net = k.in - k.out, ch = k.prev ? (k.close / k.prev - 1) * 100 : 0;
+    return `<tr><td>${hhmm(k.time)}</td><td><bdi dir="ltr">${fmtP(k.close)}</bdi></td>
+      <td class="${ch >= 0 ? "up" : "down"}"><bdi dir="ltr">${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%</bdi></td>
+      <td class="up"><bdi dir="ltr">${moneyS(k.in)}</bdi></td><td class="down"><bdi dir="ltr">${moneyS(k.out)}</bdi></td>
+      <td class="${net >= 0 ? "up" : "down"}"><bdi dir="ltr">${net >= 0 ? "+" : ""}${moneyS(net)}</bdi><span class="flowbar" style="width:${Math.round(Math.abs(net) / maxNet * 40)}px;background:${net >= 0 ? "var(--up)" : "var(--down)"}"></span></td>
+      <td class="${k.cum >= 0 ? "up" : "down"}"><bdi dir="ltr">${k.cum >= 0 ? "+" : ""}${moneyS(k.cum)}</bdi></td>
+      <td><bdi dir="ltr">${fmtV(k.volume)}</bdi></td></tr>`;
+  }).join("");
+}
+document.getElementById("ladder-int").onclick = e => {
+  const b = e.target.closest("[data-m]");
+  if (!b) return;
+  ladderMin = +b.dataset.m;
+  document.querySelectorAll("#ladder-int [data-m]").forEach(x => x.classList.toggle("active", x === b));
+  renderLadder();
+};
+
+// ===== الصفقات (من البث المباشر) =====
+async function loadTrades() {
+  let list;
+  try { list = await (await fetch(`/api/trades/${encodeURIComponent(SYMBOL)}`)).json(); } catch { return; }
+  const el = document.getElementById("trades"), foot = document.getElementById("trades-foot");
+  if (!list.length) {
+    el.innerHTML = `<tr><td colspan="4" class="muted">لا توجد صفقات بعد — تظهر عندما يصل البث المباشر ⚡ للسهم</td></tr>`;
+    foot.textContent = "من البث المباشر لياهو"; return;
+  }
+  const min = document.getElementById("big-only").checked ? +document.getElementById("big-min").value : 0;
+  let buy = 0, sell = 0;
+  const rowsHtml = list.map((t, i) => {
+    const older = list[i + 1], dir = older ? Math.sign(t.price - older.price) : 0, value = t.price * t.size;
+    if (dir > 0) buy += value; else if (dir < 0) sell += value;
+    if (value < min) return "";
+    const c = dir > 0 ? "up" : dir < 0 ? "down" : "";
+    const time = new Date(t.time * 1000).toLocaleTimeString("en-GB", { timeZone: "Asia/Riyadh" });
+    return `<tr><td>${time}${t.session !== "regular" ? ' <span class="muted">ممتد</span>' : ""}</td>
+      <td class="${c}"><bdi dir="ltr">${dir > 0 ? "▲" : dir < 0 ? "▼" : "•"} ${fmtP(t.price)}</bdi></td>
+      <td><bdi dir="ltr">${t.size.toLocaleString("en-US")}</bdi></td><td><bdi dir="ltr">${moneyS(value)}</bdi></td></tr>`;
+  }).join("");
+  el.innerHTML = rowsHtml || `<tr><td colspan="4" class="muted">لا توجد صفقات بهذا الحجم</td></tr>`;
+  foot.innerHTML = `آخر ${list.length} صفقة · شراء (صعود) <b class="up">${moneyS(buy)}</b> · بيع (هبوط) <b class="down">${moneyS(sell)}</b> · الصافي <b class="${buy - sell >= 0 ? "up" : "down"}">${moneyS(buy - sell)}</b>`;
+}
+document.getElementById("big-only").onchange = loadTrades;
+document.getElementById("big-min").onchange = loadTrades;
+loadLadder(); setInterval(loadLadder, 30000);
+loadTrades(); setInterval(loadTrades, 3000);
 
 loadHalt(); setInterval(loadHalt, 30000);
 loadNews(); setInterval(loadNews, 300000);

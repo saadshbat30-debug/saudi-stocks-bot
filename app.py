@@ -61,7 +61,7 @@ def api_chart(symbol):
     if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
         abort(404)
     # شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق (مثل موموو)، والشموع اليومية للجلسة الرسمية
-    return jsonify(get_chart(symbol, interval, prepost=interval != "1d"))
+    return jsonify(get_chart(symbol, interval, prepost=interval in ("1m", "5m", "15m", "1h")))
 
 
 @app.route("/api/flow/<symbol>")
@@ -92,6 +92,16 @@ def api_news_multi():
 def api_halts():
     h = extras.get_halts()
     return jsonify({"items": h["items"], "error": h["error"]})
+
+
+@app.route("/api/trades/<symbol>")
+def api_trades(symbol):
+    """آخر الصفقات من البث المباشر (الوقت، السعر، الكمية)."""
+    symbol = symbol.upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    stream.watch([symbol])
+    return jsonify(stream.tape(symbol))
 
 
 @app.route("/api/status")

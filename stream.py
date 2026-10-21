@@ -1,6 +1,7 @@
 """بث مباشر للأسعار من ياهو (WebSocket) — كل صفقة تصل لحظة حدوثها."""
 import threading
 import time
+from collections import deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -10,6 +11,8 @@ REGULAR_MARKET = 1  # market_hours في رسائل ياهو: 0 قبل الافت
 
 _prices = {}  # الرمز ← آخر سعر من البث (الجلسة الرسمية)
 _ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بعد الإغلاق
+_tape = {}  # الرمز ← آخر الصفقات (من فرق الحجم اليومي بين رسائل البث)
+_last_volume = {}
 _night_prices = {}  # الرمز ← آخر سعر في التداول الليلي (Blue Ocean ATS)
 
 NY = ZoneInfo("America/New_York")
@@ -36,6 +39,17 @@ def _on_message(msg):
     symbol, price = msg.get("id"), msg.get("price")
     if not symbol or price is None:
         return
+    # شريط الصفقات: الكمية = الزيادة في حجم اليوم منذ الرسالة السابقة
+    vol = int(msg.get("day_volume", 0) or 0)
+    prev = _last_volume.get(symbol)
+    _last_volume[symbol] = vol
+    if prev is not None and vol > prev:
+        _tape.setdefault(symbol, deque(maxlen=300)).append({
+            "time": int(msg.get("time", 0) or 0) / 1000 or time.time(),
+            "price": price,
+            "size": vol - prev,
+            "session": "regular" if msg.get("market_hours", 0) == REGULAR_MARKET else "ext",
+        })
     if msg.get("market_hours", 0) == REGULAR_MARKET:
         target = _prices
     else:
@@ -107,6 +121,11 @@ def watch(symbols):
 def latest(symbol, max_age=120):
     p = _prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None
+
+
+def tape(symbol, n=150):
+    """آخر الصفقات من الأحدث للأقدم."""
+    return list(_tape.get(symbol, ()))[-n:][::-1]
 
 
 def latest_night(symbol, max_age=600):
