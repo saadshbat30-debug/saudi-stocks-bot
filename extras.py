@@ -61,8 +61,6 @@ def get_news(symbol, count=12):
             items = [a for a in map(_parse_article, t.get_news(count=count, tab=tab) or []) if a]
             if items:
                 break
-        if not items:
-            print(f"ℹ️ لا توجد أخبار من ياهو لـ {symbol}")
     except Exception as e:
         print(f"⚠️ فشل جلب أخبار {symbol}: {e}")
         items = cached["items"] if cached else []
