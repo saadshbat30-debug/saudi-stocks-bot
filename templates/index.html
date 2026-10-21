@@ -22,15 +22,39 @@
   input.field { padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; }
   .btn { padding:6px 12px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; font:inherit; font-size:13px; }
   .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--line); }
-  .layout { display:grid; grid-template-columns:1fr 290px; gap:14px; align-items:start; }
+  main { max-width:none !important; }
+  /* اللوحة الجانبية على اليمين والجدول يملأ باقي الشاشة */
+  .layout { display:grid; grid-template-columns:300px 1fr; gap:14px; align-items:start; }
   .layout > * { min-width:0; }
-  @media (max-width:1000px) { .layout { grid-template-columns:1fr; } }
-  .table-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  .layout > aside { order:-1; position:sticky; top:8px; max-height:calc(100vh - 16px); overflow-y:auto; }
+  @media (max-width:1000px) { .layout { grid-template-columns:1fr; } .layout > aside { order:0; position:static; max-height:none; } }
+  /* الجدول بارتفاع الشاشة: شريط التمرير الأفقي والعناوين ظاهرة دائمًا */
+  .table-wrap { overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; height:calc(100vh - 16px); min-height:420px; position:sticky; top:8px; }
+  .table-wrap::-webkit-scrollbar { height:12px; width:10px; }
+  .table-wrap::-webkit-scrollbar-thumb { background:#3a4654; border-radius:6px; }
+  .table-wrap::-webkit-scrollbar-track { background:#151b22; }
+  thead th { position:sticky; top:0; z-index:2; background:#1f2831; box-shadow:inset 0 -1px 0 var(--line); }
+  /* أعمدة ثابتة على اليمين عند التمرير الأفقي */
+  .stick { position:sticky; z-index:1; background:var(--card); }
+  thead .stick { z-index:3; background:#1f2831; }
+  tbody tr:hover .stick { background:#222b35; }
+  .s1 { right:0; min-width:38px; } .s2 { right:38px; min-width:30px; } .s3 { right:68px; box-shadow:-6px 0 8px -6px rgba(0,0,0,.6); }
+  th[draggable="true"] { cursor:grab; transition:background .15s; }
+  th[draggable="true"]:hover { background:#26303b; color:var(--text); }
+  th.dragging { opacity:.4; }
+  th.drop-before { box-shadow:inset -3px 0 0 var(--accent), inset 0 -1px 0 var(--line); }
+  th.drop-after { box-shadow:inset 3px 0 0 var(--accent), inset 0 -1px 0 var(--line); }
+  .arrow { display:inline-block; width:12px; color:var(--accent); font-size:11px; }
+  th:not(.sorted) .arrow::after { content:"⇅"; color:#4b5563; opacity:0; transition:opacity .15s; }
+  th:not(.sorted):hover .arrow::after { opacity:1; }
+  .col-menu { position:absolute; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,.5); min-width:200px; }
+  .col-menu label { display:flex; gap:8px; align-items:center; padding:4px 2px; font-size:13px; cursor:pointer; }
+  .table-foot { position:sticky; bottom:0; right:0; padding:6px 12px; background:#1f2831; border-top:1px solid var(--line); font-size:12px; color:var(--muted); text-align:center; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th, td { padding:8px 9px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { color:var(--muted); font-weight:500; cursor:pointer; user-select:none; }
+  th.sorted { color:var(--text); }
   th[title] { text-decoration:underline dotted #4b5563; text-underline-offset:4px; }
-  th.sorted::after { content:" ▾"; } th.sorted.asc::after { content:" ▴"; }
   tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
   td.num { font-variant-numeric:tabular-nums; }
   .rank { color:var(--muted); font-size:12px; }
@@ -100,6 +124,7 @@
     <button class="chip sig" data-sig="downtrend">اتجاه هابط</button>
   </span>
   <input class="field" id="search" placeholder="🔍 رمز أو اسم" autocomplete="off" style="margin-inline-start:auto;width:150px">
+  <button class="btn ghost" id="col-btn" type="button" title="إظهار/إخفاء الأعمدة وترتيبها">⚙️ الأعمدة</button>
   <form id="add-form" style="display:flex;gap:6px">
     <input class="field" id="add-input" placeholder="رمز آخر" autocomplete="off" style="width:100px;direction:ltr">
     <button class="btn">+</button>
@@ -108,31 +133,11 @@
 
 <div class="layout">
   <div class="table-wrap">
-    <table>
-      <thead><tr>
-        <th>#</th>
-        <th></th>
-        <th data-sort="name">السهم</th>
-        <th data-sort="price">السعر</th>
-        <th data-sort="change_pct">التغير %</th>
-        <th data-sort="change">التغير</th>
-        <th data-sort="speed" title="نسبة تغير السعر خلال آخر 5 دقائق">سرعة 5د</th>
-        <th data-sort="volume">الحجم</th>
-        <th data-sort="value" title="السعر × الحجم بالدولار">القيمة</th>
-        <th data-sort="vol_ratio" title="حجم اليوم مقارنة بمتوسط 3 أشهر">السيولة ×</th>
-        <th data-sort="turnover" title="الحجم ÷ عدد الأسهم القائمة">التدوير %</th>
-        <th data-sort="amplitude" title="(أعلى − أدنى) ÷ إغلاق أمس">الاهتزاز %</th>
-        <th data-sort="rsi" title="مؤشر القوة النسبية 14 يوم">RSI</th>
-        <th data-sort="pe" title="مكرر الأرباح">P/E</th>
-        <th data-sort="pb" title="مضاعف القيمة الدفترية">P/B</th>
-        <th data-sort="market_cap">القيمة السوقية</th>
-        <th data-sort="float" title="الأسهم الحرة المتاحة للتداول (Float) — تُجلب تدريجيًا في الخلفية">الأسهم الحرة</th>
-        <th>الإشارات</th>
-        <th></th>
-      </tr></thead>
+    <table id="tbl">
+      <thead><tr id="head-row"></tr></thead>
       <tbody id="rows"></tbody>
     </table>
-    <button class="more" id="more" hidden>عرض المزيد</button>
+    <div class="table-foot" id="table-foot"></div>
   </div>
   <aside class="card">
     <div class="side-tabs" id="side-tabs">
@@ -212,6 +217,45 @@ function signals(q) {
   return s;
 }
 
+// ===== الأعمدة: الترتيب والإظهار قابلان للتعديل ويُحفظان في المتصفح =====
+const rsiCell = q => `<td class="num" ${q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : ""}>${fmt(q.rsi, 1)}</td>`;
+const COLUMNS = [
+  { key: "price", label: "السعر", cell: q => `<td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>` },
+  { key: "change_pct", label: "التغير %", cell: q => `<td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>` },
+  { key: "change", label: "التغير", cell: q => `<td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>` },
+  { key: "speed", label: "سرعة 5د", title: "نسبة تغير السعر خلال آخر 5 دقائق",
+    cell: (q, ctx) => `<td class="num ${cls(q.speed)}"><bdi dir="ltr">${signed(q.speed)}</bdi>${q.speed ? `<span class="bar" style="width:${Math.round(Math.abs(q.speed) / ctx.maxSpeed * 30)}px;background:${q.speed > 0 ? "var(--up)" : "var(--down)"}"></span>` : ""}</td>` },
+  { key: "volume", label: "الحجم", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>` },
+  { key: "value", label: "القيمة", title: "قيمة التداول بالدولار", cell: q => `<td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>` },
+  { key: "vol_ratio", label: "السيولة ×", title: "حجم اليوم مقارنة بمتوسط 3 أشهر",
+    cell: q => `<td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi></td>` },
+  { key: "turnover", label: "التدوير %", title: "الحجم ÷ الأسهم الحرة (أو القائمة إن لم تتوفر)", cell: q => `<td class="num"><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%"}</bdi></td>` },
+  { key: "amplitude", label: "الاهتزاز %", title: "(أعلى − أدنى) ÷ إغلاق أمس", cell: q => `<td class="num"><bdi dir="ltr">${q.amplitude == null ? "—" : fmt(q.amplitude) + "%"}</bdi></td>` },
+  { key: "rsi", label: "RSI", title: "مؤشر القوة النسبية 14 يوم", cell: rsiCell },
+  { key: "pe", label: "P/E", title: "مكرر الأرباح", cell: q => `<td class="num"><bdi dir="ltr">${fmt(q.pe)}</bdi></td>` },
+  { key: "pb", label: "P/B", title: "مضاعف القيمة الدفترية", cell: q => `<td class="num"><bdi dir="ltr">${fmt(q.pb)}</bdi></td>` },
+  { key: "market_cap", label: "القيمة السوقية", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>` },
+  { key: "float", label: "الأسهم الحرة", title: "الأسهم الحرة المتاحة للتداول (Float)",
+    cell: q => `<td class="num" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi></td>` },
+  { key: "signals", label: "الإشارات", nosort: true, cell: q => `<td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>` },
+];
+const COL = Object.fromEntries(COLUMNS.map(c => [c.key, c]));
+let lastCount = 0, dragging = false;  // أثناء سحب عمود لا يُعاد رسم الجدول حتى لا ينقطع السحب
+let colOrder = store.get("col_order", []).filter(k => COL[k]);
+COLUMNS.forEach(c => { if (!colOrder.includes(c.key)) colOrder.push(c.key); });  // أعمدة جديدة تُضاف في النهاية
+let colHidden = new Set(store.get("col_hidden", []));
+const visibleCols = () => colOrder.filter(k => !colHidden.has(k)).map(k => COL[k]);
+const saveCols = () => { store.set("col_order", colOrder); store.set("col_hidden", [...colHidden]); };
+
+function renderHead() {
+  const arrow = k => `<span class="arrow">${sortKey === k ? (sortAsc ? "▲" : "▼") : ""}</span>`;
+  const th = (c, extra = "") => `<th ${extra} data-sort="${c.key}" class="${sortKey === c.key ? "sorted" : ""}" ${c.title ? `title="${c.title}"` : ""}>${c.label} ${c.nosort ? "" : arrow(c.key)}</th>`;
+  document.getElementById("head-row").innerHTML =
+    `<th class="stick s1">#</th><th class="stick s2"></th>` +
+    `<th class="stick s3 ${sortKey === "name" ? "sorted" : ""}" data-sort="name">السهم ${arrow("name")}</th>` +
+    visibleCols().map(c => th(c, `draggable="true" data-col="${c.key}"`)).join("") + `<th></th>`;
+}
+
 // في وضع "قبل / بعد الجلسة" يُعرض السعر والتغير الممتد
 function view(q) {
   if (!ext) return q;
@@ -251,6 +295,7 @@ function renderTop() {
 }
 
 function render() {
+  if (dragging) return;
   renderTop();
   let list = rows.map(view).filter(q => q.price != null && q.change_pct != null);
   const t = TABS[tab];
@@ -263,42 +308,26 @@ function render() {
     const c = typeof x === "string" ? x.localeCompare(y) : x - y;
     return sortAsc ? c : -c;
   });
-  document.querySelectorAll("th[data-sort]").forEach(th => {
-    th.classList.toggle("sorted", th.dataset.sort === sortKey);
-    th.classList.toggle("asc", th.dataset.sort === sortKey && sortAsc);
-  });
-
-  const tbody = document.getElementById("rows");
-  document.getElementById("more").hidden = list.length <= shown;
+  renderHead();
+  const tbody = document.getElementById("rows"), cols = visibleCols();
+  lastCount = list.length;
+  document.getElementById("table-foot").textContent = list.length
+    ? `${Math.min(shown, list.length)} من ${list.length} سهم${shown < list.length ? " · مرّر للأسفل لتحميل المزيد" : ""} · اسحب عنوان أي عمود لنقله · اضغط العنوان للترتيب`
+    : "";
   if (!list.length) {
     const msg = !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? "لا توجد أسعار تداول ليلي الآن (8 مساءً – 4 فجرًا بتوقيت نيويورك)" : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
-    tbody.innerHTML = `<tr><td colspan="19" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols.length + 4}" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
     return;
   }
-  const maxSpeed = Math.max(1, ...list.slice(0, shown).map(q => Math.abs(q.speed || 0)));
-  tbody.innerHTML = list.slice(0, shown).map((q, i) => {
+  const page = list.slice(0, shown);
+  const ctx = { maxSpeed: Math.max(1, ...page.map(q => Math.abs(q.speed || 0))) };
+  tbody.innerHTML = page.map((q, i) => {
     const s = esc(q.symbol);
-    const speedBar = q.speed ? `<span class="bar" style="width:${Math.round(Math.abs(q.speed) / maxSpeed * 30)}px;background:${q.speed > 0 ? "var(--up)" : "var(--down)"}"></span>` : "";
-    const rsiStyle = q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : "";
     return `<tr data-symbol="${s}">
-      <td class="rank">${i + 1}</td>
-      <td><button class="star ${favs.has(q.symbol) ? "on" : ""}" data-fav="${s}" title="المفضلة">★</button></td>
-      <td><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live ? ' <span style="color:#facc15" title="سعر لحظي">⚡</span>' : ""}</div></td>
-      <td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>
-      <td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>
-      <td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>
-      <td class="num ${cls(q.speed)}"><bdi dir="ltr">${signed(q.speed)}</bdi>${speedBar}</td>
-      <td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>
-      <td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>
-      <td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi></td>
-      <td class="num"><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%"}</bdi></td>
-      <td class="num"><bdi dir="ltr">${q.amplitude == null ? "—" : fmt(q.amplitude) + "%"}</bdi></td>
-      <td class="num" ${rsiStyle}>${fmt(q.rsi, 1)}</td>
-      <td class="num"><bdi dir="ltr">${fmt(q.pe)}</bdi></td>
-      <td class="num"><bdi dir="ltr">${fmt(q.pb)}</bdi></td>
-      <td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>
-      <td class="num" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi></td>
-      <td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>
+      <td class="rank stick s1">${i + 1}</td>
+      <td class="stick s2"><button class="star ${favs.has(q.symbol) ? "on" : ""}" data-fav="${s}" title="المفضلة">★</button></td>
+      <td class="stick s3"><div class="nm">${esc(q.name)}</div><div class="sym">${s}${q.live ? ' <span style="color:#facc15" title="سعر لحظي">⚡</span>' : ""}</div></td>
+      ${cols.map(c => c.cell(q, ctx)).join("")}
       <td>${custom.includes(q.symbol) ? `<button class="x" data-remove="${s}" title="حذف">✕</button>` : ""}</td>
     </tr>`;
   }).join("");
@@ -480,11 +509,83 @@ chips("session-tabs", "ext", v => ext = Number(v));
 chips("bands", "band", v => band = Number(v));
 chips("signals", "sig", v => sig = v, true);
 document.getElementById("search").oninput = e => { search = e.target.value.trim(); shown = PAGE; render(); };
-document.getElementById("more").onclick = () => { shown += PAGE; render(); };
-document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+const headRow = document.getElementById("head-row"), wrap = document.querySelector(".table-wrap");
+
+// الضغط على العنوان: من الأعلى للأقل، ثم العكس
+headRow.addEventListener("click", e => {
+  const th = e.target.closest("th[data-sort]");
+  if (!th || COL[th.dataset.sort]?.nosort) return;
   const k = th.dataset.sort;
   sortAsc = sortKey === k ? !sortAsc : k === "name";
-  sortKey = k; render();
+  sortKey = k; shown = PAGE; wrap.scrollTop = 0; render();
+});
+
+// سحب الأعمدة وإفلاتها في أي مكان
+let dragKey = null, dropStyle = document.createElement("style");
+document.head.appendChild(dropStyle);
+const colIndex = key => [...headRow.children].findIndex(th => th.dataset.col === key) + 1;
+headRow.addEventListener("dragstart", e => {
+  const th = e.target.closest("th[data-col]");
+  if (!th) return;
+  dragKey = th.dataset.col; dragging = true;
+  th.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", dragKey);
+  // تظليل العمود كاملًا أثناء السحب
+  dropStyle.textContent = `#tbl tr > :nth-child(${colIndex(dragKey)}) { background:rgba(59,130,246,.12) !important; }`;
+});
+headRow.addEventListener("dragover", e => {
+  const th = e.target.closest("th[data-col]");
+  if (!th || !dragKey || th.dataset.col === dragKey) return;
+  e.preventDefault();
+  const r = th.getBoundingClientRect(), before = e.clientX > r.left + r.width / 2;  // RTL: اليمين = قبل
+  headRow.querySelectorAll(".drop-before,.drop-after").forEach(x => x.classList.remove("drop-before", "drop-after"));
+  th.classList.add(before ? "drop-before" : "drop-after");
+});
+headRow.addEventListener("drop", e => {
+  const th = e.target.closest("th[data-col]");
+  if (!th || !dragKey) return;
+  e.preventDefault();
+  const before = th.classList.contains("drop-before"), target = th.dataset.col;
+  colOrder = colOrder.filter(k => k !== dragKey);
+  colOrder.splice(colOrder.indexOf(target) + (before ? 0 : 1), 0, dragKey);
+  saveCols(); dragging = false; dragKey = null; dropStyle.textContent = ""; render();
+});
+headRow.addEventListener("dragend", () => {
+  dragKey = null; dragging = false; dropStyle.textContent = "";
+  headRow.querySelectorAll(".dragging,.drop-before,.drop-after").forEach(x => x.classList.remove("dragging", "drop-before", "drop-after"));
+});
+
+// قائمة إظهار/إخفاء الأعمدة
+document.getElementById("col-btn").onclick = e => {
+  e.stopPropagation();
+  let menu = document.getElementById("col-menu");
+  if (menu) { menu.remove(); return; }
+  menu = document.createElement("div");
+  menu.id = "col-menu"; menu.className = "col-menu";
+  menu.innerHTML = `<div class="muted" style="margin-bottom:6px">إظهار الأعمدة (اسحب العناوين في الجدول لترتيبها)</div>` +
+    colOrder.map(k => `<label><input type="checkbox" data-k="${k}" ${colHidden.has(k) ? "" : "checked"}> ${COL[k].label}</label>`).join("") +
+    `<button class="btn ghost" id="col-reset" style="margin-top:8px;width:100%">↺ الترتيب الافتراضي</button>`;
+  const r = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (r.bottom + scrollY + 6) + "px"; menu.style.left = (r.left + scrollX) + "px";
+  document.body.appendChild(menu);
+  menu.onclick = ev => ev.stopPropagation();
+  menu.onchange = ev => {
+    const k = ev.target.dataset.k;
+    ev.target.checked ? colHidden.delete(k) : colHidden.add(k);
+    saveCols(); render();
+  };
+  menu.querySelector("#col-reset").onclick = () => {
+    colOrder = COLUMNS.map(c => c.key); colHidden = new Set(); saveCols(); render(); menu.remove();
+  };
+};
+document.addEventListener("click", () => document.getElementById("col-menu")?.remove());
+
+// تحميل المزيد تلقائيًا عند الاقتراب من نهاية الجدول
+wrap.addEventListener("scroll", () => {
+  if (shown < lastCount && wrap.scrollTop + wrap.clientHeight > wrap.scrollHeight - 400) {
+    shown += PAGE; render();
+  }
 });
 document.querySelector(".top").onclick = e => {
   const li = e.target.closest("[data-go]");
