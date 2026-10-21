@@ -1,22 +1,28 @@
 import os
 
-# المنصة تعرض أسهم السوق الأمريكي من ماسح ياهو، في نطاق سعري محدد،
-# مرتبة بالأكثر تداولًا اليوم.
+# المنصة تعرض كل أسهم السوق الأمريكي من ماسح ياهو بكل الأسعار:
+# البورصات المدرجة + سوق OTC (جزء منفصل حتى لا تزاحم أسهمه الصغيرة جدًا الأسهم المدرجة).
 MARKETS = {
     "us": {
         "title": "السوق الأمريكي",
         "currency": "$",
         "min_price": float(os.environ.get("MIN_PRICE", "0")),
-        "max_price": float(os.environ.get("MAX_PRICE", "60")),
-        # بورصات ناسداك ونيويورك وأمكس (بدون OTC)
+        # بدون حد أعلى للسعر (اضبط MAX_PRICE لتحديد نطاق)
+        "max_price": float(os.environ["MAX_PRICE"]) if os.environ.get("MAX_PRICE") else None,
+        # ناسداك، نيويورك، أمكس، آركا، Cboe
         "exchanges": ["NMS", "NGM", "NCM", "NYQ", "ASE", "PCX", "BTS"],
-        "limit": int(os.environ.get("US_LIMIT", "750")),
+        "limit": int(os.environ.get("US_LIMIT", "1000")),
+        # سوق OTC (غير المدرجة): الأعلى حجمًا والأكثر ارتفاعًا
+        "otc_exchanges": ["PNK", "OQX", "OQB"],
+        "otc_limit": int(os.environ.get("OTC_LIMIT", "250")),
         # فلاتر السعر في الصفحة: (الاسم، من، إلى)
         "price_bands": [
             ["تحت 1$", 0, 1],
             ["1–5$", 1, 5],
             ["5–20$", 5, 20],
             ["20–60$", 20, 60],
+            ["60–200$", 60, 200],
+            ["200$+", 200, 1e12],
         ],
         "stocks": {},
     },

@@ -155,12 +155,16 @@ def get_quotes(symbols):
 
 # ===== السوق كاملًا عبر ماسح ياهو (طلب واحد لكل 250 سهم) =====
 
-def _universe(market):
-    return yf.EquityQuery("and", [
+def _universe(market, otc=False):
+    parts = [
         yf.EquityQuery("eq", ["region", "us"]),
-        yf.EquityQuery("is-in", ["exchange", *market["exchanges"]]),
-        yf.EquityQuery("btwn", ["intradayprice", market["min_price"], market["max_price"]]),
-    ])
+        yf.EquityQuery("is-in", ["exchange", *(market["otc_exchanges"] if otc else market["exchanges"])]),
+    ]
+    if market.get("max_price"):
+        parts.append(yf.EquityQuery("btwn", ["intradayprice", market["min_price"], market["max_price"]]))
+    elif market.get("min_price"):
+        parts.append(yf.EquityQuery("gte", ["intradayprice", market["min_price"]]))
+    return yf.EquityQuery("and", parts)
 
 
 _markets = {}
@@ -199,6 +203,19 @@ def _screen(query, limit):
             if q.get("symbol") and q["symbol"] not in seen:
                 seen.add(q["symbol"]); merged.append(q)
     return merged
+
+
+def _screen_otc(market, seen):
+    """سوق OTC: الأعلى حجمًا + الأكثر ارتفاعًا (تُعلَّم otc)."""
+    out = []
+    for field, asc, n in (("dayvolume", False, market["otc_limit"]), ("percentchange", False, 100)):
+        try:
+            for q in _screen_one(_universe(market, otc=True), n, field, asc):
+                if q.get("symbol") and q["symbol"] not in seen:
+                    seen.add(q["symbol"]); out.append({**q, "_otc": True})
+        except Exception as e:
+            print(f"⚠️ فشل جلب سوق OTC ({field}): {e}")
+    return out
 
 
 def _is_common_stock(symbol):
@@ -256,6 +273,7 @@ def _row(q):
         "pe": _num(q, "trailingPE"),
         "pb": _num(q, "priceToBook"),
         "market_cap": q.get("marketCap"),
+        "otc": bool(q.get("_otc")),
         "quote_time": q.get("regularMarketTime") or 0,
         "ext_price": q.get(f"{ext}Price") if ext else None,
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
@@ -367,7 +385,10 @@ def get_market(market_id):
         cached = _markets.get(market_id)
         if not cached or now - cached["at"] > SCREEN_SECONDS:
             try:
-                rows = [r for r in map(_row, _screen(_universe(market), market["limit"])) if r]
+                quotes = _screen(_universe(market), market["limit"])
+                if market.get("otc_exchanges") and market.get("otc_limit"):
+                    quotes += _screen_otc(market, {q["symbol"] for q in quotes})
+                rows = [r for r in map(_row, quotes) if r]
                 if rows:
                     cached = _markets[market_id] = {"rows": rows, "at": now}
                     stream.watch([r["symbol"] for r in rows])
