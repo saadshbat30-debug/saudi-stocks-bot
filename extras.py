@@ -52,8 +52,15 @@ def get_news(symbol, count=12):
         if cached and now - cached["at"] < NEWS_SECONDS:
             return cached["items"]
     try:
-        raw = yf.Ticker(symbol).get_news(count=count)
-        items = [a for a in map(_parse_article, raw or []) if a]
+        # ياهو يقسم الأخبار: الأحدث، الكل، البيانات الصحفية — نجرب حتى نجد أخبارًا
+        items = []
+        for tab in ("news", "all", "press releases"):
+            t = yf.Ticker(symbol)
+            items = [a for a in map(_parse_article, t.get_news(count=count, tab=tab) or []) if a]
+            if items:
+                break
+        if not items:
+            print(f"ℹ️ لا توجد أخبار من ياهو لـ {symbol}")
     except Exception as e:
         print(f"⚠️ فشل جلب أخبار {symbol}: {e}")
         items = cached["items"] if cached else []

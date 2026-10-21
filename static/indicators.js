@@ -72,7 +72,7 @@
     const mSig = m.chart.addLineSeries({ color: "#f59e0b", lineWidth: 1.5, priceLineVisible: false });
 
     // ===== RSI =====
-    const r = makePane("rsi", "RSI (14)");
+    const r = makePane("rsi", "RSI (14) على فاصل الشارت");
     const rLine = r.chart.addLineSeries({ color: "#a855f7", lineWidth: 1.5, priceLineVisible: false });
     rLine.createPriceLine({ price: 70, color: DOWN, lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "" });
     rLine.createPriceLine({ price: 30, color: UP, lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "" });
