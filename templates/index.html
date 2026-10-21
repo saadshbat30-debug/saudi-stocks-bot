@@ -177,14 +177,17 @@ const CURRENCY = {{ market.currency|tojson }};
 const BANDS = {{ market.price_bands|tojson }};
 const LOW_FLOAT = {{ low_float|tojson }};
 const ALERT_PCT = {{ alert_pct|tojson }}, ALERT_VOL = {{ alert_vol|tojson }}, ALERT_SPEED = {{ alert_speed|tojson }};
+// أسهم فيها تداول حقيقي: تستبعد أسهم OTC الميتة (أجزاء السنت وصفقة واحدة تعطي سيولة ×700,000)
+const MIN_VALUE = 100000;
+const active = q => q.price >= 0.01 && (q.value || 0) >= MIN_VALUE;
 const PAGE = 100;
 const TABS = {
   gainers:   { sort: "change_pct", asc: false, filter: q => q.change_pct > 0 },
   losers:    { sort: "change_pct", asc: true,  filter: q => q.change_pct < 0 },
   active:    { sort: "volume",     asc: false },
   value:     { sort: "value",      asc: false },
-  momentum:  { sort: "speed",      asc: false, filter: q => q.speed != null },
-  liquidity: { sort: "vol_ratio",  asc: false, filter: q => q.vol_ratio != null },
+  momentum:  { sort: "speed",      asc: false, filter: q => q.speed != null && active(q) },
+  liquidity: { sort: "vol_ratio",  asc: false, filter: q => q.vol_ratio != null && active(q) },
   high:      { sort: "change_pct", asc: false, filter: q => q.at_high },
   fav:       { sort: "change_pct", asc: false, filter: q => favs.has(q.symbol) },
   lowfloat:  { sort: "change_pct", asc: false, filter: q => q.float != null && q.float < LOW_FLOAT },
@@ -301,10 +304,10 @@ function renderTop() {
   document.getElementById("bb-flat").style.width = (flat / total * 100) + "%";
   document.getElementById("bb-down").style.width = (down / total * 100) + "%";
   document.getElementById("b-value").textContent = "$" + fmtBig(rows.reduce((s, q) => s + (q.value || 0), 0));
-  document.getElementById("b-hot").textContent = rows.filter(q => q.vol_ratio >= 2).length;
+  document.getElementById("b-hot").textContent = rows.filter(q => q.vol_ratio >= 2 && active(q)).length;
   document.getElementById("b-high").textContent = rows.filter(q => q.at_high).length;
-  const top = (key, n = 5) => rows.filter(q => q[key] != null).sort((a, b) => b[key] - a[key]).slice(0, n);
-  const topSpeed = live.filter(q => q.speed != null).sort((a, b) => b.speed - a.speed).slice(0, 5);
+  const top = (key, n = 5) => rows.filter(q => q[key] != null && active(q)).sort((a, b) => b[key] - a[key]).slice(0, n);
+  const topSpeed = live.filter(q => q.speed != null && active(q)).sort((a, b) => b.speed - a.speed).slice(0, 5);
   miniList("m-speed", topSpeed, q => `<span class="ltr ${cls(q.speed)}">${signed(q.speed)}</span>`);
   miniList("m-rvol", top("vol_ratio"), q => `<span class="ltr">${fmt(q.vol_ratio, 1)}× <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
   miniList("m-value", top("value"), q => `<span class="ltr">$${fmtBig(q.value)} <span class="${cls(q.change_pct)}">${signed(q.change_pct, 1)}</span></span>`);
@@ -374,6 +377,7 @@ function checkAlerts() {
   const fresh = [];
   for (const q of rows) {
     if (favOnly && !favs.has(q.symbol)) continue;
+    if (!active(q) && !favs.has(q.symbol)) continue;
     const price = `<bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi>`;
     const checks = [];
     if (Math.abs(q.change_pct) >= ALERT_PCT) checks.push([q.change_pct > 0 ? "up" : "down", `${q.change_pct > 0 ? "🟢 ارتفاع" : "🔴 انخفاض"} <bdi dir="ltr">${signed(q.change_pct)}</bdi> · ${price}`]);

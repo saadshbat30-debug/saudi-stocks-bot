@@ -31,6 +31,9 @@ def check_alerts():
     for market_id, market in MARKETS.items():
         lines, keys = [], []
         for q in get_market(market_id):
+            # أسهم بلا تداول حقيقي (أجزاء السنت أو قيمة تداول ضئيلة) لا تُنبَّه
+            if (q.get("price") or 0) < 0.01 or (q.get("value") or 0) < 100000:
+                continue
             checks = []
             if abs(q["change_pct"]) >= ALERT_PCT:
                 checks.append(("move", f"{'🟢' if q['change_pct'] > 0 else '🔴'} {q['change_pct']:+.2f}%"))
