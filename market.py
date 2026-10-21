@@ -377,6 +377,24 @@ def _float_priority():
     return [r["symbol"] for r in sorted(rows, key=lambda r: -abs(r.get("change_pct") or 0))]
 
 
+# ===== المسح الكامل: كل الأسهم المدرجة (آلاف الأسهم) يُجلب في الخلفية كل 5 دقائق =====
+FULL_SECONDS = 300
+_full = {}  # السوق ← {"rows": [...], "at": وقت}
+
+
+def _full_loop(market_id):
+    market = MARKETS[market_id]
+    while True:
+        try:
+            quotes = _screen_one(_universe(market), market.get("full_limit", 0), "dayvolume")
+            rows = [r for r in map(_row, quotes) if r]
+            if rows:
+                _full[market_id] = {"rows": rows, "at": time.time()}
+        except Exception as e:
+            print(f"⚠️ فشل المسح الكامل للسوق {market_id}: {e}")
+        time.sleep(FULL_SECONDS)
+
+
 def get_market(market_id):
     """أسهم السوق في النطاق السعري مع مقاييس الزخم والسيولة وRSI ومتوسط 20."""
     market = MARKETS[market_id]
@@ -396,19 +414,28 @@ def get_market(market_id):
                     if not _night_state["started"]:
                         _night_state["started"] = True
                         threading.Thread(target=_night_loop, daemon=True).start()
+                    if market.get("full_limit") and market_id not in _full:
+                        _full[market_id] = {"rows": [], "at": 0}
+                        threading.Thread(target=_full_loop, args=(market_id,), daemon=True).start()
                     STATUS["screener_at"], STATUS["screener_error"] = now, None
             except Exception as e:
                 STATUS["screener_error"] = str(e)[:200]
                 print(f"⚠️ فشل سحب السوق {market_id}: {e}")
         rows = cached["rows"] if cached else []
 
-        # تحديث التاريخ في الخلفية حتى لا تتأخر الصفحة
+        # تحديث التاريخ في الخلفية حتى لا تتأخر الصفحة (للأسهم النشطة فقط)
         missing = [r["symbol"] for r in rows if r["symbol"] not in _market_history]
         stale = now - _history_state["at"] > HISTORY_CACHE_SECONDS
         if rows and (missing or stale) and not _history_state["running"]:
             _history_state["running"] = True
             symbols = missing if missing and not stale else [r["symbol"] for r in rows]
             threading.Thread(target=_refresh_market_history, args=(symbols,), daemon=True).start()
+
+        # باقي الأسهم المدرجة من المسح الكامل (الأقل نشاطًا) — حتى لا يغيب أي سهم
+        full = _full.get(market_id)
+        if full and full["rows"]:
+            seen = {r["symbol"] for r in rows}
+            rows = rows + [r for r in full["rows"] if r["symbol"] not in seen]
 
     return [_enrich(dict(r), now) for r in rows]
 
@@ -577,7 +604,7 @@ def row_for(symbol):
         # صفحة السهم فُتحت قبل الصفحة الرئيسية: شغّل الماسح أولًا
         for market_id in MARKETS:
             get_market(market_id)
-    for cached in list(_markets.values()):
+    for cached in list(_markets.values()) + list(_full.values()):
         for r in cached["rows"]:
             if r["symbol"] == symbol:
                 return _fresher_from_bars(_enrich(dict(r), time.time()))

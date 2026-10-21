@@ -15,6 +15,8 @@ MARKETS = {
         # سوق OTC (غير المدرجة): الأعلى حجمًا والأكثر ارتفاعًا
         "otc_exchanges": ["PNK", "OQX", "OQB"],
         "otc_limit": int(os.environ.get("OTC_LIMIT", "250")),
+        # كل الأسهم المدرجة (ناسداك/نيويورك/أمكس...) تُجلب في الخلفية كل 5 دقائق — 0 لإيقافه
+        "full_limit": int(os.environ.get("FULL_LIMIT", "10000")),
         # فلاتر السعر في الصفحة: (الاسم، من، إلى)
         "price_bands": [
             ["تحت 1$", 0, 1],
