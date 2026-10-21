@@ -143,6 +143,40 @@ def _parse_halts(text):
     return items
 
 
+def _clean_xml(raw):
+    """يزيل علامة BOM وأي مسافات قبل بداية XML."""
+    raw = raw.lstrip(b"\xef\xbb\xbf").lstrip()
+    i = raw.find(b"<")
+    return raw[i:] if i > 0 else raw
+
+
+def _fetch_halts_xml():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        "Accept-Encoding": "gzip, deflate",
+    }
+    raw = b""
+    try:
+        r = requests.get(HALTS_URL, timeout=10, headers=headers)
+        r.raise_for_status()
+        raw = _clean_xml(r.content)
+        if raw.startswith(b"<"):
+            return raw
+    except requests.RequestException:
+        pass
+    # بعض الشبكات/الحمايات ترفض الطلبات البرمجية: نجرّب اتصالًا يشبه المتصفح (curl_cffi يأتي مع yfinance)
+    try:
+        from curl_cffi import requests as creq
+        r = creq.get(HALTS_URL, timeout=10, impersonate="chrome")
+        raw = _clean_xml(r.content)
+        if raw.startswith(b"<"):
+            return raw
+    except Exception:
+        pass
+    raise ValueError(f"الرد ليس XML: {raw[:120]!r}")
+
+
 def get_halts():
     """إيقافات اليوم؛ "halted" = ما زال موقوفًا (لا يوجد وقت استئناف للتداول)."""
     now = time.time()
@@ -150,9 +184,7 @@ def get_halts():
         if now - _halts["at"] < HALTS_SECONDS:
             return _halts
     try:
-        r = requests.get(HALTS_URL, timeout=10, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-        r.raise_for_status()
-        items = _parse_halts(r.text)
+        items = _parse_halts(_fetch_halts_xml())
         today = datetime.now(NY).strftime("%m/%d/%Y")
         for h in items:
             h["today"] = h["halt_date"] == today
