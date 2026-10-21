@@ -173,11 +173,48 @@ _history_state = {"at": 0, "running": False}
 _market_lock = threading.Lock()
 
 
+_session_reset = {"at": 0}
+
+
+def reset_yahoo_session():
+    """ياهو يرفض أحيانًا مفتاح الجلسة (Invalid Crumb) ولا تجدده المكتبة: نحذفه ليُجلب مفتاح جديد."""
+    if time.time() - _session_reset["at"] < 30:
+        return
+    _session_reset["at"] = time.time()
+    try:
+        from yfinance import cache
+        from yfinance.data import YfData
+        data = YfData()
+        with data._cookie_lock:
+            data._crumb = data._cookie = None
+            if not data._logged_in:
+                data._session.cookies.clear()
+        cache.get_cookie_cache().store("curlCffi", None)  # المفتاح المحفوظ على القرص أيضًا
+        print("🔄 تجديد جلسة ياهو (Invalid Crumb)")
+    except Exception as e:
+        print(f"⚠️ فشل تجديد جلسة ياهو: {e}")
+
+
+def _is_auth_error(e):
+    text = str(e)
+    return "401" in text or "Crumb" in text or "Unauthorized" in text
+
+
+def _yf_screen(query, **kw):
+    try:
+        return yf.screen(query, **kw)
+    except Exception as e:
+        if not _is_auth_error(e):
+            raise
+        reset_yahoo_session()
+        return yf.screen(query, **kw)
+
+
 def _screen_one(query, limit, sort_field, asc=False):
     quotes = []
     while len(quotes) < limit:
         size = min(250, limit - len(quotes))
-        page = yf.screen(query, offset=len(quotes), size=size, sortField=sort_field, sortAsc=asc)
+        page = _yf_screen(query, offset=len(quotes), size=size, sortField=sort_field, sortAsc=asc)
         batch = page.get("quotes", [])
         quotes += batch
         if len(batch) < size:
@@ -310,10 +347,15 @@ _night_state = {"started": False}
 def raw_quotes(symbols):
     """رد ياهو الخام لعدة رموز (مع طلب سعر التداول الليلي)."""
     from yfinance.data import YfData
-    data = YfData().get_raw_json(QUOTE_URL, params={
-        "symbols": ",".join(symbols), "formatted": "false", "overnightPrice": "true",
-        "lang": "en-US", "region": "US",
-    })
+    params = {"symbols": ",".join(symbols), "formatted": "false", "overnightPrice": "true",
+              "lang": "en-US", "region": "US"}
+    try:
+        data = YfData().get_raw_json(QUOTE_URL, params=params)
+    except Exception as e:
+        if not _is_auth_error(e):
+            raise
+        reset_yahoo_session()
+        data = YfData().get_raw_json(QUOTE_URL, params=params)
     return (data.get("quoteResponse") or {}).get("result") or []
 
 
