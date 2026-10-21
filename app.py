@@ -1,3 +1,4 @@
+import logging
 import time
 from flask import Flask, abort, jsonify, render_template, request
 
@@ -8,6 +9,8 @@ import stream
 from market import STATUS, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
+# إخفاء سطور الطلبات العادية حتى تظهر رسائل المنصة المهمة فقط
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 MAX_SYMBOLS = 40
 TV_INDICES = {"^DJI": "DJ:DJI", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX", "^RUT": "TVC:RUT"}
@@ -165,4 +168,5 @@ def test():
 start_alerts()
 
 if __name__ == "__main__":
+    print("✅ المنصة تعمل: http://127.0.0.1:5000")
     app.run(host="0.0.0.0", port=5000)

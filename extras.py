@@ -1,6 +1,8 @@
 """الأخبار، وإيقافات التداول (Nasdaq Trade Halts)، والأسهم الحرة (Float)."""
+import html
 import json
 import os
+import re
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -123,31 +125,47 @@ def _local(tag):
     return tag.rsplit("}", 1)[-1].rsplit(":", 1)[-1]
 
 
+def _halt_item(f):
+    symbol = f.get("IssueSymbol") or f.get("title")
+    if not symbol:
+        return None
+    code = f.get("ReasonCode", "")
+    return {
+        "symbol": symbol.upper(),
+        "name": f.get("IssueName", ""),
+        "market": f.get("Market", ""),
+        "code": code,
+        "reason": REASONS.get(code, code),
+        "halt_date": f.get("HaltDate", ""),
+        "halt_time": f.get("HaltTime", ""),
+        "resume_date": f.get("ResumptionDate", ""),
+        "resume_quote": f.get("ResumptionQuoteTime", ""),
+        "resume_trade": f.get("ResumptionTradeTime", ""),
+        "pause_price": f.get("PauseThresholdPrice", ""),
+    }
+
+
+_ITEM_RE = re.compile(rb"<item\b[^>]*>(.*?)</item>", re.S | re.I)
+_FIELD_RE = re.compile(rb"<(?:[\w-]+:)?(\w+)\b[^>]*>(.*?)</(?:[\w-]+:)?\1\s*>", re.S)
+
+
 def _parse_halts(text):
-    root = ET.fromstring(text)
-    items = []
-    for item in root.iter():
-        if _local(item.tag) != "item":
-            continue
-        f = {_local(ch.tag): (ch.text or "").strip() for ch in item}
-        symbol = f.get("IssueSymbol") or f.get("title")
-        if not symbol:
-            continue
-        code = f.get("ReasonCode", "")
-        items.append({
-            "symbol": symbol.upper(),
-            "name": f.get("IssueName", ""),
-            "market": f.get("Market", ""),
-            "code": code,
-            "reason": REASONS.get(code, code),
-            "halt_date": f.get("HaltDate", ""),
-            "halt_time": f.get("HaltTime", ""),
-            "resume_date": f.get("ResumptionDate", ""),
-            "resume_quote": f.get("ResumptionQuoteTime", ""),
-            "resume_trade": f.get("ResumptionTradeTime", ""),
-            "pause_price": f.get("PauseThresholdPrice", ""),
-        })
-    return items
+    try:
+        root = ET.fromstring(text)
+        fields = [{_local(ch.tag): (ch.text or "").strip() for ch in item}
+                  for item in root.iter() if _local(item.tag) == "item"]
+    except ET.ParseError:
+        # الرد ليس XML سليمًا (وسوم غير مغلقة أو HTML ملتصق): نستخرج العناصر نصيًا
+        fields = []
+        for block in _ITEM_RE.findall(text):
+            f = {}
+            for tag, val in _FIELD_RE.findall(block):
+                val = re.sub(rb"<!\[CDATA\[(.*?)\]\]>", rb"\1", val, flags=re.S)
+                f[tag.decode()] = html.unescape(re.sub(rb"<[^>]+>", b"", val).decode("utf-8", "replace")).strip()
+            fields.append(f)
+        if not fields:
+            raise ValueError(f"الرد ليس RSS: {text[:150]!r}")
+    return [h for h in map(_halt_item, fields) if h]
 
 
 def _clean_xml(raw):
@@ -155,6 +173,11 @@ def _clean_xml(raw):
     raw = raw.lstrip(b"\xef\xbb\xbf").lstrip()
     i = raw.find(b"<")
     return raw[i:] if i > 0 else raw
+
+
+def _looks_like_rss(raw):
+    head = raw[:2000].lower()
+    return raw.startswith(b"<") and (b"<rss" in head or b"<item" in raw.lower() or b"<channel" in head)
 
 
 def _fetch_halts_xml():
@@ -168,7 +191,7 @@ def _fetch_halts_xml():
         r = requests.get(HALTS_URL, timeout=10, headers=headers)
         r.raise_for_status()
         raw = _clean_xml(r.content)
-        if raw.startswith(b"<"):
+        if _looks_like_rss(raw):
             return raw
     except requests.RequestException:
         pass
@@ -177,11 +200,11 @@ def _fetch_halts_xml():
         from curl_cffi import requests as creq
         r = creq.get(HALTS_URL, timeout=10, impersonate="chrome")
         raw = _clean_xml(r.content)
-        if raw.startswith(b"<"):
+        if _looks_like_rss(raw):
             return raw
     except Exception:
         pass
-    raise ValueError(f"الرد ليس XML: {raw[:120]!r}")
+    raise ValueError(f"الرد ليس RSS: {raw[:150]!r}")
 
 
 def get_halts():
