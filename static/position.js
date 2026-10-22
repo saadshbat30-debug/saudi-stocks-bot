@@ -21,6 +21,7 @@
   // السهم المعروض: سهم الصفحة إن كانت له صفقة، وإلا آخر صفقة فُتحت، وإلا سهم الصفحة
   let sym = (PAGE && all()[PAGE]) ? PAGE : load(ACTIVE, null) && all()[load(ACTIVE, null)] ? load(ACTIVE, null) : PAGE;
   let prices = {}, ui = load(UI, { min: false });
+  if ("x" in ui || "y" in ui) { delete ui.x; delete ui.y; save(UI, ui); }
 
   const css = document.createElement("style");
   css.textContent = `
@@ -71,7 +72,7 @@
   const box = document.createElement("div");
   box.className = "pw" + (ui.min ? " min" : "");
   box.innerHTML = `
-    <div class="pw-h" title="اسحب لتحريك الخانة">
+    <div class="pw-h" title="اسحب لتحريك الخانة · نقرتان لإرجاعها للزاوية">
       <span>⠿</span><b>💼 صفقتي</b><span class="pw-sum" id="pw-sum"></span>
       <button type="button" data-a="min" title="تصغير / تكبير">${ui.min ? "▢" : "_"}</button>
     </div>
@@ -84,18 +85,28 @@
   const $ = id => box.querySelector("#" + id);
 
   // ===== المكان: يُسحب من العنوان ويُحفظ (افتراضيًا أسفل يسار الشاشة) =====
+  // المكان مثبت على زاوية الشاشة اليمنى السفلية (بعدها عن الحافتين)، فيبقى في نفس المكان بكل الصفحات
+  // مهما اختلف ارتفاع الخانة أو حجم النافذة. يمكن سحبه ويُحفظ مكانه الجديد بنفس الطريقة.
   function place() {
     const w = box.offsetWidth, h = box.offsetHeight;
-    const x = ui.x ?? 12, y = ui.y ?? (window.innerHeight - h - 12);
-    box.style.left = Math.max(4, Math.min(window.innerWidth - w - 4, x)) + "px";
-    box.style.top = Math.max(4, Math.min(window.innerHeight - Math.min(h, 60) - 4, y)) + "px";
+    const r = Math.max(4, Math.min(window.innerWidth - w - 4, ui.r ?? 12));
+    const b = Math.max(4, Math.min(window.innerHeight - Math.min(h, 60) - 4, ui.b ?? 12));
+    box.style.left = box.style.top = "auto";
+    box.style.right = r + "px";
+    box.style.bottom = b + "px";
   }
   box.querySelector(".pw-h").addEventListener("pointerdown", e => {
     if (e.target.closest("button")) return;
-    const sx = e.clientX - box.offsetLeft, sy = e.clientY - box.offsetTop;
-    const move = ev => { ui.x = ev.clientX - sx; ui.y = ev.clientY - sy; place(); };
+    const rect = box.getBoundingClientRect();
+    const dx = rect.right - e.clientX, dy = rect.bottom - e.clientY;
+    const move = ev => { ui.r = window.innerWidth - ev.clientX - dx; ui.b = window.innerHeight - ev.clientY - dy; place(); };
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); save(UI, ui); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
+  });
+  // نقرتان على العنوان = إرجاعها للزاوية
+  box.querySelector(".pw-h").addEventListener("dblclick", e => {
+    if (e.target.closest("button")) return;
+    ui.r = ui.b = 12; save(UI, ui); place();
   });
   addEventListener("resize", place);
   box.querySelector('[data-a="min"]').onclick = e => {
