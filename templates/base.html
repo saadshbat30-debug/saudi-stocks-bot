@@ -34,6 +34,7 @@
   <span class="session" id="session">—</span>
   <span class="session" id="stream-status" title="البث المباشر للأسعار من ياهو">—</span>
   <nav>
+    <a href="/breakout" class="{{ 'active' if request.path == '/breakout' }}" title="فلتر قبل الانطلاق: نشاط غير معتاد والسعر في نطاق ضيق">⚡ قبل الانطلاق</a>
     {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>
     {% endfor %}{% endif %}

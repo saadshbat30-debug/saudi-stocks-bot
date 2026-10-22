@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}⚡ قبل الانطلاق — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  main { max-width:none !important; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; min-width:0; }
+  .card h3 { margin:0 0 8px; font-size:15px; }
+  .muted { color:var(--muted); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .chip { padding:5px 11px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .lbl { color:var(--muted); font-size:12px; margin-inline:8px 2px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .stat b { display:block; font-size:20px; margin-top:2px; }
+  .wrap { overflow:auto; max-height:70vh; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:start; }
+  th { color:var(--muted); font-weight:500; position:sticky; top:0; background:#1f2831; z-index:1; }
+  td.num { font-variant-numeric:tabular-nums; }
+  tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
+  .ok { color:var(--up); } .no { color:var(--down); } .na { color:#4b5563; }
+  .res { padding:2px 8px; border-radius:6px; font-size:12px; }
+  .res.win { background:#14532d; color:#86efac; } .res.loss { background:#4c1d1d; color:#fca5a5; }
+  .res.timeout { background:#3d3315; color:#facc15; } .res.open { background:#1e3a5f; color:#93c5fd; }
+  .rules { columns:2 260px; font-size:13px; margin:6px 0 0; padding-inline-start:18px; }
+  .score { display:inline-block; min-width:44px; text-align:center; border-radius:6px; padding:1px 6px; background:#26303b; }
+  .score.full { background:#14532d; color:#86efac; }
+</style>
+
+<div class="card">
+  <h3>⚡ فلتر قبل الانطلاق — PRE-BREAKOUT V1.0</h3>
+  <div class="muted">يرصد سهمًا بدأ فيه نشاط تداول غير معتاد بينما السعر ما زال في نطاق ضيق، ويسجّل كل إشارة ويتابع سعرها 3 دقائق لاختبار الفرضية حيًّا.
+    الحسابات من البث اللحظي للأسهم النشطة فقط · يعمل في الجلسة الرسمية بعد أول 5 دقائق (9:35 ص – 4:00 م نيويورك).</div>
+  <ol class="rules" id="rules"></ol>
+  <div class="muted" style="margin-top:8px;font-size:12px">⚠️ تصميم بحثي غير مُختبر: الحدود مقترحة، والسبريد غير متاح من البيانات المجانية، والـRVOL تقريبي (متوسط الحجم اليومي موزعًا على دقائق اليوم)،
+    والنتائج على آخر سعر صفقة بدون رسوم أو انزلاق. اجتياز الفلتر لا يعني أن السعر سيرتفع.</div>
+  <div style="margin-top:8px" id="status" class="muted">—</div>
+</div>
+
+<div class="card">
+  <div class="toolbar">
+    <span class="lbl">الهدف:</span><span id="t-target"></span>
+    <span class="lbl">حد الهبوط:</span><span id="t-stop"></span>
+    <span class="lbl">المدة:</span><span id="t-hor"></span>
+    <span class="lbl">الفترة:</span><span id="t-days"></span>
+  </div>
+  <div class="muted" id="def" style="margin-bottom:8px;font-size:13px"></div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="card">
+  <h3>📋 سجل الإشارات</h3>
+  <div class="wrap"><table>
+    <thead><tr><th>الوقت (الرياض)</th><th>السهم</th><th>الدخول</th><th>النتيجة</th><th>أعلى صعود</th><th>أعلى هبوط</th><th>آخر تغير</th>
+      <th>تسارع</th><th>RVOL 1د</th><th>تغير 3د</th><th>نطاق 3د</th><th>موضع</th><th>قيمة 3د</th></tr></thead>
+    <tbody id="signals"></tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h3>🔎 الأقرب للإشارة الآن <span class="muted" style="font-size:12px;font-weight:400">(أكثر الأسهم استيفاءً للشروط — ✓ متحقق · ✗ غير متحقق · — لا توجد بيانات بعد)</span></h3>
+  <div class="wrap"><table>
+    <thead><tr id="cand-head"></tr></thead>
+    <tbody id="cands"></tbody>
+  </table></div>
+</div>
+
+<script>
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmt = (n, d = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtP = n => n == null ? "—" : "$" + fmt(n, n < 1 ? 4 : 2);
+const big = v => v == null ? "—" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(Math.round(v));
+const signed = (n, d = 2) => n == null ? "—" : `${n > 0 ? "+" : ""}${fmt(n, d)}%`;
+const cls = n => n > 0 ? "ok" : n < 0 ? "no" : "muted";
+const ltr = s => `<bdi dir="ltr">${s}</bdi>`;
+
+// إعدادات الاختبار (تختار تعريف النجاح — النتائج تُعاد حسابها من مسار السعر المسجل)
+const OPTS = {
+  target: { el: "t-target", values: [0.25, 0.5, 0.75], def: 0.5, label: v => "+" + v + "%" },
+  stop: { el: "t-stop", values: [-0.2, -0.3, -0.5], def: -0.3, label: v => v + "%" },
+  hor: { el: "t-hor", values: [30, 60, 180], def: 180, label: v => v < 60 ? v + " ثانية" : v / 60 + (v === 60 ? " دقيقة" : " دقائق") },
+  days: { el: "t-days", values: ["today", "all"], def: "today", label: v => v === "today" ? "اليوم" : "كل الأيام" },
+};
+const cfg = Object.fromEntries(Object.entries(OPTS).map(([k, o]) => [k, store.get("pb_" + k, o.def)]));
+for (const [k, o] of Object.entries(OPTS)) {
+  const box = document.getElementById(o.el);
+  box.innerHTML = o.values.map(v => `<button class="chip" data-v='${JSON.stringify(v)}'>${o.label(v)}</button>`).join(" ");
+  const sync = () => box.querySelectorAll(".chip").forEach(b => b.classList.toggle("active", JSON.parse(b.dataset.v) === cfg[k]));
+  box.onclick = e => { const b = e.target.closest(".chip"); if (!b) return; cfg[k] = JSON.parse(b.dataset.v); store.set("pb_" + k, cfg[k]); sync(); render(); };
+  sync();
+}
+
+// النتيجة: بلوغ الهدف أولًا = نجاح، حد الهبوط أولًا = خسارة، لا هذا ولا ذاك خلال المدة = انتهاء المهلة
+function outcome(s) {
+  let up = 0, down = 0;
+  for (const [dt, p] of s.path) {
+    if (dt > cfg.hor) break;
+    up = Math.max(up, p); down = Math.min(down, p);
+    if (p >= cfg.target) return { r: "win", p: cfg.target, up, down, dt };
+    if (p <= cfg.stop) return { r: "loss", p: cfg.stop, up, down, dt };
+  }
+  const last = s.path.filter(x => x[0] <= cfg.hor).pop();
+  if (s.age < cfg.hor && s.status === "open") return { r: "open", p: last ? last[1] : 0, up, down };
+  return { r: "timeout", p: last ? last[1] : 0, up, down };
+}
+const RES = { win: "✅ بلغ الهدف", loss: "❌ حد الهبوط", timeout: "⏱️ انتهت المهلة", open: "⏳ قيد المتابعة" };
+
+let data = null, seen = new Set(store.get("pb_seen", [])), first = true;
+
+function render() {
+  if (!data) return;
+  const nyDay = t => new Date(t * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
+  const today = nyDay(Date.now() / 1000);
+  const sigs = data.signals.filter(s => cfg.days === "all" || nyDay(s.t) === today);
+  const res = sigs.map(s => ({ s, o: outcome(s) }));
+
+  document.getElementById("def").innerHTML = `النجاح: بلوغ ${ltr("+" + cfg.target + "%")} قبل ${ltr(cfg.stop + "%")} خلال ${OPTS.hor.label(cfg.hor)} من الإشارة · الخسارة تُحسب عند حد الهبوط، وانتهاء المهلة بآخر سعر`;
+  const done = res.filter(x => x.o.r !== "open"), wins = done.filter(x => x.o.r === "win").length, losses = done.filter(x => x.o.r === "loss").length;
+  const gain = done.filter(x => x.o.p > 0).reduce((a, x) => a + x.o.p, 0), loss = -done.filter(x => x.o.p < 0).reduce((a, x) => a + x.o.p, 0);
+  const avg = done.length ? done.reduce((a, x) => a + x.o.p, 0) / done.length : null;
+  const stat = (label, value, c = "") => `<div class="stat"><span class="muted">${label}</span><b class="${c}">${value}</b></div>`;
+  document.getElementById("stats").innerHTML =
+    stat("الإشارات", sigs.length) + stat("مكتملة", done.length) + stat("✅ بلغت الهدف", wins, "ok") + stat("❌ حد الهبوط", losses, "no") +
+    stat("⏱️ انتهت المهلة", done.length - wins - losses) +
+    stat("نسبة النجاح", done.length ? ltr(fmt(wins / done.length * 100, 1) + "%") : "—") +
+    stat("متوسط النتيجة", ltr(signed(avg, 3)), cls(avg)) +
+    stat("Profit Factor", loss ? ltr(fmt(gain / loss, 2)) : gain ? "∞" : "—");
+
+  document.getElementById("signals").innerHTML = res.length ? res.map(({ s, o }) => {
+    const v = s.values, time = new Date(s.t * 1000).toLocaleString("ar-SA", { timeZone: "Asia/Riyadh", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return `<tr data-go="${esc(s.symbol)}"><td class="muted">${time}</td><td><b>${esc(s.symbol)}</b> <span class="muted">${esc((s.name || "").slice(0, 22))}</span></td>
+      <td class="num">${ltr(fmtP(s.entry))}</td><td><span class="res ${o.r}">${RES[o.r]}</span> ${o.r !== "open" ? ltr(signed(o.p, 2)) : ""}</td>
+      <td class="num ok">${ltr(signed(o.up, 2))}</td><td class="num no">${ltr(signed(o.down, 2))}</td><td class="num ${cls(o.p)}">${ltr(signed(o.p, 2))}</td>
+      <td class="num">${ltr(fmt(v.acc1m) + "×")}</td><td class="num">${ltr(fmt(v.rvol1m) + "×")}</td><td class="num">${ltr(signed(v.chg3m, 2))}</td>
+      <td class="num">${ltr(fmt(v.rng3m) + "%")}</td><td class="num">${ltr(fmt(v.pos3m, 0) + "%")}</td><td class="num">${ltr("$" + big(v.val3m))}</td></tr>`;
+  }).join("") : `<tr><td colspan="13" class="muted" style="text-align:center;padding:18px">لا توجد إشارات ${cfg.days === "today" ? "اليوم" : ""} بعد — ${data.in_session ? "الفلتر يعمل ويراقب السوق" : "الفلتر يعمل في الجلسة الرسمية فقط"}</td></tr>`;
+
+  const keys = data.rules.map(r => r[0]), ruleName = Object.fromEntries(data.rules);
+  const shortName = { exchange: "البورصة", price: "السعر", float: "الحرة", volume: "حجم الجلسة", val3m: "قيمة 3د", rvol1m: "RVOL 1د", acc1m: "تسارع", chg3m: "تغير 3د", rng3m: "نطاق 3د", pos3m: "موضع", age: "عمر السعر" };
+  const show = { exchange: v => v ?? "—", price: fmtP, float: big, volume: big, val3m: v => v == null ? "—" : "$" + big(v), rvol1m: v => v == null ? "—" : fmt(v) + "×",
+    acc1m: v => v == null ? "—" : fmt(v) + "×", chg3m: v => signed(v, 2), rng3m: v => v == null ? "—" : fmt(v) + "%", pos3m: v => v == null ? "—" : fmt(v, 0) + "%", age: v => v == null ? "—" : fmt(v, 1) + "ث" };
+  document.getElementById("cand-head").innerHTML = `<th>السهم</th><th>الشروط</th>` + keys.map(k => `<th title="${esc(ruleName[k])}">${shortName[k]}</th>`).join("");
+  document.getElementById("cands").innerHTML = data.candidates.length ? data.candidates.map(c => {
+    const full = c.passed === keys.length;
+    return `<tr data-go="${esc(c.symbol)}"><td><b>${esc(c.symbol)}</b> <span class="muted">${esc((c.name || "").slice(0, 18))}</span></td>
+      <td><span class="score ${full ? "full" : ""}">${c.passed}/${keys.length}</span></td>` +
+      keys.map(k => `<td class="num ${c.ok[k] === true ? "ok" : c.ok[k] === false ? "no" : "na"}">${c.ok[k] === true ? "✓" : c.ok[k] === false ? "✗" : "—"} ${ltr(show[k](c.values[k]))}</td>`).join("") + `</tr>`;
+  }).join("") : `<tr><td colspan="${keys.length + 2}" class="muted" style="text-align:center;padding:18px">جارٍ تجميع بيانات البث… المقاييس تحتاج 3 دقائق من الأسعار اللحظية</td></tr>`;
+}
+
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); o.frequency.value = 1100; g.gain.value = 0.08;
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  } catch {}
+}
+
+async function load() {
+  try {
+    data = await (await fetch("/api/breakout")).json();
+    document.getElementById("rules").innerHTML = data.rules.map(r => `<li>${esc(r[1])}</li>`).join("");
+    document.getElementById("status").innerHTML = (data.in_session ? '<span class="ok">● الفلتر يعمل الآن</span>' : '<span class="no">● خارج وقت التشغيل</span> (يعمل 9:35 ص – 4:00 م بتوقيت نيويورك، أيام العمل) · الآن في نيويورك ' + new Date().toLocaleTimeString("ar-SA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit" })) +
+      ` · آخر مسح قبل ${data.scan_age ?? "—"} ث · يتحدث كل 3 ثوانٍ · ${data.candidates.length} سهم قيد الحساب`;
+    // إشارة جديدة: صوت وإشعار
+    const fresh = data.signals.filter(s => !seen.has(s.id));
+    fresh.forEach(s => seen.add(s.id));
+    store.set("pb_seen", [...seen].slice(-500));
+    if (fresh.length && !first) {
+      beep();
+      if ("Notification" in window && Notification.permission === "granted")
+        fresh.slice(0, 3).forEach(s => new Notification("⚡ " + s.symbol, { body: `قبل الانطلاق عند $${s.entry}` }));
+    }
+    first = false;
+    render();
+  } catch (e) {
+    document.getElementById("status").textContent = "تعذر الاتصال بالمنصة";
+  }
+}
+document.addEventListener("click", e => { const tr = e.target.closest("tr[data-go]"); if (tr) location.href = "/stock/" + encodeURIComponent(tr.dataset.go); });
+if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+load();
+setInterval(load, 3000);
+</script>
+{% endblock %}

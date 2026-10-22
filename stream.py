@@ -14,6 +14,8 @@ _ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بع�
 _tape = {}  # الرمز ← آخر الصفقات (من فرق الحجم اليومي بين رسائل البث)
 _last_volume = {}
 _night_prices = {}  # الرمز ← آخر سعر في التداول الليلي (Blue Ocean ATS)
+_hist = {}  # الرمز ← آخر 5 دقائق من الجلسة الرسمية: (الوقت، السعر، حجم اليوم) — لفلتر قبل الانطلاق
+HIST_SECONDS = 300
 
 NY = ZoneInfo("America/New_York")
 
@@ -51,6 +53,12 @@ def _on_message(msg):
             "session": "regular" if msg.get("market_hours", 0) == REGULAR_MARKET else "ext",
         })
     if msg.get("market_hours", 0) == REGULAR_MARKET:
+        now = time.time()
+        h = _hist.setdefault(symbol, deque())
+        h.append((now, price, vol or (h[-1][2] if h else 0)))
+        # نُبقي آخر رسالة قبل بداية النافذة حتى نعرف الحجم والسعر عند بدايتها
+        while len(h) > 2 and h[1][0] < now - HIST_SECONDS:
+            h.popleft()
         target = _prices
     else:
         target = _night_prices if is_overnight() else _ext_prices
@@ -121,6 +129,17 @@ def watch(symbols):
 def latest(symbol, max_age=120):
     p = _prices.get(symbol)
     return p if p and time.time() - p["at"] < max_age else None
+
+
+def history(symbol):
+    """رسائل الجلسة الرسمية لآخر 5 دقائق: [(الوقت، السعر، حجم اليوم)] من الأقدم للأحدث."""
+    h = _hist.get(symbol)
+    for _ in range(3):
+        try:
+            return list(h) if h else []
+        except RuntimeError:  # البث أضاف رسالة أثناء النسخ
+            continue
+    return []
 
 
 def tape(symbol, n=150):

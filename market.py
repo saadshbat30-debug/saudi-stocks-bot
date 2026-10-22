@@ -5,6 +5,7 @@ from collections import deque
 
 import yfinance as yf
 
+import breakout
 import extras
 import stream
 from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
@@ -311,6 +312,7 @@ def _row(q):
         "pb": _num(q, "priceToBook"),
         "market_cap": q.get("marketCap"),
         "otc": bool(q.get("_otc")),
+        "exchange": q.get("exchange"),
         "quote_time": q.get("regularMarketTime") or 0,
         "ext_price": q.get(f"{ext}Price") if ext else None,
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
@@ -453,6 +455,7 @@ def get_market(market_id):
                     cached = _markets[market_id] = {"rows": rows, "at": now}
                     stream.watch([r["symbol"] for r in rows])
                     extras.start_floats(_float_priority)
+                    breakout.start(lambda: (_markets.get(market_id) or {}).get("rows", []))
                     if not _night_state["started"]:
                         _night_state["started"] = True
                         threading.Thread(target=_night_loop, daemon=True).start()
@@ -551,6 +554,11 @@ def _enrich(r, now):
     if r.get("ext_price"):
         # زخم الجلسة الممتدة من تحركات سعر ما قبل الافتتاح / ما بعد الإغلاق
         r["ext_speed"] = _speed(symbol + "#ext", r["ext_price"], now)
+
+    # ===== مقاييس قبل الانطلاق (آخر 3 دقائق من البث) =====
+    pb = breakout.metrics(symbol, r.get("avg_volume"), now)
+    if pb:
+        r.update({k: pb[k] for k in ("acc1m", "rvol1m", "chg3m", "rng3m", "pos3m", "val3m")})
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]

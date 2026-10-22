@@ -2,6 +2,7 @@ import logging
 import time
 from flask import Flask, abort, jsonify, render_template, request
 
+import breakout
 import extras
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
@@ -91,6 +92,17 @@ def api_news_multi():
     symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
     symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:10]
     return jsonify(extras.get_news_for(symbols) if symbols else [])
+
+
+@app.route("/breakout")
+def breakout_page():
+    get_market("us")  # يشغّل الماسح والبث ومسح قبل الانطلاق إن لم تُفتح الصفحة الرئيسية بعد
+    return render_template("breakout.html", markets=MARKETS, market_id=None)
+
+
+@app.route("/api/breakout")
+def api_breakout():
+    return jsonify(breakout.snapshot())
 
 
 @app.route("/api/halts")
