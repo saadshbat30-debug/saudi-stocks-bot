@@ -161,6 +161,26 @@
   .watch-list { list-style:none; margin:0; padding:0; overflow:auto; flex:1; }
   .watch-list li { display:grid; grid-template-columns:1fr auto; gap:0 6px; padding:6px 8px; border-bottom:1px solid #222a33; cursor:pointer; }
   .watch-list li:hover { background:#222b35; }
+  /* صفقتي: الكمية والمبلغ وسعر الشراء ← الربح والخسارة لحظيًا */
+  .pos { flex:0 0 auto; border-top:2px solid var(--line); padding:6px 8px; background:#151b22; }
+  .pos-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; font-size:12.5px; }
+  .pos-h button { background:var(--bg); border:1px solid var(--line); color:var(--muted); border-radius:5px; font:inherit; font-size:11px; padding:1px 6px; cursor:pointer; }
+  .pos-h button:hover { color:var(--text); border-color:var(--accent); }
+  .pos-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+  .pos-grid label { display:flex; flex-direction:column; gap:2px; font-size:10.5px; color:var(--muted); }
+  .pos-grid input { width:100%; min-width:0; padding:4px 5px; border-radius:5px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; font-size:12.5px; direction:ltr; text-align:center; }
+  .pos-grid input:focus { outline:none; border-color:var(--accent); }
+  .pos-out { display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; margin-top:6px; font-size:11px; color:var(--muted); }
+  .pos-out div { display:flex; justify-content:space-between; align-items:baseline; gap:4px; }
+  .pos-out b { color:var(--text); font-size:12.5px; direction:ltr; font-variant-numeric:tabular-nums; }
+  .pos-out .pos-pnl { grid-column:1 / -1; background:var(--bg); border-radius:6px; padding:4px 8px; }
+  .pos-out .pos-pnl b { font-size:15px; }
+  .pos-out .pos-pnl b.up { color:var(--up); } .pos-out .pos-pnl b.down { color:var(--down); }
+  #pos-all { margin-top:5px; font-size:11px; }
+  #pos-all .pa { display:flex; justify-content:space-between; gap:6px; padding:2px 0; cursor:pointer; color:var(--muted); }
+  #pos-all .pa:hover { color:var(--text); }
+  #pos-all .pa b { direction:ltr; }
+  #pos-all .pa-total { border-top:1px solid var(--line); margin-top:2px; padding-top:3px; color:var(--text); }
   .watch-list li.cur { background:#1e3a5f; box-shadow:inset -3px 0 0 var(--accent); }
   .watch-list .w-sym { font-weight:600; direction:ltr; text-align:start; }
   .watch-list .w-name { color:var(--muted); font-size:11px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -214,7 +234,23 @@
     <button data-w="active">الأكثر نشاطًا</button><button data-w="fav">★ المفضلة</button>
   </div>
   <input class="watch-search" id="watch-search" placeholder="🔍 رمز أو اسم ثم Enter" autocomplete="off">
-  <ul class="watch-list" id="watch-list"><li class="muted">جارٍ التحميل…</li></ul></div>
+  <ul class="watch-list" id="watch-list"><li class="muted">جارٍ التحميل…</li></ul>
+  <div class="pos" id="pos">
+    <div class="pos-h"><b>💼 صفقتي في <bdi dir="ltr">{{ symbol }}</bdi></b>
+      <span><button type="button" id="pos-fill" title="ضع السعر الحالي كسعر شراء">السعر الحالي</button>
+      <button type="button" id="pos-clear" title="حذف الصفقة">✕</button></span></div>
+    <div class="pos-grid">
+      <label>سعر الشراء<input id="pos-buy" inputmode="decimal" placeholder="0.00" autocomplete="off"></label>
+      <label>الكمية<input id="pos-qty" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+      <label>المبلغ $<input id="pos-cost" inputmode="decimal" placeholder="0.00" autocomplete="off"></label>
+    </div>
+    <div class="pos-out">
+      <div><span>السعر الآن</span><b id="pos-now">—</b></div>
+      <div><span>القيمة الآن</span><b id="pos-val">—</b></div>
+      <div class="pos-pnl"><span>الربح / الخسارة</span><b id="pos-pnl">—</b></div>
+    </div>
+    <div id="pos-all"></div>
+  </div></div>
 </section><section class="pn" data-panel="chart">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
     <span class="grip">⠿</span><b>الشارت</b><div class="pn-tools"></div>
@@ -653,6 +689,7 @@ async function loadKpis() {
       document.getElementById("k-ext-live").innerHTML = xlive ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
       document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(xp, xp < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
     }
+    Pos.update(xp ?? q.price);
     const sign = q.change_pct >= 0 ? "+" : "";
     document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);
     document.getElementById("k-live").innerHTML = q.live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
@@ -785,6 +822,81 @@ async function loadNews() {
       </li>`).join("") : `<li class="muted">لا توجد أخبار حديثة لهذا السهم</li>`;
   } catch {}
 }
+
+// ===== صفقتي: سعر الشراء والكمية والمبلغ مرتبطة، والربح/الخسارة يتحدث مع السعر =====
+const Pos = (() => {
+  const KEY = "positions";
+  const all = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const saveAll = o => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch {} };
+  const $ = id => document.getElementById(id);
+  const num = v => { const n = parseFloat(String(v).replace(/[,$\s]/g, "")); return isFinite(n) && n > 0 ? n : null; };
+  const money = v => (v < 0 ? "-" : "") + CURRENCY + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const px = v => v == null ? "—" : CURRENCY + v.toFixed(v < 1 ? 4 : 2);
+  let line = null, now = null;
+
+  function get() { return all()[SYMBOL] || {}; }
+  function put(p) {
+    const o = all();
+    if (p.buy || p.qty) o[SYMBOL] = { ...p, at: o[SYMBOL]?.at || Date.now() }; else delete o[SYMBOL];
+    saveAll(o);
+  }
+  function fill() {
+    const p = get();
+    $("pos-buy").value = p.buy ?? "";
+    $("pos-qty").value = p.qty ?? "";
+    $("pos-cost").value = p.buy && p.qty ? (p.buy * p.qty).toFixed(2) : "";
+  }
+  // أي خانتين تكفيان: الكمية × السعر = المبلغ، أو المبلغ ÷ السعر = الكمية
+  function edited(field) {
+    const buy = num($("pos-buy").value), qty = num($("pos-qty").value), cost = num($("pos-cost").value);
+    const p = { buy, qty };
+    if (field === "cost" && buy && cost) { p.qty = +(cost / buy).toFixed(4); $("pos-qty").value = p.qty; }
+    else if (buy && qty) $("pos-cost").value = (buy * qty).toFixed(2);
+    else if (field !== "cost") $("pos-cost").value = "";
+    put(p); render(); chartLine();
+  }
+  function chartLine() {
+    if (line) { candles.removePriceLine(line); line = null; }
+    const p = get();
+    if (p.buy) line = candles.createPriceLine({ price: p.buy, color: "#60a5fa", lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: "💼 شرائي" });
+  }
+  function render() {
+    const p = get();
+    $("pos-now").textContent = px(now);
+    const ok = p.buy && p.qty && now != null;
+    $("pos-val").textContent = ok ? money(now * p.qty) : "—";
+    const el = $("pos-pnl");
+    if (!ok) { el.textContent = "—"; el.className = ""; return; }
+    const pnl = (now - p.buy) * p.qty, pct = (now / p.buy - 1) * 100;
+    el.textContent = `${pnl >= 0 ? "+" : ""}${money(pnl)}  (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)`;
+    el.className = pnl > 0 ? "up" : pnl < 0 ? "down" : "";
+  }
+  // بقية صفقاتي في الأسهم الأخرى مع المجموع
+  async function renderAll() {
+    const o = all(), syms = Object.keys(o).filter(s => o[s].buy && o[s].qty);
+    if (!syms.length || (syms.length === 1 && syms[0] === SYMBOL)) { $("pos-all").innerHTML = ""; return; }
+    try {
+      const q = await (await fetch("/api/quotes?symbols=" + syms.map(encodeURIComponent).join(","))).json();
+      let total = 0;
+      const rows = syms.map(s => {
+        const price = s === SYMBOL && now != null ? now : q[s]?.price;
+        if (price == null) return "";
+        const pnl = (price - o[s].buy) * o[s].qty; total += pnl;
+        return `<div class="pa" data-go="${s}"><span>${s} · ${o[s].qty} سهم</span><b class="${pnl >= 0 ? "up" : "down"}">${pnl >= 0 ? "+" : ""}${money(pnl)}</b></div>`;
+      }).join("");
+      $("pos-all").innerHTML = rows + `<div class="pa pa-total"><span>مجموع صفقاتي</span><b class="${total >= 0 ? "up" : "down"}">${total >= 0 ? "+" : ""}${money(total)}</b></div>`;
+    } catch {}
+  }
+  $("pos-buy").addEventListener("input", () => edited("buy"));
+  $("pos-qty").addEventListener("input", () => edited("qty"));
+  $("pos-cost").addEventListener("input", () => edited("cost"));
+  $("pos-fill").onclick = () => { if (now != null) { $("pos-buy").value = now; edited("buy"); } };
+  $("pos-clear").onclick = () => { put({}); fill(); render(); chartLine(); renderAll(); };
+  $("pos-all").addEventListener("click", e => { const r = e.target.closest("[data-go]"); if (r && r.dataset.go !== SYMBOL) location.href = "/stock/" + encodeURIComponent(r.dataset.go); });
+  fill(); chartLine();
+  setInterval(renderAll, 10000);
+  return { update(price) { now = price; render(); }, renderAll };
+})();
 
 // ===== تنبيهات السعر =====
 let alertLines = [];
@@ -967,6 +1079,7 @@ setInterval(() => { checkMyAlerts(); if (!document.getElementById("alert-quick")
 
 loadChart(true);
 loadKpis();
+Pos.renderAll();
 loadFlow();
 setInterval(loadFlow, 5000);
 setInterval(loadKpis, 5000);
