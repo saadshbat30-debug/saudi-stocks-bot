@@ -12,6 +12,8 @@ from market import STATUS, raw_quotes, screener_age, watch_night, CHART_INTERVAL
 app = Flask(__name__)
 # إخفاء سطور الطلبات العادية حتى تظهر رسائل المنصة المهمة فقط
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
+# رسائل مكتبة ياهو الداخلية ("possibly delisted" و HTTP 401) مزعجة وتُعالج تلقائيًا؛ أخطاء المنصة تظهر بـ ⚠️
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 MAX_SYMBOLS = 40
 TV_INDICES = {"^DJI": "DJ:DJI", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX", "^RUT": "TVC:RUT"}
