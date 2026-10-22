@@ -18,7 +18,7 @@
   .draw-toolbar button.active { background:var(--accent); color:#fff; }
   .ind-pane { position:relative; height:140px; margin-top:6px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .ind-pane .ind-chart { position:absolute; inset:0 0 0 42px; direction:ltr; }
-  .ind-pane .ind-label { position:absolute; top:6px; left:52px; z-index:2; font-size:12px; direction:ltr; color:var(--muted); pointer-events:none; }
+  .ind-pane .ind-label { position:absolute; top:3px; left:8px; z-index:2; font-size:12px; direction:ltr; color:var(--muted); pointer-events:none; background:rgba(21,27,34,.85); padding:1px 6px; border-radius:4px; }
   .ind-pane .ind-label b { color:var(--text); font-weight:600; }
   .draw-props { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:6; display:flex; align-items:center; gap:2px; padding:4px 6px; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.4); direction:ltr; max-width:calc(100% - 90px); overflow-x:auto; }
   .draw-props[hidden] { display:none; }
@@ -92,14 +92,19 @@
   /* ===== محطة التداول: لوحات قابلة للتصغير والتكبير والإغلاق والتبديل ===== */
   main { max-width:none !important; padding:6px 8px !important; }
   body { font-size:12.5px; }
-  .strip { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+  .strip { display:flex; flex-wrap:wrap; align-items:stretch; gap:6px 0; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+  .strip > div { padding:0 12px; display:flex; align-items:center; }
+  .strip > div + div:not(.st-tools) { border-inline-start:1px solid var(--line); }
+  .strip > div:first-child { padding-inline-start:2px; }
   .st-name { display:flex; align-items:baseline; gap:6px; max-width:240px; overflow:hidden; white-space:nowrap; }
   .st-name b { font-size:16px; }
   .st-price { display:flex; align-items:baseline; gap:6px; direction:ltr; }
   .st-price #k-price { font-size:22px; } .st-price #k-change { font-size:14px; }
-  .st-cell { display:flex; flex-direction:column; gap:1px; min-width:64px; }
-  .st-cell b { font-size:13px; direction:ltr; text-align:start; font-variant-numeric:tabular-nums; }
-  .st-cell.range { min-width:140px; }
+  .strip > .st-cell { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:70px; }
+  .st-cell > .muted { font-size:11px; white-space:nowrap; }
+  .st-cell b { font-size:13.5px; direction:ltr; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .strip > .st-cell.range { min-width:150px; align-items:stretch; }
+  .st-cell.range > .muted { text-align:center; }
   .st-cell .range-bar { margin:5px 0 2px; }
   .st-tools { margin-inline-start:auto; display:flex; gap:6px; }
   .st-btn { padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer; font:inherit; font-size:12px; }
@@ -438,7 +443,7 @@ let interval = "5m", bars = [], lastQuote = null;
 const el = document.getElementById("live-chart");
 const chart = LightweightCharts.createChart(el, {
   autoSize: true,
-  layout: { background: { color: "transparent" }, textColor: "#8b98a5" },
+  layout: { background: { color: "transparent" }, textColor: "#8b98a5", attributionLogo: false },  // الإسناد رابط أسفل الصفحة
   grid: { vertLines: { color: "#222a33" }, horzLines: { color: "#222a33" } },
   rightPriceScale: { borderColor: "#2a333d" },
   timeScale: { borderColor: "#2a333d", timeVisible: true, secondsVisible: false },
@@ -585,9 +590,19 @@ async function loadChart(fit) {
     showLegend(bars[bars.length - 1], bars[bars.length - 2]);
     indicators.update();
     if (fit) chart.timeScale().fitContent();
+    else fillChart();
     if (lastQuote) applyLive(lastQuote);
   } catch {}
 }
+
+// الشموع تملأ عرض الشارت: إذا بقيت مساحة فارغة كبيرة (شموع قليلة أو بعد تغيير حجم اللوحة) يُعاد ضبط العرض
+function fillChart() {
+  const r = chart.timeScale().getVisibleLogicalRange();
+  if (!r || !bars.length) return;
+  const width = r.to - r.from, emptyLeft = Math.max(0, -r.from), emptyRight = Math.max(0, r.to - (bars.length - 1));
+  if (emptyLeft > 1 || emptyRight > width * 0.25) chart.timeScale().fitContent();
+}
+new ResizeObserver(() => requestAnimationFrame(fillChart)).observe(el);
 
 // تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
 function applyLive(q) {

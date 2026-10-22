@@ -64,7 +64,7 @@
   window.initIndicators = function ({ mainChart, getBars, container, buttons, storageKey }) {
     const opts = {
       autoSize: true,
-      layout: { background: { color: "transparent" }, textColor: "#8b98a5" },
+      layout: { background: { color: "transparent" }, textColor: "#8b98a5", attributionLogo: false },
       grid: { vertLines: { color: "#222a33" }, horzLines: { color: "#222a33" } },
       rightPriceScale: { borderColor: "#2a333d", minimumWidth: 72 },
       timeScale: { visible: false, borderColor: "#2a333d" },
