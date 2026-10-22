@@ -87,5 +87,6 @@ setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
 <div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>
 <main>{% block content %}{% endblock %}</main>
+<script src="{{ url_for('static', filename='position.js') }}"></script>
 </body>
 </html>

@@ -161,42 +161,6 @@
   .watch-list { list-style:none; margin:0; padding:0; overflow:auto; flex:1; }
   .watch-list li { display:grid; grid-template-columns:1fr auto; gap:0 6px; padding:6px 8px; border-bottom:1px solid #222a33; cursor:pointer; }
   .watch-list li:hover { background:#222b35; }
-  /* صفقتي: سعر الشراء والكمية والمبلغ والوقف والأهداف ← الربح والخسارة لحظيًا (تأخذ نصف اللوحة) */
-  .pos { flex:0 0 52%; min-height:300px; overflow:auto; border-top:2px solid var(--accent); padding:8px 10px; background:linear-gradient(180deg,#17212c,#131a21); display:flex; flex-direction:column; gap:7px; }
-  .pos-h { display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:13.5px; }
-  .pos-h > b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-  .pos-btns { display:flex; gap:4px; flex:0 0 auto; }
-  .pos-h button { background:var(--bg); border:1px solid var(--line); color:var(--muted); border-radius:6px; font:inherit; font-size:11px; padding:2px 7px; cursor:pointer; }
-  .pos-h button:hover { color:var(--text); border-color:var(--accent); }
-  .pos-grid, .pos-lv { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
-  .pos-lv { grid-template-columns:1fr 1fr; }
-  .pos label { display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--muted); min-width:0; }
-  .pos input { width:100%; min-width:0; padding:6px; border-radius:7px; border:1px solid var(--line); background:#0f1419; color:var(--text); font:inherit; font-size:14px; font-weight:600; direction:ltr; text-align:center; font-variant-numeric:tabular-nums; }
-  .pos input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px #3b82f633; }
-  .lv.stop input { border-color:#7f1d1d; } .lv.stop input:focus { border-color:var(--down); box-shadow:0 0 0 2px #ef444433; }
-  .lv.tgt input { border-color:#14532d; } .lv.tgt input:focus { border-color:var(--up); box-shadow:0 0 0 2px #22c55e33; }
-  .lv span { font-weight:600; } .lv.stop span { color:#fca5a5; } .lv.tgt span { color:#86efac; }
-  .lv em { font-style:normal; font-size:10.5px; direction:ltr; text-align:center; min-height:13px; color:var(--muted); }
-  .lv em.up { color:var(--up); } .lv em.down { color:var(--down); }
-  .lv.hit input { background:#3d3315; border-color:#facc15; }
-  .pos-pnl { display:flex; flex-direction:column; align-items:center; gap:2px; background:#0f1419; border:1px solid var(--line); border-radius:9px; padding:7px 8px; }
-  .pos-pnl > span { font-size:11px; color:var(--muted); }
-  .pos-pnl > b { font-size:19px; direction:ltr; font-variant-numeric:tabular-nums; text-align:center; }
-  .pos-pnl > b.up { color:var(--up); } .pos-pnl > b.down { color:var(--down); }
-  .pos-pnl.up { border-color:#14532d; background:#0f1f17; } .pos-pnl.down { border-color:#7f1d1d; background:#1f1212; }
-  .pos-pnl small { display:flex; gap:12px; font-size:11px; color:var(--muted); }
-  .pos-pnl small b { color:var(--text); direction:ltr; }
-  .pos-track { font-size:10.5px; color:var(--muted); }
-  .pt-bar { position:relative; height:8px; border-radius:4px; background:linear-gradient(90deg,#ef4444,#3b4450 50%,#22c55e); direction:ltr; margin:4px 0 3px; }
-  .pt-bar span { position:absolute; top:-3px; width:3px; height:14px; border-radius:2px; transform:translateX(-50%); }
-  .pt-buy { background:#60a5fa; } .pt-now { background:#fff; width:5px !important; box-shadow:0 0 0 2px #0f1419; transition:left .4s; }
-  .pt-ends { display:flex; justify-content:space-between; direction:ltr; }
-  .pt-rr { text-align:center; margin-top:2px; color:var(--text); }
-  #pos-all { font-size:11.5px; }
-  #pos-all .pa { display:flex; justify-content:space-between; gap:6px; padding:3px 0; cursor:pointer; color:var(--muted); border-bottom:1px solid #222a33; }
-  #pos-all .pa:hover { color:var(--text); }
-  #pos-all .pa b { direction:ltr; }
-  #pos-all .pa-total { border:0; color:var(--text); font-weight:600; }
   .watch-list li.cur { background:#1e3a5f; box-shadow:inset -3px 0 0 var(--accent); }
   .watch-list .w-sym { font-weight:600; direction:ltr; text-align:start; }
   .watch-list .w-name { color:var(--muted); font-size:11px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -250,33 +214,7 @@
     <button data-w="active">الأكثر نشاطًا</button><button data-w="fav">★ المفضلة</button>
   </div>
   <input class="watch-search" id="watch-search" placeholder="🔍 رمز أو اسم ثم Enter" autocomplete="off">
-  <ul class="watch-list" id="watch-list"><li class="muted">جارٍ التحميل…</li></ul>
-  <div class="pos" id="pos">
-    <div class="pos-h"><b>💼 صفقتي في <bdi dir="ltr">{{ symbol }}</bdi></b>
-      <span class="pos-btns"><button type="button" id="pos-fill" title="ضع السعر الحالي كسعر شراء">📍 الآن</button>
-      <button type="button" id="pos-clear" title="حذف الصفقة والوقف والأهداف">✕</button></span></div>
-    <div class="pos-grid">
-      <label>سعر الشراء<input id="pos-buy" inputmode="decimal" placeholder="0.00" autocomplete="off"></label>
-      <label>الكمية<input id="pos-qty" inputmode="decimal" placeholder="0" autocomplete="off"></label>
-      <label>المبلغ $<input id="pos-cost" inputmode="decimal" placeholder="0.00" autocomplete="off"></label>
-    </div>
-    <div class="pos-pnl" id="pos-pnl-box">
-      <span>الربح / الخسارة</span><b id="pos-pnl">—</b>
-      <small><span>السعر الآن <b id="pos-now">—</b></span><span>القيمة الآن <b id="pos-val">—</b></span></small>
-    </div>
-    <div class="pos-lv">
-      <label class="lv stop"><span>🛑 وقف 1</span><input data-lv="stop1" inputmode="decimal" placeholder="—" autocomplete="off"><em data-out="stop1"></em></label>
-      <label class="lv tgt"><span>🎯 هدف 1</span><input data-lv="target1" inputmode="decimal" placeholder="—" autocomplete="off"><em data-out="target1"></em></label>
-      <label class="lv stop"><span>🛑 وقف 2</span><input data-lv="stop2" inputmode="decimal" placeholder="—" autocomplete="off"><em data-out="stop2"></em></label>
-      <label class="lv tgt"><span>🎯 هدف 2</span><input data-lv="target2" inputmode="decimal" placeholder="—" autocomplete="off"><em data-out="target2"></em></label>
-    </div>
-    <div class="pos-track" id="pos-track" hidden>
-      <div class="pt-bar"><span class="pt-buy" id="pt-buy"></span><span class="pt-now" id="pt-now"></span></div>
-      <div class="pt-ends"><span id="pt-lo"></span><span id="pt-hi"></span></div>
-      <div class="pt-rr" id="pt-rr"></div>
-    </div>
-    <div id="pos-all"></div>
-  </div></div>
+  <ul class="watch-list" id="watch-list"><li class="muted">جارٍ التحميل…</li></ul></div>
 </section><section class="pn" data-panel="chart">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
     <span class="grip">⠿</span><b>الشارت</b><div class="pn-tools"></div>
@@ -498,6 +436,7 @@
 <script src="{{ url_for('static', filename='indicators.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
+window.PAGE_SYMBOL = SYMBOL;
 const CURRENCY = {{ market.currency|tojson }};
 const STEP = { "1m": 60, "5m": 300, "15m": 900 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
 let interval = "5m", bars = [], lastQuote = null;
@@ -715,7 +654,7 @@ async function loadKpis() {
       document.getElementById("k-ext-live").innerHTML = xlive ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
       document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(xp, xp < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
     }
-    Pos.update(xp ?? q.price);
+    window.PositionWidget?.price(SYMBOL, xp ?? q.price);
     const sign = q.change_pct >= 0 ? "+" : "";
     document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);
     document.getElementById("k-live").innerHTML = q.live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
@@ -849,70 +788,25 @@ async function loadNews() {
   } catch {}
 }
 
-// ===== صفقتي: سعر الشراء والكمية والمبلغ مرتبطة، والوقف والأهداف خطوط على الشارت، والربح/الخسارة لحظي =====
-const Pos = (() => {
-  const KEY = "positions";
-  const LEVELS = {
-    stop1: { label: "وقف 1", color: "#ef4444", style: 0, icon: "🛑" },
-    stop2: { label: "وقف 2", color: "#b91c1c", style: 2, icon: "🛑" },
-    target1: { label: "هدف 1", color: "#22c55e", style: 0, icon: "🎯" },
-    target2: { label: "هدف 2", color: "#15803d", style: 2, icon: "🎯" },
-  };
-  const all = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
-  const saveAll = o => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch {} };
-  const $ = id => document.getElementById(id);
-  const num = v => { const n = parseFloat(String(v).replace(/[,$\s]/g, "")); return isFinite(n) && n > 0 ? n : null; };
-  const money = v => (v < 0 ? "-" : "") + CURRENCY + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const px = v => v == null ? "—" : CURRENCY + v.toFixed(v < 1 ? 4 : 2);
-  const sgn = v => (v >= 0 ? "+" : "");
-  const lvInput = k => document.querySelector(`[data-lv="${k}"]`);
-  let lines = {}, now = null;
-
-  function get() { return all()[SYMBOL] || {}; }
-  function put(p) {
-    const o = all(), has = p.buy || p.qty || Object.keys(LEVELS).some(k => p[k]);
-    if (has) o[SYMBOL] = { ...p, at: o[SYMBOL]?.at || Date.now() }; else delete o[SYMBOL];
-    saveAll(o);
+// ===== خطوط صفقتي على الشارت (الخانة نفسها عائمة في كل الصفحات: static/position.js) =====
+const PosLines = (() => {
+  let lines = [];
+  const trade = () => window.PositionWidget?.get(SYMBOL) || {};
+  function draw() {
+    lines.forEach(l => candles.removePriceLine(l));
+    lines = [];
+    const p = trade(), lv = window.PositionWidget?.levels || {};
+    if (p.buy) lines.push(candles.createPriceLine({ price: p.buy, color: "#60a5fa", lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: "💼 شرائي" }));
+    for (const [k, l] of Object.entries(lv))
+      if (p[k]) lines.push(candles.createPriceLine({ price: p[k], color: l.color, lineWidth: 2, lineStyle: l.style, axisLabelVisible: true, title: `${l.icon} ${l.label}` }));
   }
-  function read() {
-    const p = { ...get(), buy: num($("pos-buy").value), qty: num($("pos-qty").value) };
-    for (const k in LEVELS) p[k] = num(lvInput(k).value);
-    return p;
-  }
-  function fill() {
-    const p = get();
-    $("pos-buy").value = p.buy ?? "";
-    $("pos-qty").value = p.qty ?? "";
-    $("pos-cost").value = p.buy && p.qty ? (p.buy * p.qty).toFixed(2) : "";
-    for (const k in LEVELS) lvInput(k).value = p[k] ?? "";
-  }
-  // أي خانتين تكفيان: الكمية × السعر = المبلغ، أو المبلغ ÷ السعر = الكمية
-  function edited(field) {
-    const p = read(), cost = num($("pos-cost").value);
-    if (field === "cost" && p.buy && cost) { p.qty = +(cost / p.buy).toFixed(4); $("pos-qty").value = p.qty; }
-    else if (p.buy && p.qty) $("pos-cost").value = (p.buy * p.qty).toFixed(2);
-    else if (field !== "cost") $("pos-cost").value = "";
-    // تغيير مستوى يعيد تفعيل تنبيهه
-    const old = get();
-    p.hit = { ...(old.hit || {}) };
-    for (const k in LEVELS) if (p[k] !== old[k]) delete p.hit[k];
-    put(p); render(); chartLines();
-  }
-  // خط لكل مستوى على الشارت بنفس الرقم
-  function chartLines() {
-    Object.values(lines).forEach(l => candles.removePriceLine(l));
-    lines = {};
-    const p = get();
-    if (p.buy) lines.buy = candles.createPriceLine({ price: p.buy, color: "#60a5fa", lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: "💼 شرائي" });
-    for (const [k, lv] of Object.entries(LEVELS))
-      if (p[k]) lines[k] = candles.createPriceLine({ price: p[k], color: lv.color, lineWidth: 2, lineStyle: lv.style, axisLabelVisible: true, title: `${lv.icon} ${lv.label}` });
-  }
+  // الشارت يتسع ليظهر خطوط الصفقة القريبة من السعر
   candles.applyOptions({
     autoscaleInfoProvider: original => {
-      const r = original(), p = get();
+      const r = original(), p = trade();
       if (!r || !r.priceRange) return r;
       const mid = (r.priceRange.minValue + r.priceRange.maxValue) / 2;
-      for (const v of [p.buy, ...Object.keys(LEVELS).map(k => p[k])]) {
+      for (const v of [p.buy, p.stop1, p.stop2, p.target1, p.target2]) {
         if (!v || Math.abs(v / mid - 1) > 0.3) continue;  // مستوى بعيد جدًا لا يصغّر الشموع
         r.priceRange.minValue = Math.min(r.priceRange.minValue, v);
         r.priceRange.maxValue = Math.max(r.priceRange.maxValue, v);
@@ -920,87 +814,8 @@ const Pos = (() => {
       return r;
     },
   });
-  function render() {
-    const p = get();
-    $("pos-now").textContent = px(now);
-    const ok = p.buy && p.qty && now != null;
-    $("pos-val").textContent = ok ? money(now * p.qty) : "—";
-    const el = $("pos-pnl"), box = $("pos-pnl-box");
-    if (ok) {
-      const pnl = (now - p.buy) * p.qty, pct = (now / p.buy - 1) * 100;
-      el.textContent = `${sgn(pnl)}${money(pnl)}  (${sgn(pct)}${pct.toFixed(2)}%)`;
-      box.className = "pos-pnl " + (pnl > 0 ? "up" : pnl < 0 ? "down" : "");
-      el.className = pnl > 0 ? "up" : pnl < 0 ? "down" : "";
-    } else { el.textContent = "—"; el.className = ""; box.className = "pos-pnl"; }
-    // تحت كل وقف/هدف: النسبة من سعر الشراء والمبلغ إن تحقق
-    for (const k in LEVELS) {
-      const out = document.querySelector(`[data-out="${k}"]`), v = p[k];
-      lvInput(k).closest(".lv").classList.toggle("hit", !!p.hit?.[k]);
-      if (!v || !p.buy) { out.textContent = ""; out.className = ""; continue; }
-      const pct = (v / p.buy - 1) * 100, amt = p.qty ? (v - p.buy) * p.qty : null;
-      out.textContent = `${sgn(pct)}${pct.toFixed(2)}%` + (amt != null ? ` · ${sgn(amt)}${money(amt)}` : "") + (p.hit?.[k] ? " ✓" : "");
-      out.className = pct >= 0 ? "up" : "down";
-    }
-    // شريط من الوقف إلى الهدف: أين السعر الآن، ونسبة العائد إلى المخاطرة
-    const lo = p.stop1 || p.stop2, hi = p.target1 || p.target2, track = $("pos-track");
-    track.hidden = !(lo && hi && hi > lo && now != null);
-    if (!track.hidden) {
-      const at = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)) + "%";
-      $("pt-now").style.left = at(now);
-      $("pt-buy").style.left = p.buy ? at(p.buy) : "-10px";
-      $("pt-lo").textContent = "🛑 " + px(lo);
-      $("pt-hi").textContent = px(hi) + " 🎯";
-      $("pt-rr").innerHTML = p.buy && p.buy > lo && hi > p.buy ? `العائد إلى المخاطرة <bdi dir="ltr">1 : ${((hi - p.buy) / (p.buy - lo)).toFixed(2)}</bdi>` : "";
-    }
-    checkLevels(p);
-  }
-  // تنبيه مرة واحدة عند لمس الوقف أو الهدف
-  function checkLevels(p) {
-    if (now == null) return;
-    const hits = [];
-    for (const [k, lv] of Object.entries(LEVELS)) {
-      const v = p[k];
-      if (!v || p.hit?.[k]) continue;
-      if (k.startsWith("stop") ? now <= v : now >= v) hits.push([k, lv]);
-    }
-    if (!hits.length) return;
-    p.hit = { ...(p.hit || {}) };
-    hits.forEach(([k]) => p.hit[k] = Date.now());
-    put(p);
-    for (const [k, lv] of hits) {
-      const text = `${SYMBOL} لمس ${lv.label} ${px(p[k])} — السعر الآن ${px(now)}`;
-      try { const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = k.startsWith("stop") ? 440 : 990; g.gain.value = 0.1; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.5); } catch {}
-      if ("Notification" in window && Notification.permission === "granted") new Notification(`${lv.icon} ${lv.label}`, { body: text });
-    }
-    render();
-  }
-  // بقية صفقاتي في الأسهم الأخرى مع المجموع
-  async function renderAll() {
-    const o = all(), syms = Object.keys(o).filter(s => o[s].buy && o[s].qty);
-    if (!syms.length || (syms.length === 1 && syms[0] === SYMBOL)) { $("pos-all").innerHTML = ""; return; }
-    try {
-      const q = await (await fetch("/api/quotes?symbols=" + syms.map(encodeURIComponent).join(","))).json();
-      let total = 0;
-      const rows = syms.map(s => {
-        const price = s === SYMBOL && now != null ? now : q[s]?.price;
-        if (price == null) return "";
-        const pnl = (price - o[s].buy) * o[s].qty; total += pnl;
-        return `<div class="pa" data-go="${s}"><span>${s} · ${o[s].qty} سهم @ <bdi dir="ltr">${px(o[s].buy)}</bdi></span><b class="${pnl >= 0 ? "up" : "down"}">${sgn(pnl)}${money(pnl)}</b></div>`;
-      }).join("");
-      $("pos-all").innerHTML = rows + `<div class="pa pa-total"><span>💼 مجموع صفقاتي</span><b class="${total >= 0 ? "up" : "down"}">${sgn(total)}${money(total)}</b></div>`;
-    } catch {}
-  }
-  $("pos-buy").addEventListener("input", () => edited("buy"));
-  $("pos-qty").addEventListener("input", () => edited("qty"));
-  $("pos-cost").addEventListener("input", () => edited("cost"));
-  for (const k in LEVELS) lvInput(k).addEventListener("input", () => edited(k));
-  $("pos-fill").onclick = () => { if (now != null) { $("pos-buy").value = now; edited("buy"); } };
-  $("pos-clear").onclick = () => { if (!confirm("حذف الصفقة والوقف والأهداف لهذا السهم؟")) return; put({}); fill(); render(); chartLines(); renderAll(); };
-  $("pos-all").addEventListener("click", e => { const r = e.target.closest("[data-go]"); if (r && r.dataset.go !== SYMBOL) location.href = "/stock/" + encodeURIComponent(r.dataset.go); });
-  document.getElementById("pos").addEventListener("focusin", () => { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, { once: true });
-  fill(); chartLines();
-  setInterval(renderAll, 10000);
-  return { update(price) { now = price; render(); }, renderAll };
+  window.addEventListener("positions-changed", draw);
+  return { draw };
 })();
 
 // ===== تنبيهات السعر =====
@@ -1184,7 +999,7 @@ setInterval(() => { checkMyAlerts(); if (!document.getElementById("alert-quick")
 
 loadChart(true);
 loadKpis();
-Pos.renderAll();
+PosLines.draw();
 loadFlow();
 setInterval(loadFlow, 5000);
 setInterval(loadKpis, 5000);
