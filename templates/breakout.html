@@ -166,7 +166,7 @@ async function load() {
     data = await (await fetch("/api/breakout")).json();
     document.getElementById("rules").innerHTML = data.rules.map(r => `<li>${esc(r[1])}</li>`).join("");
     document.getElementById("status").innerHTML = (data.in_session ? '<span class="ok">● الفلتر يعمل الآن</span>' : '<span class="no">● خارج وقت التشغيل</span> (يعمل 9:35 ص – 4:00 م بتوقيت نيويورك، أيام العمل) · الآن في نيويورك ' + new Date().toLocaleTimeString("ar-SA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit" })) +
-      ` · آخر مسح قبل ${data.scan_age ?? "—"} ث · يتحدث كل 3 ثوانٍ · ${data.candidates.length} سهم قيد الحساب`;
+      ` · آخر مسح قبل ${data.scan_age ?? "—"} ث · يتحدث كل 3 ثوانٍ · ${data.coverage ? `البث اللحظي يصل لـ ${data.coverage.live} من ${data.coverage.rows} سهم نشط (آخر دقيقة) · ${data.coverage.in_range} منها في نطاق الفحص` : ""}`;
     // إشارة جديدة: صوت وإشعار
     const fresh = data.signals.filter(s => !seen.has(s.id));
     fresh.forEach(s => seen.add(s.id));

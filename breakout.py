@@ -156,13 +156,14 @@ def _track(sig, now):
 def _scan(get_rows):
     now = time.time()
     rows = get_rows()
-    candidates, fresh = [], []
+    candidates, fresh, live_count = [], [], 0
     active = in_session(now)
     recent = {s["symbol"] for s in _signals if now - s["t"] < HORIZON}
     for r in rows:
         live = stream.latest(r["symbol"], max_age=60)
         if not live:
             continue
+        live_count += 1
         price = live["price"]
         if not (1.5 <= price <= 25) or r.get("otc"):  # تصفية أولية سريعة قبل الحساب
             continue
@@ -179,6 +180,7 @@ def _scan(get_rows):
     candidates.sort(key=lambda c: (-c["passed"], -(c["values"].get("acc1m") or 0)))
     with _lock:
         _state["candidates"], _state["scan_at"] = candidates[:80], now
+        _state["coverage"] = {"rows": len(rows), "live": live_count, "in_range": len(candidates)}
         for s in fresh:
             _signals.append(s)
             print(f"⚡ إشارة قبل الانطلاق: {s['symbol']} عند ${s['entry']}")
@@ -213,6 +215,7 @@ def snapshot(limit=500):
             "in_session": in_session(now),
             "scan_age": round(now - _state["scan_at"], 1) if _state["scan_at"] else None,
             "candidates": _state["candidates"],
+            "coverage": _state.get("coverage"),
             "signals": [{**s, "age": round(now - s["t"], 1)} for s in _signals[-limit:]][::-1],
             "horizon": HORIZON,
         }
