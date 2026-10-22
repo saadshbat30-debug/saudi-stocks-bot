@@ -87,8 +87,9 @@ def get_news_for(symbols, per_symbol=4):
 # ===== إيقافات التداول (Nasdaq Trader RSS — تشمل كل البورصات الأمريكية) =====
 
 HALTS_URL = "https://www.nasdaqtrader.com/rss.aspx?feed=tradehalts"
-HALTS_SECONDS = 30
-_halts = {"items": [], "at": 0, "error": None}
+HALTS_SECONDS = 60
+HALTS_BACKOFF = 300  # ناسداك يحجب الطلبات المتكررة مؤقتًا (صفحة HTML): ننتظر 5 دقائق
+_halts = {"items": [], "at": 0, "error": None, "fails": 0}
 _halts_lock = threading.Lock()
 
 REASONS = {
@@ -209,7 +210,8 @@ def get_halts():
     """إيقافات اليوم؛ "halted" = ما زال موقوفًا (لا يوجد وقت استئناف للتداول)."""
     now = time.time()
     with _halts_lock:
-        if now - _halts["at"] < HALTS_SECONDS:
+        wait = HALTS_BACKOFF if _halts["fails"] else HALTS_SECONDS
+        if now - _halts["at"] < wait:
             return _halts
     try:
         items = _parse_halts(_fetch_halts_xml())
@@ -218,10 +220,12 @@ def get_halts():
             h["today"] = h["halt_date"] == today
             h["halted"] = not h["resume_trade"]
         items.sort(key=lambda h: (h["halt_date"][-4:], h["halt_date"], h["halt_time"]), reverse=True)
-        result = {"items": items, "at": now, "error": None}
+        result = {"items": items, "at": now, "error": None, "fails": 0}
     except Exception as e:
-        print(f"⚠️ فشل جلب إيقافات التداول: {e}")
-        result = {**_halts, "at": now, "error": "تعذر جلب الإيقافات من Nasdaq"}
+        if not _halts["fails"]:  # رسالة واحدة لكل فترة حجب بدل رسالة كل دقيقة
+            print(f"⚠️ ناسداك حجب طلب الإيقافات مؤقتًا — إعادة المحاولة كل 5 دقائق ({str(e)[:80]})")
+        # نُبقي آخر قائمة ناجحة
+        result = {**_halts, "at": now, "error": "ناسداك حجب الطلب مؤقتًا — تُعرض آخر قائمة ناجحة", "fails": _halts["fails"] + 1}
     with _halts_lock:
         _halts.update(result)
     return _halts

@@ -209,15 +209,16 @@ const active = q => q.price >= 0.01 && (q.value || 0) >= MIN_VALUE;
 const PAGE = 100;
 const TABS = {
   all:       { sort: "change_pct", asc: false },
-  gainers:   { sort: "change_pct", asc: false, filter: q => q.change_pct > 0 },
-  losers:    { sort: "change_pct", asc: true,  filter: q => q.change_pct < 0 },
-  active:    { sort: "volume",     asc: false },
+  // تبويبات الترتيب تستبعد الأسهم بلا تداول حقيقي (أسهم OTC الميتة بتغير +4900% على 100 سهم) — تبويب "الكل" يعرضها
+  gainers:   { sort: "change_pct", asc: false, filter: q => q.change_pct > 0 && active(q) },
+  losers:    { sort: "change_pct", asc: true,  filter: q => q.change_pct < 0 && active(q) },
+  active:    { sort: "volume",     asc: false, filter: q => active(q) },
   value:     { sort: "value",      asc: false },
   momentum:  { sort: "speed",      asc: false, filter: q => q.speed != null && active(q) },
   liquidity: { sort: "vol_ratio",  asc: false, filter: q => q.vol_ratio != null && active(q) },
-  high:      { sort: "change_pct", asc: false, filter: q => q.at_high },
+  high:      { sort: "change_pct", asc: false, filter: q => q.at_high && active(q) },
   fav:       { sort: "change_pct", asc: false, filter: q => favs.has(q.symbol) },
-  lowfloat:  { sort: "change_pct", asc: false, filter: q => q.float != null && q.float < LOW_FLOAT },
+  lowfloat:  { sort: "change_pct", asc: false, filter: q => q.float != null && q.float < LOW_FLOAT && active(q) },
   halted:    { sort: "change_pct", asc: false, filter: q => haltedNow.has(q.symbol) },
   custom:    { sort: "change_pct", asc: false, filter: q => cfPass(q) },
 };
@@ -333,7 +334,7 @@ function renderTop() {
   document.getElementById("bb-down").style.width = (down / total * 100) + "%";
   document.getElementById("b-value").textContent = "$" + fmtBig(rows.reduce((s, q) => s + (q.value || 0), 0));
   document.getElementById("b-hot").textContent = rows.filter(q => q.vol_ratio >= 2 && active(q)).length;
-  document.getElementById("b-high").textContent = rows.filter(q => q.at_high).length;
+  document.getElementById("b-high").textContent = rows.filter(q => q.at_high && active(q)).length;
   const top = (key, n = 5) => rows.filter(q => q[key] != null && active(q)).sort((a, b) => b[key] - a[key]).slice(0, n);
   const topSpeed = live.filter(q => q.speed != null && active(q)).sort((a, b) => b.speed - a.speed).slice(0, 5);
   miniList("m-speed", topSpeed, q => `<span class="ltr ${cls(q.speed)}">${signed(q.speed)}</span>`);
