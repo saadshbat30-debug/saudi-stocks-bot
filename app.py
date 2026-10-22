@@ -129,6 +129,25 @@ def api_options(symbol):
     return jsonify(data)
 
 
+@app.route("/api/options_scan")
+def api_options_scan():
+    """?symbols=SPY,QQQ&dte_min=30&dte_max=45"""
+    symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
+    symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:15]
+    dte_min = request.args.get("dte_min", 0, type=float)
+    dte_max = min(request.args.get("dte_max", 60, type=float), 400)
+    quotes = get_quotes(symbols) if symbols else {}
+    results, errors = options.scan(symbols, dte_min, dte_max, {s: q.get("price") for s, q in quotes.items()})
+    info = {}
+    for s in symbols:
+        q = quotes.get(s) or {}
+        p, s20, s50 = q.get("price"), q.get("sma20"), q.get("sma50")
+        # الاتجاه: صاعد إذا السعر > متوسط 20 > متوسط 50، وهابط بالعكس
+        trend = "up" if p and s20 and s50 and p > s20 > s50 else "down" if p and s20 and s50 and p < s20 < s50 else "side"
+        info[s] = {"price": p, "change_pct": q.get("change_pct"), "sma20": s20, "sma50": s50, "rsi": q.get("rsi"), "trend": trend}
+    return jsonify({"results": results, "symbols": info, "errors": errors})
+
+
 @app.route("/api/halts")
 def api_halts():
     h = extras.get_halts()

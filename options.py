@@ -149,3 +149,53 @@ def chain(symbol, date=None, spot=None):
             "unusual": sum(1 for r in calls + puts if r["unusual"]),
         },
     }
+
+
+# ===== فلتر العقود: كل العقود ضمن مدة الانتهاء المطلوبة لعدة أسهم =====
+
+def _dte(date):
+    exp = datetime.strptime(date, "%Y-%m-%d").replace(hour=20, tzinfo=timezone.utc)
+    return (exp - datetime.now(timezone.utc)).total_seconds() / 86400
+
+
+def scan(symbols, dte_min=0, dte_max=60, spots=None, max_strike_pct=40):
+    """عقود كل سهم في تواريخ الانتهاء ضمن [dte_min, dte_max] يومًا، مع الفرق بين العرض والطلب.
+    الفلترة الدقيقة تتم في الصفحة حتى يتغير الناتج فورًا مع تعديل الشروط."""
+    from concurrent.futures import ThreadPoolExecutor
+    spots = spots or {}
+    jobs, nearest = [], {}
+    for s in symbols:
+        dates = expirations(s)
+        inside = [d for d in dates if dte_min - 1 <= _dte(d) <= dte_max + 1]
+        if not inside and dates:
+            # لا يوجد انتهاء داخل المدة: أقرب تاريخ لها بدل لا شيء
+            d = min(dates, key=lambda d: min(abs(_dte(d) - dte_min), abs(_dte(d) - dte_max)))
+            inside, nearest[s] = [d], round(_dte(d))
+        jobs += [(s, d) for d in inside]
+    results, errors = [], {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        chains = list(pool.map(lambda j: (j, chain(j[0], j[1], spots.get(j[0]))), jobs))
+    for (s, d), c in chains:
+        if c.get("error"):
+            errors[s] = c["error"]
+            continue
+        spot = c.get("spot")
+        for kind in ("call", "put"):
+            for r in c[kind + "s"]:
+                if spot and abs(r["strike"] / spot - 1) * 100 > max_strike_pct:
+                    continue
+                spread = round(r["ask"] - r["bid"], 4) if r["bid"] is not None and r["ask"] else None
+                results.append({
+                    **r, "symbol": s, "kind": kind, "date": d, "dte": round(c["days"], 1), "spot": spot,
+                    "spread": spread,
+                    "spread_pct": round(spread / r["mid"] * 100, 1) if spread is not None and r["mid"] else None,
+                    "strike_pct": round((r["strike"] / spot - 1) * 100, 2) if spot else None,
+                    "cost": round(r["ask"] * 100, 2) if r["ask"] else None,  # تكلفة العقد بسعر الطلب
+                    "be_pct": round((r["breakeven"] / spot - 1) * 100, 2) if r["breakeven"] and spot else None,
+                })
+    for s in symbols:
+        if s not in errors and not any(j[0] == s for j in jobs):
+            errors[s] = "لا توجد عقود لهذا السهم"
+        elif s in nearest:
+            errors[s] = f"لا يوجد انتهاء ضمن المدة — عُرض أقرب تاريخ ({nearest[s]} يوم)"
+    return results, errors

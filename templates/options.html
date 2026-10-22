@@ -48,6 +48,16 @@
   .calc table { font-size:12px; } .calc td, .calc th { padding:4px 6px; text-align:center; }
   .calc th { position:static; }
   .note { font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .sc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:4px 16px; margin-top:10px; }
+  .sc-row { display:flex; align-items:center; gap:6px; padding:4px 6px; border-radius:8px; font-size:13px; }
+  .sc-row.on { background:#1e3a5f55; }
+  .sc-row span.l { flex:1; } .sc-row small { color:var(--muted); font-size:11px; display:block; }
+  .sc-row input { width:72px; padding:4px 6px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; direction:ltr; text-align:center; }
+  #sc-head th { cursor:pointer; } #sc-head th.sorted { color:var(--text); }
+  #sc-body tr { cursor:pointer; } #sc-body td { text-align:center; }
+  .tb { font-size:11px; padding:1px 6px; border-radius:5px; white-space:nowrap; }
+  .tb.with { background:#14532d; color:#86efac; } .tb.against { background:#4c1d1d; color:#fca5a5; } .tb.side { background:#26303b; color:var(--muted); }
+  .tag-call { color:#86efac; font-weight:600; } .tag-put { color:#fca5a5; font-weight:600; }
 </style>
 
 <div class="card">
@@ -61,6 +71,8 @@
     <a class="chip" href="/stock/{{ symbol }}">📈 صفحة السهم</a>
     <span class="muted" id="q-upd" style="margin-inline-start:auto;font-size:12px"></span>
   </div>
+  <div class="bar" id="modes" style="margin:8px 0 2px"><button class="chip active" data-m="chain">📋 سلسلة العقود</button><button class="chip" data-m="scan">🔎 فلتر العقود</button></div>
+  <div id="chain-ctl">
   <div class="exps" id="exps"></div>
   <div class="bar" style="margin-top:4px">
     <span class="muted">العرض:</span>
@@ -69,8 +81,10 @@
     <span id="ranges"><button class="chip" data-r="8">قريبة ±8</button><button class="chip active" data-r="15">±15</button><button class="chip" data-r="30">±30</button><button class="chip" data-r="999">الكل</button></span>
     <label class="muted" style="margin-inline-start:10px"><input type="checkbox" id="only-hot"> 🔥 النشاط غير المعتاد فقط</label>
   </div>
+  </div>
 </div>
 
+<div id="chain-view">
 <div class="card"><div class="stats" id="stats"></div></div>
 
 <div class="layout">
@@ -82,6 +96,39 @@
     <div class="note">اضغط أي عقد لحساب ربحه وخسارته · 🔥 = حجم اليوم أكبر من العقود المفتوحة (≥ 500) · المظلل = داخل السعر (ITM) · الدلتا واحتمال الانتهاء داخل السعر محسوبة بنموذج بلاك-شولز من التذبذب الضمني · بيانات العقود من ياهو متأخرة نحو 15 دقيقة</div>
   </div>
   <div class="card calc" id="calc"><h3>🧮 حاسبة العقد</h3><div class="muted">اختر عقدًا من الجدول</div></div>
+</div>
+</div>
+
+<div id="scan-view" hidden>
+  <div class="card">
+    <div class="bar">
+      <span class="muted">الأسهم:</span>
+      <input class="field ltr" id="sc-syms" style="width:300px;text-transform:uppercase" autocomplete="off" title="رموز مفصولة بفاصلة (حتى 15 سهمًا)">
+      <button class="chip" type="button" id="sc-popular" title="إضافة الأسهم والصناديق الأكثر تداولًا للعقود">+ الأسهم الشائعة</button>
+      <button class="chip active" type="button" id="sc-run">🔎 ابحث</button>
+      <span class="muted" id="sc-status"></span>
+    </div>
+    <div class="bar" style="margin-top:8px">
+      <span class="muted">النوع:</span>
+      <span id="sc-type"><button class="chip" data-t="call">📈 كول (أتوقع صعود)</button><button class="chip" data-t="put">📉 بوت (أتوقع هبوط)</button><button class="chip" data-t="both">الاثنين</button></span>
+      <span class="muted" style="margin-inline-start:10px">قوالب:</span>
+      <span id="sc-presets">
+        <button class="chip" data-p="balanced" title="حسب الشرح: 30–45 يوم، دلتا 0.40–0.60، حجم ومفتوحة ≥ 500، فرق ≤ 0.10، IV ≤ 60%">⚖️ متوازن</button>
+        <button class="chip" data-p="safe" title="45–60 يوم، دلتا 0.50–0.70، سيولة ≥ 1000، فرق ≤ 0.05، IV ≤ 40%">🛡️ محافظ</button>
+        <button class="chip" data-p="spec" title="7–21 يوم، دلتا 0.25–0.45، حجم ≥ 1000 — مخاطرة أعلى">⚡ مضاربة</button>
+      </span>
+    </div>
+    <div class="sc-grid" id="sc-grid"></div>
+    <label class="muted" style="display:block;margin-top:8px"><input type="checkbox" id="sc-trend"> استبعد العقود عكس اتجاه السهم (لا كول في اتجاه هابط، ولا بوت في اتجاه صاعد — الاتجاه من السعر ومتوسطي 20 و 50 يوم)</label>
+  </div>
+  <div class="card" style="padding:8px">
+    <div class="bar" id="sc-info" style="margin-bottom:6px"></div>
+    <div class="wrap"><table>
+      <thead id="sc-head"></thead>
+      <tbody id="sc-body"><tr><td class="muted" style="text-align:center;padding:30px">اضغط «🔎 ابحث»</td></tr></tbody>
+    </table></div>
+    <div class="note">اضغط أي عقد لفتحه في السلسلة مع حاسبة الربح والخسارة · الترتيب الافتراضي حسب أقل فرق بين العرض والطلب (%) · الفلتر يعطي عقودًا جيدة من ناحية السيولة والوقت لكنه <b>لا يضمن الربح</b> — تأكد من اتجاه السهم على الشارت قبل الشراء</div>
+  </div>
 </div>
 
 <script>
@@ -123,6 +170,7 @@ async function load() {
     data = await r.json();
     if (!date && data.date) date = data.date;
     render();
+    if (picked && !window._scrolled) { window._scrolled = true; document.querySelector("td.sel")?.scrollIntoView({ block: "center" }); }
   } catch { document.getElementById("tbody").innerHTML = `<tr><td class="muted" style="text-align:center;padding:30px">تعذر الاتصال بالمنصة</td></tr>`; }
 }
 
@@ -259,6 +307,156 @@ function calcOut() {
     </tbody></table>` : ""}`;
 }
 
+// ===== الوضع: سلسلة العقود / فلتر العقود =====
+let mode = new URLSearchParams(location.search).get("mode") || store.get("opt_mode", "chain");
+function setMode(m) {
+  mode = m; store.set("opt_mode", m);
+  document.querySelectorAll("#modes [data-m]").forEach(b => b.classList.toggle("active", b.dataset.m === m));
+  document.getElementById("chain-ctl").hidden = document.getElementById("chain-view").hidden = m !== "chain";
+  document.getElementById("scan-view").hidden = m !== "scan";
+  if (m === "scan" && !scanData) runScan();
+}
+document.getElementById("modes").onclick = e => { const b = e.target.closest("[data-m]"); if (b) setMode(b.dataset.m); };
+
+// ===== فلتر العقود =====
+const SC_FIELDS = [
+  { k: "dte", label: "أيام حتى الانتهاء", hint: "تجنب العقود التي تنتهي خلال أسبوع", server: true },
+  { k: "delta", label: "الدلتا (بالقيمة المطلقة)", hint: "0.40–0.60 = عند السعر (ATM) ويتحرك مع السهم", abs: true },
+  { k: "volume", label: "الحجم اليوم", hint: "يضمن وجود مشترين عند البيع" },
+  { k: "oi", label: "العقود المفتوحة (OI)", hint: "يضمن أن العقد ليس مهجورًا" },
+  { k: "spread", label: "فرق العرض/الطلب $", hint: "كلما قل كان أفضل" },
+  { k: "spread_pct", label: "الفرق % من سعر العقد", hint: "إضافة: فرق 0.10 كبير على عقد بـ 0.30" },
+  { k: "iv", label: "التذبذب الضمني IV %", hint: "تجنب الشراء عندما يكون مرتفعًا جدًا" },
+  { k: "strike_pct", label: "بُعد الإضراب عن السعر %", hint: "إضافة: قرب الإضراب من سعر السهم", abs: true },
+  { k: "cost", label: "تكلفة العقد $ (ميزانيتك)", hint: "إضافة: سعر الطلب × 100" },
+  { k: "itm_prob", label: "احتمال الانتهاء داخل السعر %", hint: "إضافة: من بلاك-شولز" },
+  { k: "be_pct", label: "التعادل يحتاج حركة %", hint: "إضافة: كم يجب أن يتحرك السهم لتتعادل", abs: true },
+];
+const SC_PRESETS = {
+  balanced: { dte: [30, 45], delta: [0.4, 0.6], volume: [500, ""], oi: [500, ""], spread: ["", 0.10], iv: ["", 60] },
+  safe: { dte: [45, 60], delta: [0.5, 0.7], volume: [1000, ""], oi: [1000, ""], spread: ["", 0.05], spread_pct: ["", 5], iv: ["", 40] },
+  spec: { dte: [7, 21], delta: [0.25, 0.45], volume: [1000, ""], oi: [500, ""], spread_pct: ["", 10], iv: ["", 100] },
+};
+const QUICK_SCAN = ["SPY", "QQQ", "IWM", "AAPL", "NVDA", "TSLA", "AMD", "META", "AMZN", "MSFT", "PLTR", "SOFI"];
+let sc = store.get("opt_scan", null) || { type: "both", trend: true, symbols: SYMBOL, f: {} };
+if (!sc.f || !Object.keys(sc.f).length) { sc.f = {}; for (const [k, v] of Object.entries(SC_PRESETS.balanced)) sc.f[k] = { min: String(v[0]), max: String(v[1]) }; }
+let scanData = null, scSort = { key: "spread_pct", asc: true };
+const scSave = () => store.set("opt_scan", sc);
+const scNum = v => v == null || String(v).trim() === "" ? null : parseFloat(v);
+
+function scBuild() {
+  document.getElementById("sc-syms").value = sc.symbols || SYMBOL;
+  document.getElementById("sc-trend").checked = !!sc.trend;
+  document.querySelectorAll("#sc-type [data-t]").forEach(b => b.classList.toggle("active", b.dataset.t === sc.type));
+  document.getElementById("sc-grid").innerHTML = SC_FIELDS.map(f => {
+    const st = sc.f[f.k] || {}, on = (st.min ?? "") !== "" || (st.max ?? "") !== "";
+    return `<div class="sc-row ${on ? "on" : ""}" data-k="${f.k}"><span class="l">${f.label}<small>${f.hint}</small></span>
+      <input data-b="min" placeholder="من" value="${esc(st.min ?? "")}"><span class="muted">–</span><input data-b="max" placeholder="إلى" value="${esc(st.max ?? "")}"></div>`;
+  }).join("");
+}
+let dteTimer = null;
+document.getElementById("sc-grid").addEventListener("input", e => {
+  const row = e.target.closest(".sc-row"), k = row.dataset.k;
+  sc.f[k] = { ...(sc.f[k] || {}), [e.target.dataset.b]: e.target.value };
+  row.classList.toggle("on", (sc.f[k].min ?? "") !== "" || (sc.f[k].max ?? "") !== "");
+  scSave();
+  if (k === "dte") { clearTimeout(dteTimer); dteTimer = setTimeout(runScan, 900); }  // المدة تحتاج جلب تواريخ أخرى
+  else scRender();
+});
+document.getElementById("sc-type").onclick = e => { const b = e.target.closest("[data-t]"); if (!b) return; sc.type = b.dataset.t; scSave(); scBuild(); scRender(); };
+document.getElementById("sc-trend").onchange = e => { sc.trend = e.target.checked; scSave(); scRender(); };
+document.getElementById("sc-presets").onclick = e => {
+  const b = e.target.closest("[data-p]"); if (!b) return;
+  sc.f = {};
+  for (const [k, v] of Object.entries(SC_PRESETS[b.dataset.p])) sc.f[k] = { min: String(v[0]), max: String(v[1]) };
+  scSave(); scBuild(); runScan();
+};
+document.getElementById("sc-popular").onclick = () => {
+  const cur = document.getElementById("sc-syms").value.split(",").map(x => x.trim().toUpperCase()).filter(Boolean);
+  document.getElementById("sc-syms").value = [...new Set([...cur, ...QUICK_SCAN])].slice(0, 15).join(",");
+};
+document.getElementById("sc-run").onclick = runScan;
+document.getElementById("sc-syms").addEventListener("keydown", e => { if (e.key === "Enter") runScan(); });
+
+async function runScan() {
+  sc.symbols = document.getElementById("sc-syms").value.split(",").map(x => x.trim().toUpperCase()).filter(Boolean).slice(0, 15).join(",") || SYMBOL;
+  scSave();
+  const dte = sc.f.dte || {}, st = document.getElementById("sc-status");
+  st.textContent = "⏳ جارٍ جلب العقود… (قد يأخذ عدة ثوانٍ لكل سهم)";
+  try {
+    const q = new URLSearchParams({ symbols: sc.symbols, dte_min: scNum(dte.min) ?? 0, dte_max: scNum(dte.max) ?? 60 });
+    scanData = await (await fetch("/api/options_scan?" + q)).json();
+    st.textContent = "";
+  } catch { st.textContent = "تعذر الاتصال بالمنصة"; return; }
+  scRender();
+}
+
+function scPass(r) {
+  if (sc.type !== "both" && r.kind !== sc.type) return false;
+  for (const f of SC_FIELDS) {
+    if (f.server) continue;
+    const st = sc.f[f.k] || {}, lo = scNum(st.min), hi = scNum(st.max);
+    if (lo == null && hi == null) continue;
+    let v = r[f.k];
+    if (v == null) return false;
+    if (f.abs) v = Math.abs(v);
+    if ((lo != null && v < lo) || (hi != null && v > hi)) return false;
+  }
+  if (sc.trend) {
+    const t = scanData.symbols[r.symbol]?.trend;
+    if ((r.kind === "call" && t === "down") || (r.kind === "put" && t === "up")) return false;
+  }
+  return true;
+}
+const TREND = { up: "📈 صاعد", down: "📉 هابط", side: "↔️ عرضي" };
+function trendBadge(r) {
+  const t = scanData.symbols[r.symbol]?.trend;
+  if (t === "side" || !t) return `<span class="tb side">↔️ عرضي</span>`;
+  const withT = (r.kind === "call" && t === "up") || (r.kind === "put" && t === "down");
+  return withT ? `<span class="tb with">✅ مع الاتجاه</span>` : `<span class="tb against">⚠️ عكس الاتجاه</span>`;
+}
+const SC_COLS = [
+  ["symbol", "السهم"], ["kind", "النوع"], ["date", "الانتهاء"], ["strike", "الإضراب"], ["bid", "العرض"], ["ask", "الطلب"],
+  ["spread", "الفرق $"], ["spread_pct", "الفرق %"], ["cost", "تكلفة العقد"], ["delta", "الدلتا"], ["iv", "IV"],
+  ["volume", "الحجم"], ["oi", "المفتوحة"], ["breakeven", "التعادل"], ["itm_prob", "احتمال ITM"], ["theta", "ثيتا/يوم"], ["trend", "الاتجاه"],
+];
+function scRender() {
+  const info = document.getElementById("sc-info"), body = document.getElementById("sc-body");
+  if (!scanData) return;
+  info.innerHTML = Object.entries(scanData.symbols).map(([s, i]) => `<span class="chip ltr" title="RSI ${fmt(i.rsi, 1)} · م20 ${fmt(i.sma20)} · م50 ${fmt(i.sma50)}">${esc(s)} $${fmt(i.price)} <span class="${cls(i.change_pct)}">${sgn(i.change_pct)}</span> ${TREND[i.trend] || ""}</span>`).join("") +
+    Object.entries(scanData.errors || {}).map(([s, e]) => `<span class="chip" style="border-color:#7f1d1d">${esc(s)}: ${esc(e)}</span>`).join("");
+  const list = scanData.results.filter(scPass);
+  const key = scSort.key, dir = scSort.asc ? 1 : -1;
+  const val = r => key === "delta" ? Math.abs(r.delta ?? 0) : key === "trend" ? (trendBadge(r).includes("with") ? 0 : 1) : r[key];
+  list.sort((a, b) => { const x = val(a) ?? Infinity, y = val(b) ?? Infinity; return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir; });
+  document.getElementById("sc-head").innerHTML = `<tr>${SC_COLS.map(([k, l]) => `<th data-s="${k}" class="${k === key ? "sorted" : ""}">${l}${k === key ? (scSort.asc ? " ▲" : " ▼") : ""}</th>`).join("")}</tr>`;
+  document.getElementById("sc-status").textContent = `${list.length} عقد يطابق الشروط من ${scanData.results.length}`;
+  const day = d => new Date(d + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { month: "short", day: "numeric" });
+  body.innerHTML = list.length ? list.slice(0, 300).map(r => `<tr data-go="${esc(r.symbol)}" data-d="${r.date}" data-c="${esc(r.contract)}" data-k="${r.kind}">
+      <td><b class="ltr">${esc(r.symbol)}</b></td><td class="tag-${r.kind}">${r.kind === "call" ? "كول" : "بوت"}</td>
+      <td>${day(r.date)} <span class="muted">${Math.round(r.dte)}ي</span></td>
+      <td><b>$${fmt(r.strike)}</b> <span class="muted ltr">${sgn(r.strike_pct, 1)}</span></td>
+      <td>${fmt(r.bid)}</td><td>${fmt(r.ask)}</td><td>${fmt(r.spread)}</td><td>${r.spread_pct != null ? fmt(r.spread_pct, 1) + "%" : "—"}</td>
+      <td>${money(r.cost)}</td><td>${fmt(r.delta, 2)}</td><td>${r.iv != null ? fmt(r.iv, 1) + "%" : "—"}</td>
+      <td>${r.unusual ? '<span class="hot">🔥</span>' : ""}${big(r.volume)}</td><td>${big(r.oi)}</td>
+      <td>$${fmt(r.breakeven)} <span class="muted ltr">${sgn(r.be_pct, 1)}</span></td><td>${r.itm_prob != null ? fmt(r.itm_prob, 0) + "%" : "—"}</td>
+      <td class="down">${r.theta != null ? money(r.theta * 100) : "—"}</td><td>${trendBadge(r)}</td></tr>`).join("")
+    : `<tr><td colspan="${SC_COLS.length}" class="muted" style="padding:30px">لا توجد عقود تطابق كل الشروط — خفف شرطًا أو أضف أسهمًا أخرى</td></tr>`;
+}
+document.getElementById("sc-head").onclick = e => {
+  const th = e.target.closest("[data-s]"); if (!th) return;
+  scSort = { key: th.dataset.s, asc: scSort.key === th.dataset.s ? !scSort.asc : true }; scRender();
+};
+// فتح العقد في السلسلة مع الحاسبة
+document.getElementById("sc-body").onclick = e => {
+  const tr = e.target.closest("tr[data-c]"); if (!tr) return;
+  location.href = `/options/${encodeURIComponent(tr.dataset.go)}?date=${tr.dataset.d}&c=${encodeURIComponent(tr.dataset.c)}&k=${tr.dataset.k}&mode=chain`;
+};
+
+// عقد مختار من الرابط (قادم من الفلتر)
+{ const u = new URLSearchParams(location.search); if (u.get("c")) picked = { kind: u.get("k") || "call", contract: u.get("c") }; }
+scBuild();
+setMode(mode);
 load();
 setInterval(load, 60000);
 </script>
