@@ -4,6 +4,7 @@ from flask import Flask, abort, jsonify, render_template, request
 
 import breakout
 import extras
+import options
 from alerts import send_telegram, start_alerts
 from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 import stream
@@ -105,6 +106,27 @@ def breakout_page():
 @app.route("/api/breakout")
 def api_breakout():
     return jsonify(breakout.snapshot())
+
+
+@app.route("/options")
+@app.route("/options/<symbol>")
+def options_page(symbol="SPY"):
+    symbol = symbol.strip().upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    return render_template("options.html", markets=MARKETS, market_id=None, symbol=symbol)
+
+
+@app.route("/api/options/<symbol>")
+def api_options(symbol):
+    symbol = symbol.strip().upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    q = get_quotes([symbol]).get(symbol) or {}
+    data = options.chain(symbol, request.args.get("date"), q.get("price"))
+    data["quote"] = {k: q.get(k) for k in ("price", "change_pct", "name", "live")}
+    data["quote"]["name"] = data["quote"]["name"] or name_for(symbol)
+    return jsonify(data)
 
 
 @app.route("/api/halts")
