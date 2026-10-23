@@ -385,9 +385,19 @@ def ensure_info(symbol):
     threading.Thread(target=run, daemon=True).start()
 
 
+_info_state = {"total": 0}
+
+
+def info_progress():
+    """كم شركة اكتملت بياناتها (للفحص الشرعي) من أسهم السوق."""
+    done = sum(1 for e in list(_floats.values()) if "summary" in e)
+    return {"done": done, "total": max(_info_state["total"], done)}
+
+
 def _floats_loop(get_symbols):
     while True:
         symbols = get_symbols()
+        _info_state["total"] = len(symbols)
         now = time.time()
         # البيانات القديمة بلا قطاع تُعاد لإضافة الفحص الشرعي
         todo = [s for s in symbols if s not in _floats or now - _floats[s].get("at", 0) > FLOAT_MAX_AGE or "summary" not in _floats[s]]
@@ -404,7 +414,7 @@ def _floats_loop(get_symbols):
                 _floats[s] = {"float": None, "sector": None, "at": time.time() - FLOAT_MAX_AGE + 86400}  # أعد المحاولة غدًا
             if i % 20 == 19:
                 _save_floats()
-            time.sleep(4)  # بطيء عمدًا: الأسعار أهم من الأسهم الحرة
+            time.sleep(2)  # هادئ عمدًا: الأسعار أهم؛ وعند حد ياهو يتوقف 10 دقائق تلقائيًا
         if todo:
             _save_floats()
         time.sleep(600)

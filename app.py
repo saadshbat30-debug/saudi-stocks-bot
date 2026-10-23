@@ -179,6 +179,7 @@ def api_status():
         "screener_age": round(age) if age is not None else None, "screener_error": STATUS["screener_error"],
         "stream": stream.status(),
         "night": {"count": STATUS["night_count"], "age": round(night_age) if night_age is not None else None, "error": STATUS["night_error"]},
+        "company_info": extras.info_progress(),
     })
 
 

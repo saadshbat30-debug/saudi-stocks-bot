@@ -416,9 +416,19 @@ def _fresher_from_bars(r):
 
 
 def _float_priority():
-    """رموز السوق للأسهم الحرة: الأكثر حركة أولًا."""
-    rows = [r for c in list(_markets.values()) for r in c["rows"]]
-    return [r["symbol"] for r in sorted(rows, key=lambda r: -abs(r.get("change_pct") or 0))]
+    """ترتيب جلب بيانات الشركات (الأسهم الحرة والفحص الشرعي): الأسهم المدرجة الأعلى قيمة تداول أولًا،
+    ثم بقية الأسهم المدرجة من المسح الكامل، وأسهم OTC أخيرًا — لا تضيع الساعات الأولى على أسهم ميتة."""
+    seen, out = set(), []
+    fast = [r for c in list(_markets.values()) for r in c["rows"]]
+    full = [r for c in list(_full.values()) for r in c["rows"]]
+    value = lambda r: -((r.get("price") or 0) * (r.get("volume") or 0))
+    for group in (sorted((r for r in fast if not r.get("otc")), key=value),
+                  sorted((r for r in full if not r.get("otc")), key=value),
+                  sorted((r for r in fast + full if r.get("otc")), key=value)):
+        for r in group:
+            if r["symbol"] not in seen:
+                seen.add(r["symbol"]); out.append(r["symbol"])
+    return out
 
 
 # ===== المسح الكامل: كل الأسهم المدرجة (آلاف الأسهم) يُجلب في الخلفية كل 10 دقائق =====

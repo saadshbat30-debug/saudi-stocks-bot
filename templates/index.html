@@ -257,6 +257,13 @@ function signals(q) {
   return s;
 }
 
+// تقدم فحص الشركات (يُجلب في الخلفية: الأسهم المدرجة الأعلى قيمة أولًا)
+function shariaMsg() {
+  const p = window.platformStatus?.company_info;
+  const prog = p && p.total ? ` (فُحص ${p.done.toLocaleString("en-US")} من ${p.total.toLocaleString("en-US")} شركة)` : "";
+  return `لا توجد أسهم متوافقة بعد — بيانات الشركات تُجلب في الخلفية تدريجيًا، الأسهم الأعلى تداولًا أولًا${prog}`;
+}
+
 // رسالة تبويب التداول الليلي عندما لا توجد أسعار
 function nightMsg() {
   const n = window.platformStatus?.night;
@@ -452,7 +459,7 @@ function render() {
   const source = [...rows, ...extraList];
   let list = source.map(view);
   // في تبويب "الكل" أو البحث: السهم بلا تداول قبل/بعد الجلسة يظهر بسعر الجلسة الرسمية
-  if (ext && (tab === "all" || search)) list = list.map((q, i) => q.price == null ? { ...source[i], regularOnly: true } : q);
+  if (ext && (tab === "all" || tab === "sharia" || search)) list = list.map((q, i) => q.price == null ? { ...source[i], regularOnly: true } : q);
   list = list.filter(q => q.price != null && q.change_pct != null);
   const t = TABS[tab];
   if (t.filter) list = list.filter(t.filter);
@@ -468,15 +475,16 @@ function render() {
   renderHead();
   const tbody = document.getElementById("rows"), cols = visibleCols();
   lastCount = list.length;
+  const shProg = tab === "sharia" && window.platformStatus?.company_info?.total ? ` · فُحص ${window.platformStatus.company_info.done} من ${window.platformStatus.company_info.total} شركة` : "";
   document.getElementById("table-foot").textContent = list.length
-    ? `${Math.min(shown, list.length)} من ${list.length} سهم${shown < list.length ? " · مرّر للأسفل لتحميل المزيد" : ""} · اسحب عنوان أي عمود لنقله · اضغط العنوان للترتيب`
+    ? `${Math.min(shown, list.length)} من ${list.length} سهم${shown < list.length ? " · مرّر للأسفل لتحميل المزيد" : ""}${shProg} · اسحب عنوان أي عمود لنقله · اضغط العنوان للترتيب`
     : "";
   if (!list.length && search && /^[A-Za-z][A-Za-z.\-]{0,6}$/.test(search)) fetchExtra(search.toUpperCase());
   if (!list.length) {
     const want = search.toUpperCase();
     const msg = search && extraPending.has(want) ? `جارٍ البحث عن ${esc(want)}…`
       : search && extraMiss.has(want) ? `لم يُعثر على ${esc(want)} — اضغط Enter لفتح صفحته`
-      : tab === "sharia" && rows.length ? "لا توجد أسهم متوافقة بعد — بيانات الشركات تُجلب في الخلفية تدريجيًا (الأنشط أولًا)"
+      : tab === "sharia" && rows.length ? shariaMsg()
       : tab === "custom" && rows.length ? (cfActive().length ? "لا توجد أسهم تطابق كل شروط فلتري الآن" : "فعّل شرطًا واحدًا على الأقل من لوحة فلتري بالأعلى")
       : !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? nightMsg() : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
     tbody.innerHTML = `<tr><td colspan="${cols.length + 4}" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;
