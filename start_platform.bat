@@ -5,9 +5,7 @@ REM   2. otherwise: update from GitHub, install libraries, add to Windows startu
 REM      start the server minimized and open the browser
 cd /d "%~dp0"
 
-REM Saudi platform (Abu Talal / tasi-intel) is a separate program on port 8090:
-REM start it too if it is installed and not already running (once, not again after self-update).
-if not "%~1"=="updated" call :saudi
+REM The Saudi platform (Abu Talal / tasi-intel) starts automatically from app.py in the same window.
 
 REM Already running on port 5000? Just open the browser.
 netstat -ano | findstr /r /c:":5000 .*LISTENING" >nul
@@ -47,11 +45,3 @@ if errorlevel 1 (
 start "" http://127.0.0.1:5000
 exit /b 0
 
-:saudi
-set "SAUDI_DIR=%USERPROFILE%\tasi-intel"
-if not exist "%SAUDI_DIR%\start-windows.bat" exit /b 0
-netstat -ano | findstr /r /c:":8090 .*LISTENING" >nul
-if not errorlevel 1 exit /b 0
-echo Starting the Saudi platform...
-start "Saudi Platform - close this window to stop" /min /d "%SAUDI_DIR%" cmd /c start-windows.bat
-exit /b 0

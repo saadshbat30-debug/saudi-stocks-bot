@@ -229,5 +229,9 @@ def test():
 start_alerts()
 
 if __name__ == "__main__":
+    import saudi_runner
+    msg = saudi_runner.start()  # منصة أبو طلال للسوق السعودي في نفس النافذة (إن كانت مثبتة)
     print("✅ المنصة تعمل: http://127.0.0.1:5000")
+    if msg:
+        print(msg)
     app.run(host="0.0.0.0", port=5000)
