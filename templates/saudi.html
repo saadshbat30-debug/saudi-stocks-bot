@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}🇸🇦 السوق السعودي — منصة أبو طلال{% endblock %}
+{% block content %}
+<style>
+  /* الشريط العلوي للسوق الأمريكي لا يخص هذه الصفحة */
+  #indices, #session, #stream-status, #stale-banner { display:none !important; }
+  main { max-width:none !important; padding:0 !important; }
+  .sa-wrap { position:relative; height:calc(100vh - 64px); }
+  .sa-wrap iframe { width:100%; height:100%; border:0; display:block; background:var(--bg); }
+  .sa-off { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); }
+  .sa-off[hidden] { display:none; }
+  .sa-card { max-width:620px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 26px; line-height:1.9; }
+  .sa-card h2 { margin:0 0 8px; font-size:19px; }
+  .sa-card code, .sa-card pre { background:#0b1016; border:1px solid var(--line); border-radius:8px; padding:2px 8px; direction:ltr; display:inline-block; }
+  .sa-card pre { display:block; padding:10px 12px; margin:8px 0; white-space:pre-wrap; text-align:left; }
+  .sa-card .muted { color:var(--muted); font-size:13px; }
+  .sa-bar { position:absolute; bottom:10px; left:12px; z-index:2; display:flex; gap:6px; opacity:.75; }
+  .sa-bar:hover { opacity:1; }
+  .sa-bar a, .sa-bar button { background:var(--card); border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:4px 10px; font:inherit; font-size:12px; cursor:pointer; }
+  .sa-bar a:hover, .sa-bar button:hover { color:var(--text); border-color:var(--accent); }
+</style>
+
+<div class="sa-wrap">
+  <div class="sa-bar">
+    <button type="button" id="sa-reload" title="إعادة تحميل منصة السوق السعودي">↻ تحديث</button>
+    <a href="{{ saudi_url }}" target="_blank" rel="noopener" title="فتح منصة السوق السعودي في تبويب مستقل">↗ تبويب مستقل</a>
+  </div>
+  <iframe id="sa-frame" title="منصة أبو طلال — السوق السعودي" allow="clipboard-write; fullscreen"></iframe>
+  <div class="sa-off" id="sa-off" hidden>
+    <div class="sa-card">
+      <h2>🇸🇦 منصة السوق السعودي غير مشغّلة</h2>
+      <div>منصة أبو طلال (tasi-intel) تعمل كبرنامج مستقل على <code>{{ saudi_url }}</code> ولم تستجب الآن.</div>
+      <div>شغّلها من PowerShell واترك نافذتها مفتوحة:</div>
+      <pre>cd C:\Users\DELL\tasi-intel
+.\start-windows.bat</pre>
+      <div class="muted">أو شغّل <b>start_platform.bat</b> من مجلد المنصة الأمريكية: يشغّل المنصتين معًا تلقائيًا.</div>
+      <div class="muted" id="sa-wait">⏳ ستظهر المنصة هنا تلقائيًا بمجرد أن تعمل…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAUDI = {{ saudi_url|tojson }};
+const frame = document.getElementById("sa-frame"), off = document.getElementById("sa-off");
+let up = null;
+// فحص من المتصفح: يكفي أن يرد الخادم (حتى لو منع قراءة الرد)
+async function check() {
+  try {
+    await fetch(SAUDI + "/?ping=" + Date.now(), { mode: "no-cors", cache: "no-store" });
+    if (up !== true) { up = true; off.hidden = true; frame.src = SAUDI + "/"; }
+  } catch {
+    if (up !== false) { up = false; off.hidden = false; frame.removeAttribute("src"); }
+  }
+}
+document.getElementById("sa-reload").onclick = () => { up = null; check(); };
+check();
+setInterval(check, 5000);
+</script>
+{% endblock %}

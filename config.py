@@ -68,3 +68,7 @@ def find_stock(symbol):
         if symbol in market["stocks"]:
             return market_id, market["stocks"][symbol]
     return "us", symbol
+
+
+# منصة أبو طلال للسوق السعودي (tasi-intel) تعمل كخادم مستقل وتُعرض داخل هذه المنصة في صفحة /saudi
+SAUDI_URL = os.environ.get("SAUDI_URL", "http://127.0.0.1:8090").rstrip("/")

@@ -6,7 +6,7 @@ import breakout
 import extras
 import options
 from alerts import send_telegram, start_alerts
-from config import ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
+from config import SAUDI_URL, ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 import stream
 from market import STATUS, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
@@ -106,6 +106,12 @@ def breakout_page():
 @app.route("/api/breakout")
 def api_breakout():
     return jsonify(breakout.snapshot())
+
+
+@app.route("/saudi")
+def saudi_page():
+    """منصة أبو طلال للسوق السعودي داخل نفس الصفحة (تعمل كخادم مستقل على SAUDI_URL)."""
+    return render_template("saudi.html", markets=MARKETS, market_id=None, saudi_url=SAUDI_URL, hide_position=True)
 
 
 @app.route("/options")

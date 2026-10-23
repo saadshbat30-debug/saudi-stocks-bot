@@ -15,6 +15,10 @@
   nav { display:flex; gap:8px; }
   nav a { padding:8px 14px; border-radius:8px; background:var(--card); color:var(--muted); }
   nav a.active { background:var(--accent); color:#fff; }
+  /* مبدّل السوق: الأمريكي ↔ السعودي في نفس الصفحة */
+  .mkt-switch { display:flex; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px; }
+  .mkt-switch a { padding:6px 12px; border-radius:7px; color:var(--muted); font-size:13.5px; white-space:nowrap; }
+  .mkt-switch a.on { background:var(--accent); color:#fff; font-weight:600; }
   main { max-width:1400px; margin:0 auto; padding:16px; }
   .indices { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px; }
   .indices a { display:flex; gap:6px; align-items:baseline; }
@@ -30,6 +34,10 @@
 <body>
 <header>
   <a href="/"><h1>📊 منصة الأسهم</h1></a>
+  <div class="mkt-switch" title="التبديل بين السوقين">
+    <a href="/market/us" class="{{ '' if request.path.startswith('/saudi') else 'on' }}">🇺🇸 السوق الأمريكي</a>
+    <a href="/saudi" class="{{ 'on' if request.path.startswith('/saudi') else '' }}">🇸🇦 السوق السعودي</a>
+  </div>
   <div class="indices" id="indices"></div>
   <span class="session" id="session">—</span>
   <span class="session" id="stream-status" title="البث المباشر للأسعار من ياهو">—</span>
@@ -88,6 +96,6 @@ setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
 <div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>
 <main>{% block content %}{% endblock %}</main>
-<script src="{{ url_for('static', filename='position.js') }}"></script>
+{% if not hide_position %}<script src="{{ url_for('static', filename='position.js') }}"></script>{% endif %}
 </body>
 </html>
