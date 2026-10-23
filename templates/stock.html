@@ -171,7 +171,7 @@
 </style>
 <div class="strip">
   <div class="st-name"><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
-  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b></div>
+  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span></div>
   <div class="st-cell" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span><b id="k-ext">—</b></div>
   <div class="st-cell"><span class="muted">افتتاح</span><b id="d-open">—</b></div>
   <div class="st-cell"><span class="muted">أعلى</span><b id="d-high" class="up">—</b></div>
@@ -241,6 +241,7 @@
     <button class="chip" data-ind="macd">MACD</button>
     <button class="chip" data-ind="rsi">RSI</button>
     <span class="sep"></span>
+    <label class="ov" title="أعمدة الحجم أسفل الشموع"><input type="checkbox" data-ov="volume"> <span style="color:#94a3b8">الحجم</span></label>
     <label class="ov"><input type="checkbox" data-ov="ma20"> <span style="color:#f59e0b">SMA20</span></label>
     <label class="ov"><input type="checkbox" data-ov="sma50"> <span style="color:#3b82f6">SMA50</span></label>
     <label class="ov"><input type="checkbox" data-ov="sma200"> <span style="color:#ec4899">SMA200</span></label>
@@ -455,7 +456,7 @@ const candles = chart.addCandlestickSeries({
   upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444",
 });
 const volume = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
-volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });  // الحجم في آخر 20% من الارتفاع
 const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const sma50 = chart.addLineSeries({ color: "#3b82f6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const sma200 = chart.addLineSeries({ color: "#ec4899", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
@@ -476,8 +477,14 @@ function vwapData() {
 
 // إظهار/إخفاء VWAP و MA20 (يُحفظ في المتصفح)
 let overlays;
-try { overlays = JSON.parse(localStorage.getItem("overlays")) || ["vwap", "ma20", "signals"]; } catch { overlays = ["vwap", "ma20", "signals"]; }
+try { overlays = JSON.parse(localStorage.getItem("overlays")) || ["volume", "vwap", "ma20", "signals"]; } catch { overlays = ["volume", "vwap", "ma20", "signals"]; }
+// الحجم صار خيارًا: يظهر افتراضيًا لمن حفظ إعداداته قبل إضافته
+try { if (!localStorage.getItem("ov_volume_init")) { if (!overlays.includes("volume")) overlays.push("volume"); localStorage.setItem("ov_volume_init", "1"); } } catch {}
 function applyOverlays() {
+  const vol = overlays.includes("volume");
+  volume.applyOptions({ visible: vol });
+  // مع الحجم: الشموع فوق والحجم في شريط مستقل أسفلها بدل أن يتداخلا؛ بدونه تأخذ الشموع الارتفاع كله
+  candles.priceScale().applyOptions({ scaleMargins: vol ? { top: 0.06, bottom: 0.24 } : { top: 0.06, bottom: 0.06 } });
   vwapLine.applyOptions({ visible: overlays.includes("vwap") });
   ma20.applyOptions({ visible: overlays.includes("ma20") });
   sma50.applyOptions({ visible: overlays.includes("sma50") });
@@ -611,7 +618,8 @@ function applyLive(q) {
   // آخر شمعة تتبع نفس السعر المعروض أعلى الصفحة (من البث أو الماسح) حسب الجلسة الحالية،
   // حتى لا يختلف سعر الشارت عن السعر المعروض عندما لا يصل البث المباشر للسهم
   const session = marketSession()[1];
-  const price = session === "open" || q.live ? q.price
+  // نفس قاعدة السعر الكبير أعلى الصفحة وخانة صفقتي: سعر الجلسة الحالية
+  const price = session === "open" ? q.price
     : session === "night" ? q.night_price ?? null
     : session === "ext" ? q.ext_price ?? null
     : null;
@@ -648,19 +656,27 @@ async function loadKpis() {
     const night = marketSession()[1] === "night" && q.night_price != null;
     const xp = night ? q.night_price : q.ext_price, pct = night ? q.night_change_pct : q.ext_change_pct;
     const xlive = night ? q.night_live : q.ext_live;
+    // السعر الكبير = سعر الجلسة الحالية (نفس سعر الشارت وصفقتي)، والخانة الجانبية = سعر الجلسة الأخرى
+    const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const extLabel = night ? "🌙 التداول الليلي" : ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
+    const inExt = xp != null && marketSession()[1] !== "open";
+    const live = '<span style="color:#facc15" title="سعر لحظي">⚡</span>';
+    const pctHtml = v => v == null ? "" : `<span class="${v >= 0 ? "up" : "down"}" style="font-size:14px">${(v >= 0 ? "+" : "") + v.toFixed(2) + "%"}</span>`;
+    const mainPx = inExt ? xp : q.price, mainPct = inExt ? pct : q.change_pct;
     extBox.hidden = xp == null;
     if (xp != null) {
-      const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      document.getElementById("k-ext-label").textContent = night ? "🌙 التداول الليلي" : ny.getHours() < 12 ? "قبل الافتتاح" : "بعد الإغلاق";
-      document.getElementById("k-ext-live").innerHTML = xlive ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
-      document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(xp, xp < 1 ? 4 : 2)} <span class="${pct >= 0 ? "up" : "down"}" style="font-size:14px">${pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%"}</span>`;
+      document.getElementById("k-ext-label").textContent = inExt ? "إغلاق الجلسة الرسمية" : extLabel;
+      document.getElementById("k-ext-live").innerHTML = !inExt && xlive ? live : "";
+      const sideP = inExt ? q.price : xp, sideC = inExt ? q.change_pct : pct;
+      document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(sideP, sideP < 1 ? 4 : 2)} ${pctHtml(sideC)}`;
     }
-    window.PositionWidget?.price(SYMBOL, xp ?? q.price);
-    const sign = q.change_pct >= 0 ? "+" : "";
-    document.getElementById("k-price").textContent = CURRENCY + f(q.price, q.price < 1 ? 4 : 2);
-    document.getElementById("k-live").innerHTML = q.live ? '<span style="color:#facc15" title="سعر لحظي">⚡</span>' : "";
+    window.PositionWidget?.price(SYMBOL, mainPx);
+    document.getElementById("k-price").textContent = CURRENCY + f(mainPx, mainPx < 1 ? 4 : 2);
+    document.getElementById("k-live").innerHTML = (inExt ? xlive : q.live) ? live : "";
     const ch = document.getElementById("k-change");
-    ch.textContent = `${sign}${f(q.change_pct)}%`; ch.className = q.change_pct >= 0 ? "up" : "down";
+    ch.textContent = `${mainPct >= 0 ? "+" : ""}${f(mainPct)}%`; ch.className = mainPct >= 0 ? "up" : "down";
+    ch.title = inExt ? `${extLabel}: التغير عن إغلاق الجلسة الرسمية` : "التغير عن إغلاق أمس";
+    document.getElementById("k-session").textContent = inExt ? extLabel : "";
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);

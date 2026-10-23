@@ -20,7 +20,7 @@
 
   // السهم المعروض: سهم الصفحة إن كانت له صفقة، وإلا آخر صفقة فُتحت، وإلا سهم الصفحة
   let sym = (PAGE && all()[PAGE]) ? PAGE : load(ACTIVE, null) && all()[load(ACTIVE, null)] ? load(ACTIVE, null) : PAGE;
-  let prices = {}, ui = load(UI, { min: false });
+  let prices = {}, pushed = {}, ui = load(UI, { min: false });
   if ("x" in ui || "y" in ui) { delete ui.x; delete ui.y; save(UI, ui); }
 
   const css = document.createElement("style");
@@ -127,7 +127,10 @@
     if (!syms.length) return render();
     try {
       const q = await (await fetch("/api/quotes?symbols=" + syms.map(encodeURIComponent).join(","))).json();
-      for (const s of syms) { const p = sessionPrice(q[s]); if (p != null) prices[s] = p; }
+      for (const s of syms) {
+        if (Date.now() - (pushed[s] || 0) < 12000) continue;  // صفحة السهم أرسلت سعرها للتو: هو المرجع
+        const p = sessionPrice(q[s]); if (p != null) prices[s] = p;
+      }
     } catch {}
     render(); check();
   }
@@ -286,7 +289,7 @@
   window.PositionWidget = {
     levels: LEVELS,
     get: s => all()[s] || null,
-    price(s, p) { if (p != null) { prices[s] = p; if (s === sym) render(); } },  // صفحة السهم تمرر سعرها اللحظي
+    price(s, p) { if (p != null) { prices[s] = p; pushed[s] = Date.now(); if (s === sym) render(); check(); } },  // صفحة السهم تمرر سعرها اللحظي
   };
   build(); place(); refresh();
   window.dispatchEvent(new CustomEvent("positions-changed"));  // صفحة السهم ترسم خطوطها الآن
