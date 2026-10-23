@@ -57,6 +57,7 @@
   .mini-chip { padding:3px 9px; border-radius:6px; border:1px solid var(--line); background:none; color:var(--muted); cursor:pointer; font:inherit; font-size:12px; }
   .mini-chip.active { background:#2b3340; border-color:#64748b; color:#f1f5f9; }
   .flowbar { display:inline-block; height:6px; border-radius:3px; vertical-align:middle; margin-inline-start:6px; }
+  .bar-timer { position:absolute; z-index:4; pointer-events:none; direction:ltr; font-size:11px; font-variant-numeric:tabular-nums; color:#fff; padding:1px 0; text-align:center; border-radius:0 0 3px 3px; }
   .legend { position:absolute; top:6px; left:52px; z-index:4; pointer-events:none; direction:ltr; font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; background:rgba(15,20,25,.6); padding:3px 8px; border-radius:6px; font-variant-numeric:tabular-nums; }
   .legend b { color:var(--text); }
   .halt-banner { margin-top:10px; padding:10px 14px; border-radius:10px; background:#3d1717; border:1px solid #7f1d1d; color:#fecaca; font-weight:500; }
@@ -254,6 +255,7 @@
   <div class="draw-toolbar" id="draw-toolbar"></div>
   <div class="legend" id="legend"></div>
   <div id="live-chart"></div>
+  <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
   <div id="tv_chart" hidden></div>
   <div class="empty muted" id="chart-empty" hidden>لا توجد بيانات لهذا الفاصل</div>
 </div>
@@ -644,6 +646,38 @@ function applyLive(q) {
   showLegend(b, bars[bars.length - 2]);
   indicators.update();
 }
+
+// عداد إغلاق الشمعة: الوقت المتبقي حتى تُغلق الشمعة الحالية حسب الفاصل، تحت ملصق السعر على المحور
+const SPAN = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600 };
+function barTimer() {
+  const box = document.getElementById("bar-timer");
+  const last = bars[bars.length - 1];
+  let left = null;
+  if (last && document.getElementById("tv_chart").hidden) {  // الشارت اللحظي فقط
+    const now = Math.floor(Date.now() / 1000) + 3 * 3600;  // نفس إزاحة وقت الشموع
+    if (STEP[interval]) left = STEP[interval] - (now % STEP[interval]);
+    else if (SPAN[interval]) left = last.time + SPAN[interval] - now;  // شموع الساعة تبدأ 9:30
+    else {
+      // اليوم والأسبوع: حتى إغلاق الجلسة الرسمية 4 م نيويورك (الأسبوع: الجمعة)
+      const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const end = new Date(ny); end.setHours(16, 0, 0, 0);
+      if (interval === "1w") end.setDate(end.getDate() + (5 - end.getDay()));
+      if (interval === "1w" || (interval === "1d" && marketSession()[1] === "open")) left = Math.round((end - ny) / 1000);
+    }
+  }
+  if (left == null || left <= 0 || left > 7 * 86400) { box.hidden = true; return; }
+  const y = candles.priceToCoordinate(last.close), w = chart.priceScale("right").width();
+  if (y == null || !w) { box.hidden = true; return; }
+  const d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), sec = left % 60;
+  const p2 = n => String(n).padStart(2, "0");
+  box.textContent = d ? `${d}ي ${p2(h)}:${p2(m)}` : h ? `${h}:${p2(m)}:${p2(sec)}` : `${p2(m)}:${p2(sec)}`;
+  box.style.background = candles.options().priceLineColor || "#22c55e";  // نفس لون ملصق السعر فوقه
+  box.style.top = (el.offsetTop + y + 10) + "px";
+  box.style.left = (el.offsetLeft + el.clientWidth - w) + "px";
+  box.style.width = w + "px";
+  box.hidden = false;
+}
+setInterval(barTimer, 1000);
 
 async function loadKpis() {
   try {
