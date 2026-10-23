@@ -277,6 +277,40 @@ _HARAM = {
     "financial conglomerates": "مجموعات مالية تقليدية", "shell compan": "شركة استحواذ (أموالها في ودائع بفائدة)",
     "winer": "خمور", "distiller": "خمور", "brewer": "خمور", "tobacco": "تبغ", "gambling": "قمار", "casino": "قمار وكازينوهات",
 }
+# كلمات النشاط المحرم في اسم الشركة ووصف نشاطها (من ياهو)، لأن تصنيف القطاع وحده لا يكشف
+# مثلًا منتج لحوم خنزير مصنف "أغذية" أو ملاهٍ ليلية مصنفة "مطاعم"
+_HARAM_TERMS = [
+    (re.compile(r"\b(pork|hogs?|swine|bacon|pig farming)\b", re.I), "لحوم الخنزير", True),
+    (re.compile(r"\b(alcoholic beverages?|alcohol beverages?|spirits|whisk(e)?y|vodka|tequila|bourbon|gin|rum|liquors?|wines?|winer(y|ies)|"
+                r"beers?|brewer(y|ies|s)?|brewing|distill(ery|eries|ers|ed|ing)|sake|champagne|cider|hard seltzers?)\b", re.I), "خمور ومشروبات روحية", False),
+    (re.compile(r"\b(casinos?|gambling|sports? betting|sportsbooks?|lotter(y|ies)|wagering|i-?gaming|slot machines?|bingo|racetracks?|horse racing)\b", re.I), "قمار ومراهنات", True),
+    (re.compile(r"\b(night ?clubs?|gentlemen'?s clubs?|adult entertainment|strip clubs?|cabarets?|adult (content|films?|videos?|websites?)|"
+                r"pornograph\w*|escort services?|dance clubs?)\b", re.I), "ملاهٍ ليلية ومراقص ومحتوى إباحي", True),
+    (re.compile(r"\b(cannabis|marijuana|hemp-derived thc|thc products?)\b", re.I), "حشيش وماريجوانا", True),
+    (re.compile(r"\b(tobacco|cigarettes?|cigars?|vap(e|es|ing)|nicotine)\b", re.I), "تبغ ونيكوتين", False),
+    (re.compile(r"\b(payday loans?|pawn ?(shops?|loans?)|consumer loans?|title loans?)\b", re.I), "إقراض بفائدة", False),
+]
+
+
+_ABBR = re.compile(r"\b(Inc|Corp|Co|Ltd|Plc|Corp|Bros|No|St|Jr|Sr|U\.S|S\.A|N\.V|L\.P|L\.L\.C)\.", re.I)
+
+
+def _haram_text(name, summary):
+    """(السبب، قطعي؟) من اسم الشركة ووصفها.
+    الخنزير والقمار والملاهي والإباحية والحشيش: أي ذكر = غير متوافق.
+    الخمور والتبغ والإقراض: في الاسم أو أول جملة أو جملتين فأكثر = نشاط أساسي، ذكر عابر (متجر يبيعها) = مراجعة."""
+    name = name or ""
+    text = _ABBR.sub(lambda m: m.group(1).replace(".", ""), summary or "")  # "Inc." ليست نهاية جملة
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    for rx, why, strict in _HARAM_TERMS:
+        if rx.search(name):
+            return why, True
+        sentences = [x for x in parts if rx.search(x)]
+        if sentences:
+            return why, strict or len(sentences) >= 2 or bool(rx.search(parts[0]))
+    return None, False
+
+
 _REVIEW = {"reit": "صندوق عقاري — يعتمد على مصدر الإيجارات", "entertainment": "ترفيه — يعتمد على المحتوى",
            "aerospace & defense": "صناعات دفاعية — تختلف الفتاوى", "lodging": "فنادق — قد تشمل خمورًا"}
 
@@ -286,6 +320,8 @@ def sharia_for(symbol):
     e = _floats.get(symbol) or {}
     if "sector" not in e:
         return {"status": "unknown", "why": "لم تُجلب بيانات الشركة بعد"}
+    if "summary" not in e and not e.get("sector"):
+        return {"status": "unknown", "why": "جارٍ تحديث بيانات الشركة"}
     if e.get("quote_type") and e["quote_type"] != "EQUITY":
         return {"status": "unknown", "why": "صندوق/أداة ليست سهم شركة — يُفحص حسب مكوناته"}
     act = f"{e.get('sector') or ''} {e.get('industry') or ''}".lower().replace("—", " ").replace(" - ", " ")
@@ -299,11 +335,17 @@ def sharia_for(symbol):
     for k, why in _HARAM.items():
         if k in act:
             return {**out, "status": "no", "why": f"النشاط: {why}"}
+    why, core = _haram_text(e.get("name"), e.get("summary"))
+    if why and core:
+        return {**out, "status": "no", "why": f"النشاط: {why}"}
+    mention = f"وصف الشركة يذكر {why} — قد يكون جزءًا صغيرًا من الإيرادات (يُقبل عند كثير من الهيئات إن قل عن 5% مع التطهير)" if why else None
     bad = [f"الديون {out['debt_pct']}% من القيمة السوقية (الحد {SHARIA_MAX_PCT}%)"] if out.get("debt_pct", 0) > SHARIA_MAX_PCT else []
     if out.get("cash_pct", 0) > SHARIA_MAX_PCT:
         bad.append(f"النقد والودائع {out['cash_pct']}% من القيمة السوقية (الحد {SHARIA_MAX_PCT}%)")
     if bad:
         return {**out, "status": "no", "why": " · ".join(bad)}
+    if mention:
+        return {**out, "status": "review", "why": mention}
     for k, why in _REVIEW.items():
         if k in act:
             return {**out, "status": "review", "why": why}
@@ -321,13 +363,14 @@ def _fetch_info(s):
         "float": info.get("floatShares"), "at": time.time(),
         "sector": info.get("sector"), "industry": info.get("industry"), "quote_type": info.get("quoteType"),
         "debt": info.get("totalDebt"), "cash": info.get("totalCash"), "market_cap": info.get("marketCap"),
+        "name": info.get("longName") or info.get("shortName"), "summary": (info.get("longBusinessSummary") or "")[:2500],
     }
 
 
 def ensure_info(symbol):
     """صفحة سهم فُتحت: اجلب بياناته (الأسهم الحرة والفحص الشرعي) الآن بدل انتظار دوره."""
     e = _floats.get(symbol)
-    if (e and "sector" in e) or symbol in _pending_info:
+    if (e and "summary" in e) or symbol in _pending_info:
         return
     _pending_info.add(symbol)
 
@@ -347,7 +390,7 @@ def _floats_loop(get_symbols):
         symbols = get_symbols()
         now = time.time()
         # البيانات القديمة بلا قطاع تُعاد لإضافة الفحص الشرعي
-        todo = [s for s in symbols if s not in _floats or now - _floats[s].get("at", 0) > FLOAT_MAX_AGE or "sector" not in _floats[s]]
+        todo = [s for s in symbols if s not in _floats or now - _floats[s].get("at", 0) > FLOAT_MAX_AGE or "summary" not in _floats[s]]
         for i, s in enumerate(todo):
             try:
                 _fetch_info(s)  # الأسهم الحرة + النشاط والديون والنقد للفحص الشرعي
