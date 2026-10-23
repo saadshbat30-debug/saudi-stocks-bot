@@ -184,6 +184,7 @@
     <div class="range-bar"><span id="d-r52-dot"></span></div>
     <div class="range-ends"><bdi dir="ltr" id="d-r52-low">—</bdi><bdi dir="ltr" id="d-r52-high">—</bdi></div>
     <span hidden><b id="d-h52"></b><b id="d-l52"></b></span></div>
+  <div class="st-cell" title="فحص شرعي تقريبي (ليس فتوى)"><span class="muted">☪️ الشرعية</span><b id="k-sharia">—</b></div>
   <div class="st-cell"><span class="muted" title="RSI على الشموع اليومية">RSI يومي</span><b id="k-rsi">—</b></div>
   <div class="st-cell"><span class="muted">متوسط 20 / 50</span><b><span id="k-sma20">—</span> / <span id="k-sma50">—</span></b></div>
   <div class="st-tools">
@@ -678,6 +679,9 @@ async function loadKpis() {
     ch.title = inExt ? `${extLabel}: التغير عن إغلاق الجلسة الرسمية` : "التغير عن إغلاق أمس";
     document.getElementById("k-session").textContent = inExt ? extLabel : "";
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
+    const sh = document.getElementById("k-sharia");
+    sh.innerHTML = { ok: '<span class="up">✅ متوافق</span>', no: '<span class="down">❌ غير متوافق</span>', review: '<span style="color:#facc15">⚠️ يحتاج مراجعة</span>' }[q.sharia] || '<span class="muted">⏳ جارٍ الفحص</span>';
+    sh.parentElement.title = (q.sharia_why || "") + " · فحص تقريبي على طريقة AAOIFI وليس فتوى";
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
     const pf = v => v == null ? "—" : CURRENCY + v.toFixed(v < 1 ? 4 : 2);

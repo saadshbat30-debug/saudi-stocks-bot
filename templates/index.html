@@ -113,6 +113,7 @@
   <button class="chip" data-tab="high">عند قمة اليوم</button>
   <button class="chip" data-tab="lowfloat" title="الأسهم الحرة أقل من {{ (low_float / 1e6)|int }} مليون سهم — أقوى تحركات الأسهم الصغيرة">🎯 أسهم حرة قليلة</button>
   <button class="chip" data-tab="halted">⏸️ موقوفة</button>
+  <button class="chip" data-tab="sharia" title="متوافقة مع الضوابط الشرعية (فحص تقريبي على طريقة AAOIFI: النشاط + الديون والنقد ≤ 30% من القيمة السوقية)">☪️ شرعية</button>
   <button class="chip" data-tab="fav">★ المفضلة</button>
   <button class="chip" data-tab="custom" id="cf-tab" title="اختر أي شروط تريدها وادمجها معًا">🧩 فلتري</button>
   <a class="chip" href="/breakout" title="فلتر قبل الانطلاق: نشاط غير معتاد والسعر في نطاق ضيق — مع تسجيل ومتابعة الإشارات">⚡ قبل الانطلاق</a>
@@ -221,6 +222,7 @@ const TABS = {
   lowfloat:  { sort: "change_pct", asc: false, filter: q => q.float != null && q.float < LOW_FLOAT && active(q) },
   halted:    { sort: "change_pct", asc: false, filter: q => haltedNow.has(q.symbol) },
   custom:    { sort: "change_pct", asc: false, filter: q => cfPass(q) },
+  sharia:    { sort: "change_pct", asc: false, filter: q => q.sharia === "ok" && active(q) },
 };
 
 const store = {
@@ -284,9 +286,12 @@ const COLUMNS = [
   { key: "market_cap", label: "القيمة السوقية", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>` },
   { key: "float", label: "الأسهم الحرة", title: "الأسهم الحرة المتاحة للتداول (Float)",
     cell: q => `<td class="num" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi></td>` },
+  { key: "sharia", label: "شرعي", title: "فحص شرعي تقريبي: النشاط، والديون والنقد ≤ 30% من القيمة السوقية — ليس فتوى",
+    cell: q => `<td title="${esc(q.sharia_why || "")}">${SHARIA_TAG[q.sharia] || '<span class="muted">—</span>'}</td>` },
   { key: "signals", label: "الإشارات", nosort: true, cell: q => `<td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>` },
 ];
 const COL = Object.fromEntries(COLUMNS.map(c => [c.key, c]));
+const SHARIA_TAG = { ok: '<span class="tag up">✅ متوافق</span>', no: '<span class="tag down">❌ غير متوافق</span>', review: '<span class="tag warn">⚠️ مراجعة</span>', unknown: '<span class="muted">—</span>' };
 let lastCount = 0, dragging = false;  // أثناء سحب عمود لا يُعاد رسم الجدول حتى لا ينقطع السحب
 let venue = store.get("venue_" + MARKET, "all");
 let colOrder = store.get("col_order", []).filter(k => COL[k]);
@@ -372,6 +377,7 @@ const CF_FIELDS = [
   { k: "uptrend", label: "اتجاه صاعد (السعر > م20 > م50)", test: q => q.sma20 && q.sma50 && q.price > q.sma20 && q.sma20 > q.sma50 },
   { k: "live", label: "سعر لحظي ⚡ فقط", test: q => q.live },
   { k: "listed", label: "مدرج فقط (بدون OTC)", test: q => !q.otc },
+  { k: "sharia_ok", label: "☪️ متوافق شرعيًا فقط", test: q => q.sharia === "ok" },
   { k: "lowfloat_tag", label: "أسهم حرة قليلة 🎯", test: q => q.float != null && q.float < LOW_FLOAT },
 ];
 const CF_PRESETS = {
@@ -470,6 +476,7 @@ function render() {
     const want = search.toUpperCase();
     const msg = search && extraPending.has(want) ? `جارٍ البحث عن ${esc(want)}…`
       : search && extraMiss.has(want) ? `لم يُعثر على ${esc(want)} — اضغط Enter لفتح صفحته`
+      : tab === "sharia" && rows.length ? "لا توجد أسهم متوافقة بعد — بيانات الشركات تُجلب في الخلفية تدريجيًا (الأنشط أولًا)"
       : tab === "custom" && rows.length ? (cfActive().length ? "لا توجد أسهم تطابق كل شروط فلتري الآن" : "فعّل شرطًا واحدًا على الأقل من لوحة فلتري بالأعلى")
       : !rows.length ? "جارٍ تحميل البيانات…" : ext === 2 ? nightMsg() : ext ? "لا توجد أسعار قبل/بعد الجلسة الآن" : "لا توجد أسهم بهذا الفلتر";
     tbody.innerHTML = `<tr><td colspan="${cols.length + 4}" class="muted" style="text-align:center;padding:24px">${msg}</td></tr>`;

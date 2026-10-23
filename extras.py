@@ -267,15 +267,90 @@ def float_for(symbol):
     return entry.get("float") if entry else None
 
 
+# ===== الفحص الشرعي (تقريبي، على طريقة معايير AAOIFI والمؤشرات الإسلامية) =====
+# 1) النشاط: يُستبعد النشاط المحرم أصلًا، ويُعلَّم النشاط المختلط "يحتاج مراجعة"
+# 2) النسب: الديون ÷ القيمة السوقية ≤ 30%، والنقد والودائع ÷ القيمة السوقية ≤ 30%
+SHARIA_MAX_PCT = 30
+_HARAM = {
+    "bank": "بنوك تقليدية", "insurance": "تأمين تقليدي", "credit services": "إقراض بفائدة",
+    "mortgage": "تمويل عقاري بفائدة", "capital markets": "خدمات مالية تقليدية", "asset management": "إدارة أصول تقليدية",
+    "financial conglomerates": "مجموعات مالية تقليدية", "shell compan": "شركة استحواذ (أموالها في ودائع بفائدة)",
+    "winer": "خمور", "distiller": "خمور", "brewer": "خمور", "tobacco": "تبغ", "gambling": "قمار", "casino": "قمار وكازينوهات",
+}
+_REVIEW = {"reit": "صندوق عقاري — يعتمد على مصدر الإيجارات", "entertainment": "ترفيه — يعتمد على المحتوى",
+           "aerospace & defense": "صناعات دفاعية — تختلف الفتاوى", "lodging": "فنادق — قد تشمل خمورًا"}
+
+
+def sharia_for(symbol):
+    """{"status": ok/no/review/unknown، "why": السبب، "debt_pct"، "cash_pct"} من بيانات الشركة المحفوظة."""
+    e = _floats.get(symbol) or {}
+    if "sector" not in e:
+        return {"status": "unknown", "why": "لم تُجلب بيانات الشركة بعد"}
+    if e.get("quote_type") and e["quote_type"] != "EQUITY":
+        return {"status": "unknown", "why": "صندوق/أداة ليست سهم شركة — يُفحص حسب مكوناته"}
+    act = f"{e.get('sector') or ''} {e.get('industry') or ''}".lower().replace("—", " ").replace(" - ", " ")
+    cap, debt, cash = e.get("market_cap"), e.get("debt"), e.get("cash")
+    out = {"industry": e.get("industry"), "sector": e.get("sector")}
+    if cap:
+        if debt is not None:
+            out["debt_pct"] = round(debt / cap * 100, 1)
+        if cash is not None:
+            out["cash_pct"] = round(cash / cap * 100, 1)
+    for k, why in _HARAM.items():
+        if k in act:
+            return {**out, "status": "no", "why": f"النشاط: {why}"}
+    bad = [f"الديون {out['debt_pct']}% من القيمة السوقية (الحد {SHARIA_MAX_PCT}%)"] if out.get("debt_pct", 0) > SHARIA_MAX_PCT else []
+    if out.get("cash_pct", 0) > SHARIA_MAX_PCT:
+        bad.append(f"النقد والودائع {out['cash_pct']}% من القيمة السوقية (الحد {SHARIA_MAX_PCT}%)")
+    if bad:
+        return {**out, "status": "no", "why": " · ".join(bad)}
+    for k, why in _REVIEW.items():
+        if k in act:
+            return {**out, "status": "review", "why": why}
+    if not cap or debt is None or not e.get("industry"):
+        return {**out, "status": "unknown", "why": "بيانات الديون أو النشاط غير متوفرة من ياهو"}
+    return {**out, "status": "ok", "why": f"النشاط مباح · الديون {out.get('debt_pct', 0)}% · النقد {out.get('cash_pct', 0)}%"}
+
+
+_pending_info = set()
+
+
+def _fetch_info(s):
+    info = yf.Ticker(s).info or {}
+    _floats[s] = {
+        "float": info.get("floatShares"), "at": time.time(),
+        "sector": info.get("sector"), "industry": info.get("industry"), "quote_type": info.get("quoteType"),
+        "debt": info.get("totalDebt"), "cash": info.get("totalCash"), "market_cap": info.get("marketCap"),
+    }
+
+
+def ensure_info(symbol):
+    """صفحة سهم فُتحت: اجلب بياناته (الأسهم الحرة والفحص الشرعي) الآن بدل انتظار دوره."""
+    e = _floats.get(symbol)
+    if (e and "sector" in e) or symbol in _pending_info:
+        return
+    _pending_info.add(symbol)
+
+    def run():
+        try:
+            _fetch_info(symbol)
+            _save_floats()
+        except Exception as ex:
+            print(f"⚠️ فشل جلب بيانات {symbol}: {ex}")
+        finally:
+            _pending_info.discard(symbol)
+    threading.Thread(target=run, daemon=True).start()
+
+
 def _floats_loop(get_symbols):
     while True:
         symbols = get_symbols()
         now = time.time()
-        todo = [s for s in symbols if s not in _floats or now - _floats[s].get("at", 0) > FLOAT_MAX_AGE]
+        # البيانات القديمة بلا قطاع تُعاد لإضافة الفحص الشرعي
+        todo = [s for s in symbols if s not in _floats or now - _floats[s].get("at", 0) > FLOAT_MAX_AGE or "sector" not in _floats[s]]
         for i, s in enumerate(todo):
             try:
-                info = yf.Ticker(s).info or {}
-                _floats[s] = {"float": info.get("floatShares"), "at": time.time()}
+                _fetch_info(s)  # الأسهم الحرة + النشاط والديون والنقد للفحص الشرعي
             except Exception as e:
                 if "rate" in str(e).lower() or "too many" in str(e).lower():
                     # ياهو يحد الطلبات: توقف 10 دقائق حتى لا يتأثر تحديث الأسعار
@@ -283,7 +358,7 @@ def _floats_loop(get_symbols):
                     _save_floats()
                     time.sleep(600)
                     continue
-                _floats[s] = {"float": None, "at": time.time() - FLOAT_MAX_AGE + 86400}  # أعد المحاولة غدًا
+                _floats[s] = {"float": None, "sector": None, "at": time.time() - FLOAT_MAX_AGE + 86400}  # أعد المحاولة غدًا
             if i % 20 == 19:
                 _save_floats()
             time.sleep(4)  # بطيء عمدًا: الأسعار أهم من الأسهم الحرة

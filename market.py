@@ -564,6 +564,8 @@ def _enrich(r, now):
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]
     # الأسهم الحرة (إن جُلبت) أدق للتدوير، مثل موموو
     r["float"] = extras.float_for(symbol)
+    sh = extras.sharia_for(symbol)
+    r["sharia"], r["sharia_why"] = sh["status"], sh["why"]
     shares = r["float"] or shares
     typical = (r["day_high"] + r["day_low"] + price) / 3 if r["day_high"] and r["day_low"] else price
     r["value"] = round(typical * volume)

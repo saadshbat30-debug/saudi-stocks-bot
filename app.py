@@ -45,6 +45,7 @@ def stock(symbol):
     market_id, name = find_stock(symbol)
     watch_night(symbol)  # يُضاف لجلب أسعار التداول الليلي
     name = INDICES.get(symbol) or name_for(symbol) or name
+    extras.ensure_info(symbol)  # الفحص الشرعي والأسهم الحرة لهذا السهم فورًا
     return render_template(
         "stock.html",
         markets=MARKETS,
@@ -192,7 +193,12 @@ def api_quotes():
     """?symbols=AAPL,MSFT,2222.SR"""
     symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
     symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:MAX_SYMBOLS]
-    return jsonify(get_quotes(symbols) if symbols else {})
+    quotes = get_quotes(symbols) if symbols else {}
+    for s, q in quotes.items():  # الأسهم خارج قائمة السوق لا يمر عليها الفحص الشرعي في الماسح
+        if "sharia" not in q:
+            sh = extras.sharia_for(s)
+            q["sharia"], q["sharia_why"] = sh["status"], sh["why"]
+    return jsonify(quotes)
 
 
 @app.route("/api/raw/<symbol>")
