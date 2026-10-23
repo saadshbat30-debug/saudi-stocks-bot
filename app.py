@@ -160,10 +160,10 @@ def api_sharia_list():
     """قائمة شرعية يستوردها المستخدم بلصق نص الصفحة (مثل قائمة يقين للأسهم الحلال)."""
     if request.method == "POST":
         body = request.get_json(silent=True) or {}
-        halal, haram = extras.parse_sharia_text(body.get("text", ""))
+        halal, haram, purify = extras.parse_sharia_text(body.get("text", ""))
         if not halal and not haram:
             return jsonify({"error": "لم أجد رموز أسهم في النص — انسخ الصفحة كاملة (Ctrl+A ثم Ctrl+C)"}), 400
-        extras.set_sharia_list(halal, haram, (body.get("source") or "قائمة يقين").strip()[:40])
+        extras.set_sharia_list(halal, haram, (body.get("source") or "قائمة يقين").strip()[:40], purify)
     elif request.method == "DELETE":
         extras.clear_sharia_list()
     return jsonify(extras.sharia_list_info())
@@ -212,7 +212,7 @@ def api_quotes():
     for s, q in quotes.items():  # الأسهم خارج قائمة السوق لا يمر عليها الفحص الشرعي في الماسح
         if "sharia" not in q:
             sh = extras.sharia_for(s)
-            q["sharia"], q["sharia_why"], q["sharia_src"] = sh["status"], sh["why"], sh.get("source")
+            q["sharia"], q["sharia_why"], q["sharia_src"], q["purify"] = sh["status"], sh["why"], sh.get("source"), sh.get("purify")
     return jsonify(quotes)
 
 

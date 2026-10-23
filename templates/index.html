@@ -296,7 +296,7 @@ async function shLoad(info) {
     const d = info || await (await fetch("/api/sharia_list")).json();
     const when = d.at ? new Date(d.at * 1000).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "short", year: "numeric" }) : "";
     document.getElementById("sh-src").innerHTML = d.source
-      ? `المصدر: <b>${esc(d.source)}</b> — ${d.halal.toLocaleString("en-US")} سهم حلال${d.haram ? ` و ${d.haram} غير حلال` : ""} · استُوردت ${when} · غير المدرج فيها = غير متوافق`
+      ? `المصدر: <b>${esc(d.source)}</b> — ${d.halal.toLocaleString("en-US")} سهم حلال${d.haram ? ` و ${d.haram} غير حلال` : ""}${d.purify ? ` · ${d.purify.toLocaleString("en-US")} بنسبة تطهير` : ""} · استُوردت ${when} · غير المدرج فيها = غير متوافق`
       : "المصدر: فحص تقريبي تلقائي (النشاط + الديون والنقد ≤ 30%) — لا يشمل نسبة الدخل المحرم؛ للدقة استورد قائمة جهة شرعية";
     document.getElementById("sh-clear").hidden = !d.source;
   } catch {}

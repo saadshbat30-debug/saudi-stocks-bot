@@ -318,7 +318,8 @@ _REVIEW = {"reit": "صندوق عقاري — يعتمد على مصدر الإ�
 # ===== قائمة شرعية يستوردها المستخدم (مثل قائمة يقين) — المرجع الأول إن وُجدت =====
 # تُحفظ على جهاز المستخدم فقط (data/ مستبعد من git)
 SHARIA_LIST_FILE = os.path.join(DATA_DIR, "sharia_list.json")
-_sharia_list = {"halal": set(), "haram": set(), "source": None, "at": None}
+_sharia_list = {"halal": set(), "haram": set(), "purify": {}, "source": None, "at": None}
+_PCT = re.compile(r"^(-?\d+(?:\.\d+)?)\s*%")
 _TICKER = re.compile(r"^[A-Z][A-Z0-9]{0,5}(?:[.\-][A-Z0-9]{1,3})?$")
 _YES = {"شرعي", "متوافق", "حلال", "halal", "compliant", "shariah compliant"}
 _NO = {"غير شرعي", "غير متوافق", "حرام", "not halal", "not compliant", "non-compliant", "doubtful", "مشكوك"}
@@ -328,39 +329,46 @@ def parse_sharia_text(text):
     """يستخرج الرموز من نص صفحة منسوخة: الرمز يتبعه خلال سطرين أو ثلاثة "شرعي" أو "غير شرعي".
     وإن لم توجد هذه الكلمات يُعامل النص كقائمة رموز حلال مفصولة بمسافات أو فواصل."""
     lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
-    halal, haram = set(), set()
+    halal, haram, purify = set(), set(), {}
     for i, line in enumerate(lines):
         if not _TICKER.match(line):
             continue
-        for nxt in lines[i + 1:i + 4]:
-            low = nxt.lower()
+        for j in range(i + 1, min(i + 4, len(lines))):
+            low = lines[j].lower()
             if low in _NO:
                 haram.add(line); break
             if low in _YES:
-                halal.add(line); break
+                halal.add(line)
+                # نسبة التطهير (إن ظهرت بعد الحكم، مثل صفحة يقين بعد تسجيل الدخول)
+                m = _PCT.match(lines[j + 1]) if j + 1 < len(lines) else None
+                if m:
+                    purify[line] = float(m.group(1))
+                break
     if not halal and not haram:
         halal = {t for t in re.split(r"[\s,;|]+", (text or "").upper()) if _TICKER.match(t)}
-    return halal - haram, haram
+    return halal - haram, haram, purify
 
 
 def _load_sharia_list():
     try:
         with open(SHARIA_LIST_FILE, encoding="utf-8") as f:
             d = json.load(f)
-        _sharia_list.update(halal=set(d.get("halal", [])), haram=set(d.get("haram", [])), source=d.get("source"), at=d.get("at"))
+        _sharia_list.update(halal=set(d.get("halal", [])), haram=set(d.get("haram", [])), purify=d.get("purify", {}),
+                            source=d.get("source"), at=d.get("at"))
     except (OSError, ValueError):
         pass
 
 
-def set_sharia_list(halal, haram, source):
-    _sharia_list.update(halal=set(halal), haram=set(haram), source=source or "قائمة مستوردة", at=int(time.time()))
+def set_sharia_list(halal, haram, source, purify=None):
+    _sharia_list.update(halal=set(halal), haram=set(haram), purify=dict(purify or {}), source=source or "قائمة مستوردة", at=int(time.time()))
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(SHARIA_LIST_FILE, "w", encoding="utf-8") as f:
-        json.dump({"halal": sorted(halal), "haram": sorted(haram), "source": _sharia_list["source"], "at": _sharia_list["at"]}, f, ensure_ascii=False)
+        json.dump({"halal": sorted(halal), "haram": sorted(haram), "purify": _sharia_list["purify"],
+                   "source": _sharia_list["source"], "at": _sharia_list["at"]}, f, ensure_ascii=False)
 
 
 def clear_sharia_list():
-    _sharia_list.update(halal=set(), haram=set(), source=None, at=None)
+    _sharia_list.update(halal=set(), haram=set(), purify={}, source=None, at=None)
     try:
         os.remove(SHARIA_LIST_FILE)
     except OSError:
@@ -369,7 +377,7 @@ def clear_sharia_list():
 
 def sharia_list_info():
     return {"source": _sharia_list["source"], "at": _sharia_list["at"],
-            "halal": len(_sharia_list["halal"]), "haram": len(_sharia_list["haram"])}
+            "halal": len(_sharia_list["halal"]), "haram": len(_sharia_list["haram"]), "purify": len(_sharia_list["purify"])}
 
 
 _load_sharia_list()
@@ -384,7 +392,10 @@ def sharia_for(symbol):
     note = {"ok": "متوافق", "no": "غير متوافق", "review": "يحتاج مراجعة"}.get(own["status"])
     extra = f" · فحص المنصة: {note}" if note else ""
     if symbol in _sharia_list["halal"]:
-        return {**own, "status": "ok", "why": f"{src}: شرعي{extra}", "source": src}
+        pur = _sharia_list["purify"].get(symbol)
+        pur_txt = f" · نسبة التطهير {pur:.2f}%" if pur is not None and pur >= 0 else ""
+        return {**own, "status": "ok", "why": f"{src}: شرعي{pur_txt}{extra}", "source": src,
+                "purify": pur if pur is not None and pur >= 0 else None}
     if symbol in _sharia_list["haram"]:
         return {**own, "status": "no", "why": f"{src}: غير شرعي{extra}", "source": src}
     # قائمة الأسهم الحلال فقط: غير المدرج فيها ليس حلالًا عندها (أو لم تقيّمه)

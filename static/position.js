@@ -20,7 +20,7 @@
 
   // السهم المعروض: سهم الصفحة إن كانت له صفقة، وإلا آخر صفقة فُتحت، وإلا سهم الصفحة
   let sym = (PAGE && all()[PAGE]) ? PAGE : load(ACTIVE, null) && all()[load(ACTIVE, null)] ? load(ACTIVE, null) : PAGE;
-  let prices = {}, pushed = {}, ui = load(UI, { min: false });
+  let prices = {}, pushed = {}, purify = {}, ui = load(UI, { min: false });
   if ("x" in ui || "y" in ui) { delete ui.x; delete ui.y; save(UI, ui); }
 
   const css = document.createElement("style");
@@ -57,6 +57,7 @@
   .pw-pnl > b { font-size:19px; direction:ltr; font-variant-numeric:tabular-nums; text-align:center; }
   .pw-pnl.up { border-color:#14532d; background:#0f1f17; } .pw-pnl.down { border-color:#7f1d1d; background:#1f1212; }
   .pw-pnl.up > b, .pw-sum.up, .pw-all b.up { color:var(--up); } .pw-pnl.down > b, .pw-sum.down, .pw-all b.down { color:var(--down); }
+  .pw-pnl small[hidden] { display:none; }
   .pw-pnl small { display:flex; gap:12px; font-size:11px; color:var(--muted); } .pw-pnl small b { color:var(--text); direction:ltr; }
   .pw-track { font-size:10.5px; color:var(--muted); }
   .pw-bar { position:relative; height:8px; border-radius:4px; background:linear-gradient(90deg,#ef4444,#3b4450 50%,#22c55e); direction:ltr; margin:4px 0 3px; }
@@ -128,6 +129,7 @@
     try {
       const q = await (await fetch("/api/quotes?symbols=" + syms.map(encodeURIComponent).join(","))).json();
       for (const s of syms) {
+        if (q[s]) purify[s] = q[s].purify ?? null;
         if (Date.now() - (pushed[s] || 0) < 12000) continue;  // صفحة السهم أرسلت سعرها للتو: هو المرجع
         const p = sessionPrice(q[s]); if (p != null) prices[s] = p;
       }
@@ -166,7 +168,8 @@
         <label>المبلغ $<input class="f" id="pw-cost" inputmode="decimal" placeholder="0.00" autocomplete="off" value="${p.buy && p.qty ? (p.buy * p.qty).toFixed(2) : ""}"></label>
       </div>
       <div class="pw-pnl" id="pw-pnl-box"><span>الربح / الخسارة</span><b id="pw-pnl">—</b>
-        <small><span>السعر الآن <b id="pw-now">—</b></span><span>القيمة الآن <b id="pw-val">—</b></span></small></div>
+        <small><span>السعر الآن <b id="pw-now">—</b></span><span>القيمة الآن <b id="pw-val">—</b></span></small>
+        <small id="pw-pur" hidden title="مبلغ التطهير التقريبي = الربح × نسبة التطهير (من القائمة الشرعية المستوردة)">🧼 التطهير <b id="pw-pur-v">—</b></small></div>
       <div class="pw-lv">${["stop1", "target1", "stop2", "target2"].map(k => `
         <label class="lv ${k.startsWith("stop") ? "stop" : "tgt"}"><span>${LEVELS[k].icon} ${LEVELS[k].label}</span>
           <input class="f" data-lv="${k}" inputmode="decimal" placeholder="—" autocomplete="off" value="${p[k] ?? ""}"><em data-out="${k}"></em></label>`).join("")}
@@ -240,7 +243,10 @@
       const pnl = (now - p.buy) * p.qty, pct = (now / p.buy - 1) * 100;
       el.textContent = `${sgn(pnl)}${money(pnl)}  (${sgn(pct)}${pct.toFixed(2)}%)`;
       card.className = "pw-pnl " + (pnl > 0 ? "up" : pnl < 0 ? "down" : "");
-    } else { el.textContent = "—"; card.className = "pw-pnl"; }
+      const r = purify[sym];
+      $("pw-pur").hidden = !(pnl > 0 && r > 0);
+      if (pnl > 0 && r > 0) $("pw-pur-v").textContent = `${money(pnl * r / 100)} (${r}%)`;
+    } else { el.textContent = "—"; card.className = "pw-pnl"; $("pw-pur").hidden = true; }
     for (const k in LEVELS) {
       const out = box.querySelector(`[data-out="${k}"]`), v = p[k];
       out.closest(".lv").classList.toggle("hit", !!p.hit?.[k]);

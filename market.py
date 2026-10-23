@@ -575,7 +575,7 @@ def _enrich(r, now):
     # الأسهم الحرة (إن جُلبت) أدق للتدوير، مثل موموو
     r["float"] = extras.float_for(symbol)
     sh = extras.sharia_for(symbol)
-    r["sharia"], r["sharia_why"], r["sharia_src"] = sh["status"], sh["why"], sh.get("source")
+    r["sharia"], r["sharia_why"], r["sharia_src"], r["purify"] = sh["status"], sh["why"], sh.get("source"), sh.get("purify")
     shares = r["float"] or shares
     typical = (r["day_high"] + r["day_low"] + price) / 3 if r["day_high"] and r["day_low"] else price
     r["value"] = round(typical * volume)
