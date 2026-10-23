@@ -59,6 +59,13 @@
   td.num { font-variant-numeric:tabular-nums; }
   .rank { color:var(--muted); font-size:12px; }
   .cf-panel { margin-bottom:10px; }
+  .sh-panel { margin-bottom:10px; }
+  .sh-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .sh-btns { margin-inline-start:auto; display:flex; gap:6px; }
+  .sh-modal { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
+  .sh-modal[hidden] { display:none; }
+  .sh-box { width:min(720px, calc(100vw - 24px)); background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+  .sh-box textarea { width:100%; height:260px; resize:vertical; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; font-size:12px; }
   .cf-head { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; font-size:13px; }
   .cf-presets { margin-inline-start:auto; display:flex; gap:4px; align-items:center; flex-wrap:wrap; color:var(--muted); }
   .cf-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:4px 14px; }
@@ -148,6 +155,32 @@
     <input class="field" id="add-input" placeholder="رمز آخر" autocomplete="off" style="width:100px;direction:ltr">
     <button class="btn">+</button>
   </form>
+</div>
+
+<div class="card sh-panel" id="sh-panel" hidden>
+  <div class="sh-row">
+    <b>☪️ الأسهم الشرعية</b>
+    <span class="muted" id="sh-src">—</span>
+    <span class="sh-btns">
+      <button class="btn" type="button" id="sh-import">📥 استيراد قائمة شرعية</button>
+      <button class="btn ghost" type="button" id="sh-clear" hidden title="الرجوع للفحص التقريبي التلقائي">حذف القائمة</button>
+    </span>
+  </div>
+  <div class="sh-modal" id="sh-modal" hidden>
+    <div class="sh-box">
+      <h3 style="margin:0 0 6px">📥 استيراد قائمة الأسهم الحلال</h3>
+      <ol class="muted" style="margin:0 0 8px;padding-inline-start:18px;line-height:1.8">
+        <li>افتح صفحة <b>الأسهم الحلال في السوق الأمريكي</b> في موقع الجهة التي تثق بها (مثل يقين)</li>
+        <li>اضغط <b>Ctrl+A</b> لتحديد الصفحة كلها ثم <b>Ctrl+C</b> للنسخ</li>
+        <li>الصق هنا بـ <b>Ctrl+V</b> واضغط حفظ</li>
+      </ol>
+      <div class="muted" style="font-size:12px;margin-bottom:6px">أو الصق قائمة رموز مفصولة بمسافات أو فواصل. تُحفظ القائمة على جهازك فقط، ويصير أي سهم غير مدرج فيها «غير متوافق».</div>
+      <label class="muted">المصدر: <input class="field" id="sh-source" value="قائمة يقين" style="width:160px"></label>
+      <textarea id="sh-text" placeholder="الصق نص الصفحة هنا…"></textarea>
+      <div class="sh-row"><span class="muted" id="sh-msg"></span>
+        <span class="sh-btns"><button class="btn ghost" type="button" id="sh-cancel">إلغاء</button><button class="btn" type="button" id="sh-save">حفظ القائمة</button></span></div>
+    </div>
+  </div>
 </div>
 
 <div class="card cf-panel" id="cf-panel" hidden>
@@ -256,6 +289,38 @@ function signals(q) {
   if (q.sma20 && q.sma50 && q.price < q.sma20 && q.sma20 < q.sma50) s.push(["اتجاه هابط", "down", "downtrend"]);
   return s;
 }
+
+// ===== القائمة الشرعية المستوردة (مثل يقين): المرجع الأول للحكم =====
+async function shLoad(info) {
+  try {
+    const d = info || await (await fetch("/api/sharia_list")).json();
+    const when = d.at ? new Date(d.at * 1000).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "short", year: "numeric" }) : "";
+    document.getElementById("sh-src").innerHTML = d.source
+      ? `المصدر: <b>${esc(d.source)}</b> — ${d.halal.toLocaleString("en-US")} سهم حلال${d.haram ? ` و ${d.haram} غير حلال` : ""} · استُوردت ${when} · غير المدرج فيها = غير متوافق`
+      : "المصدر: فحص تقريبي تلقائي (النشاط + الديون والنقد ≤ 30%) — لا يشمل نسبة الدخل المحرم؛ للدقة استورد قائمة جهة شرعية";
+    document.getElementById("sh-clear").hidden = !d.source;
+  } catch {}
+}
+document.getElementById("sh-import").onclick = () => { document.getElementById("sh-modal").hidden = false; document.getElementById("sh-text").focus(); };
+document.getElementById("sh-cancel").onclick = () => { document.getElementById("sh-modal").hidden = true; };
+document.getElementById("sh-save").onclick = async () => {
+  const msg = document.getElementById("sh-msg");
+  msg.textContent = "⏳ جارٍ الحفظ…";
+  try {
+    const r = await fetch("/api/sharia_list", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: document.getElementById("sh-text").value, source: document.getElementById("sh-source").value }) });
+    const d = await r.json();
+    if (!r.ok) { msg.textContent = "⚠️ " + (d.error || "تعذر الحفظ"); return; }
+    msg.textContent = `✅ حُفظ ${d.halal} سهم`;
+    document.getElementById("sh-text").value = "";
+    setTimeout(() => { document.getElementById("sh-modal").hidden = true; msg.textContent = ""; }, 900);
+    shLoad(d); refresh();
+  } catch { msg.textContent = "تعذر الاتصال بالمنصة"; }
+};
+document.getElementById("sh-clear").onclick = async () => {
+  if (!confirm("حذف القائمة المستوردة والرجوع للفحص التقريبي التلقائي؟")) return;
+  shLoad(await (await fetch("/api/sharia_list", { method: "DELETE" })).json()); refresh();
+};
 
 // تقدم فحص الشركات (يُجلب في الخلفية: الأسهم المدرجة الأعلى قيمة أولًا)
 function shariaMsg() {
@@ -675,6 +740,8 @@ function setTab(t) {
   if (!TABS[t]) t = "gainers";
   tab = t; sortKey = TABS[t].sort; sortAsc = TABS[t].asc; store.set("tab_" + MARKET, t);
   document.getElementById("cf-panel").hidden = t !== "custom";
+  document.getElementById("sh-panel").hidden = t !== "sharia";
+  if (t === "sharia") shLoad();
   document.querySelectorAll("#tabs [data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === t));
 }
 setTab(tab);

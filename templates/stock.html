@@ -681,7 +681,7 @@ async function loadKpis() {
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     const sh = document.getElementById("k-sharia");
     sh.innerHTML = { ok: '<span class="up">✅ متوافق</span>', no: '<span class="down">❌ غير متوافق</span>', review: '<span style="color:#facc15">⚠️ يحتاج مراجعة</span>' }[q.sharia] || '<span class="muted">⏳ جارٍ الفحص</span>';
-    sh.parentElement.title = (q.sharia_why || "") + " · فحص تقريبي على طريقة AAOIFI وليس فتوى";
+    sh.parentElement.title = (q.sharia_why || "") + (q.sharia_src ? ` · المرجع: ${q.sharia_src}` : " · فحص تقريبي على طريقة AAOIFI وليس فتوى");
     document.getElementById("k-sma20").textContent = f(q.sma20);
     document.getElementById("k-sma50").textContent = f(q.sma50);
     const pf = v => v == null ? "—" : CURRENCY + v.toFixed(v < 1 ? 4 : 2);
