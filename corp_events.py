@@ -371,9 +371,23 @@ _SUFFIX = {"inc", "corp", "corporation", "co", "company", "ltd", "limited", "plc
 _ROUNDUP = re.compile(r"stocks? to (watch|buy)|stock market today|mag(nificent)? ?7|wall street|stocktwits|dow jones|s&p 500|nasdaq composite|week ahead|movers|futures|earnings (calendar|week)|\btop \d+\b", re.I)
 
 
+_MOVE = re.compile(r"\b(up|down|jumps?|sinks?|slips?|rises?|falls?|soars?|ticks? up|eases?( back)?|climbs?|drops?|gains?|surges?|tumbles?)\b", re.I)
+
+
+def _first_named(title, symbol, name):
+    """هل الشركة مذكورة في أول العنوان (أول 3 كلمات)؟"""
+    head = " ".join(title.split()[:3]).lower()
+    words = [w for w in re.findall(r"[A-Za-z0-9]+", (name or "").lower()) if w not in _SUFFIX and len(w) >= 3]
+    return symbol.lower() in re.findall(r"[a-z0-9]+", head) or bool(words and words[0] in head)
+
+
 def about_company(title, symbol, name):
     """هل الخبر عن هذه الشركة؟ يذكر رمزها أو اسمها المميز (وليس مقال ملخص للسوق)."""
     if _ROUNDUP.search(title):
+        return False
+    # عنوان عن عدة شركات ("X يقفز 8%، Y يرتفع، Z يتراجع"): لا يُنسب لشركة ليست أول المذكورين
+    moves = len(_MOVE.findall(title))
+    if (";" in title or moves >= 2) and not _first_named(title, symbol, name):
         return False
     if len(symbol) >= 2 and re.search(rf"(?<![A-Za-z]){re.escape(symbol)}(?![A-Za-z])", title):
         return True
@@ -499,7 +513,9 @@ def news_snapshot():
         fast.append({**c, "symbol": w["symbol"], "title": w["title"], "url": w["url"], "time": w["time"],
                      "publisher": w["publisher"], "score": w["score"], "score_label": w["label"]})
     have = {i["url"] for i in fast}
-    merged = sorted(fast + [i for i in _news_state["items"] if i["url"] not in have], key=lambda i: (i["prio"], -(i["time"] or 0)))[:80]
+    # من أخبار ياهو: ما له أثر واضح فقط (درجة ±15 أو أكثر)، حتى لا يمتلئ الشريط بمقالات محايدة
+    scan = [i for i in _news_state["items"] if i["url"] not in have and abs(i.get("score") or 0) >= 15]
+    merged = sorted(fast + scan, key=lambda i: (i["prio"], -(i["time"] or 0)))[:80]
     return {"news": merged, "news_at": _news_state["at"], "news_stats": _news_state.get("stats"),
             "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"], "delist_info": _delist.get("info"),
             "sec_error": _delist.get("sec_error"), "news_sources": __import__("extras").NEWS_SRC}

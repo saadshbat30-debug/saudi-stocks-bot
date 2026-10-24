@@ -92,7 +92,11 @@ def _tone(text):
 # أخبار روتينية لا تحرك السهم: مواعيد النتائج والمؤتمرات، منح الموظفين، المشاركة في مؤتمرات
 ROUTINE = re.compile(r"inducement grants?|announces? .{0,40}(release date|date for|dates for)|schedules? .{0,60}(conference call|earnings (call|release)|webcast)|"
                      r"(to|will) (host|hold|present|participate|ring)|conference call (schedule|and webcast)|earnings release and conference call|"
-                     r"annual (general )?meeting|investor (day|conference)|fireside chat|to report .{0,40}results on", re.I)
+                     r"annual (general )?meeting|investor (day|conference)|fireside chat|to report .{0,40}results on|"
+                     r"earnings call transcript|call transcript|said on its .{0,20}(earnings )?call|earnings snapshot|what to expect (from|ahead)|"
+                     r"earnings preview|ahead of (its )?(q[1-4]|earnings)|key metrics", re.I)
+# إيقاف أو إلغاء طرح أسهم = خبر إيجابي (لا تخفيف)، ويُلغي قاعدة «طرح أسهم» السلبية
+STOP_OFFERING = re.compile(r"(suspen|terminat|withdr[ae]w|cancel|halt|ends?|discontinu)\w*\s+(of\s+)?(its\s+|the\s+)?.{0,40}offering", re.I)
 
 
 def is_routine(title):
@@ -110,7 +114,12 @@ def score(title, summary="", ctx=None):
 
     # 1) نوع الحدث: أقوى حدث إيجابي + أقوى حدث سلبي (العنوان أهم من الملخص)
     best_pos = best_neg = None
+    stop_offer = bool(STOP_OFFERING.search(title))
+    if stop_offer:
+        best_pos = (25, "إيقاف/إلغاء طرح أسهم (لا تخفيف)")
     for rx, w, why in EVENTS:
+        if stop_offer and why.startswith("طرح أسهم"):
+            continue
         hit_t, hit_s = rx.search(title), (rx.search(summary) if summary else None)
         if not (hit_t or hit_s):
             continue
