@@ -217,7 +217,9 @@ async function loadTest() {
        <div class="muted" style="margin-bottom:8px">أخبار مسجلة: <b>${t.total}</b>${t.median_delay_s != null ? ` · وسيط تأخر وصول الخبر للمنصة بعد نشره: <b>${t.median_delay_s < 120 ? t.median_delay_s + " ثانية" : Math.round(t.median_delay_s / 60) + " دقيقة"}</b>` : ""}
          · «قبل الحركة» = لم يتحرك السهم باتجاه الخبر ${r.moved_5m}% في آخر 5 دقائق ولا ${r.moved_day}% مقارنة بالسوق اليوم/قبل الافتتاح لحظة وصوله · الرقم = متوسط العائد الزائد عن S&amp;P 500 ± فترة ثقة 95%</div>
        <h4 style="margin:6px 0">🎯 الاختبار الحاسم: هل رُصد الخبر قبل الحركة؟</h4>${table(t.decisive, "المجموعة")}
-       <h4 style="margin:14px 0 6px">حسب درجة الاتجاه (كل الأخبار)</h4>${table(t.buckets, "الفئة")}`;
+       <h4 style="margin:14px 0 6px">حسب درجة الاتجاه (كل الأخبار)</h4>${table(t.buckets, "الفئة")}
+       ${(t.events || []).length ? `<h4 style="margin:14px 0 6px">حسب نوع الحدث (5 أخبار فأكثر)</h4>
+       <div class="muted" style="margin-bottom:6px">يكشف أي أنواع الأخبار تتحرك فعلًا باتجاه درجتها. للتشخيص فقط: تعديل الأوزان على نفس هذه البيانات يُضخّم النتيجة، فالتعديل يُثبت بعدها في الاختبار المباشر.</div>${table(t.events, "الحدث")}` : ""}`;
     document.getElementById("t-sess").onclick = e => { const b = e.target.closest(".chip"); if (!b) return; testSession = b.dataset.v; loadTest(); };
     document.getElementById("t-mode").onclick = e => { const b = e.target.closest(".chip"); if (!b) return; testMode = b.dataset.v; loadTest(); };
   } catch {}

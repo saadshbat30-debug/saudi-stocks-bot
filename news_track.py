@@ -239,6 +239,18 @@ def stats(session=None, mode="live"):
         by_dir.append({"group": name, "count": len(g), "sign": 1 if lo >= 0 else -1 if hi <= 0 else 1,
                        "h": {str(h): _summary(g, h, 1 if lo >= 0 or hi > 0 else -1) for h in HORIZONS}})
 
+    # حسب نوع الحدث: أي أنواع الأخبار تسبق الحركة فعلًا (للتشخيص، لا لضبط الأوزان على نفس البيانات)
+    by_event = {}
+    for r in rows:
+        if abs(r["direction"] or 0) >= 15:
+            by_event.setdefault(r.get("event") or "بلا حدث محدد (نبرة فقط)", []).append(r)
+    events = []
+    for name, g in sorted(by_event.items(), key=lambda kv: -len(kv[1])):
+        if len(g) < 5:
+            continue
+        sign = 1 if sum(r["direction"] for r in g) >= 0 else -1
+        events.append({"group": name, "count": len(g), "sign": sign, "h": {str(h): _summary(g, h, sign) for h in HORIZONS}})
+
     # سطر الحكم: الإيجابي «قبل الحركة» مقابل المجموعة الضابطة بعد 15 دقيقة
     pos, ctl = decisive[0]["h"].get(str(KEY_H)), decisive[2]["h"].get(str(KEY_H))
     if not pos or pos["n"] < MIN_N:
@@ -267,7 +279,7 @@ def stats(session=None, mode="live"):
                        else {"status": "no", "text": f"❌ السلبي لم يثبت: لا هبوط إضافي مقارنة بالضابطة ({d2:+.2f}%)"})
     delays = sorted(r["delay_s"] for r in rows if r.get("delay_s") is not None)
     sessions = {s: sum(1 for r in rows if r.get("session") == s) for s in ("pre", "open", "post")}
-    return {"decisive": decisive, "buckets": by_dir, "verdict": verdict, "verdict_neg": verdict_neg, "total": len(rows), "horizons": HORIZONS,
+    return {"decisive": decisive, "buckets": by_dir, "events": events, "verdict": verdict, "verdict_neg": verdict_neg, "total": len(rows), "horizons": HORIZONS,
             "key_h": KEY_H, "min_n": MIN_N, "sessions": sessions,
             "median_delay_s": delays[len(delays) // 2] if delays else None,
             "rules": {"moved_5m": MOVED_5M, "moved_day": MOVED_DAY, "pos": POS, "neg": NEG}, "mode": mode, "meta": meta,
