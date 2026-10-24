@@ -201,9 +201,27 @@ def _summary(rows, h, sign=1):
             "hit": round(sum(1 for v in vals if v["ret"] * sign > 0) / n * 100)}
 
 
-def stats(session=None):
-    with _lock:
-        rows = [r for r in _rows if not session or r.get("session") == session]
+BACKTEST_FILE = os.path.join(os.path.dirname(FILE), "news_backtest.json")
+
+
+def backtest_rows():
+    """نتائج الاختبار التاريخي (يُنشئها backtest_news.py في عملية منفصلة)."""
+    try:
+        with open(BACKTEST_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        return d.get("rows", []), d.get("meta", {})
+    except (OSError, ValueError):
+        return [], {}
+
+
+def stats(session=None, mode="live"):
+    meta = {}
+    if mode == "backtest":
+        src, meta = backtest_rows()
+    else:
+        with _lock:
+            src = list(_rows)
+    rows = [r for r in src if not session or r.get("session") == session]
     groups = [
         ("🎯 إيجابي — رُصد قبل الحركة", lambda r: r["direction"] >= POS and r.get("state") == "before", 1),
         ("↪️ إيجابي — وصل بعد الحركة", lambda r: r["direction"] >= POS and r.get("state") == "after", 1),
@@ -242,5 +260,5 @@ def stats(session=None):
     return {"decisive": decisive, "buckets": by_dir, "verdict": verdict, "total": len(rows), "horizons": HORIZONS,
             "key_h": KEY_H, "min_n": MIN_N, "sessions": sessions,
             "median_delay_s": delays[len(delays) // 2] if delays else None,
-            "rules": {"moved_5m": MOVED_5M, "moved_day": MOVED_DAY, "pos": POS, "neg": NEG},
+            "rules": {"moved_5m": MOVED_5M, "moved_day": MOVED_DAY, "pos": POS, "neg": NEG}, "mode": mode, "meta": meta,
             "recent": sorted(rows, key=lambda r: -r["t0"])[:30]}

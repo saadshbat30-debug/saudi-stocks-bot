@@ -191,10 +191,10 @@ async function load() {
     render();
   } catch {}
 }
-let testSession = "";
+let testSession = "", testMode = "live";
 async function loadTest() {
   try {
-    const t = await (await fetch("/api/news_test" + (testSession ? "?session=" + testSession : ""))).json(), H = t.horizons || [1, 3, 5, 15, 60];
+    const t = await (await fetch(`/api/news_test?mode=${testMode}` + (testSession ? "&session=" + testSession : ""))).json(), H = t.horizons || [1, 3, 5, 15, 60];
     const pct = v => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
     const cell = (x, sign) => !x ? "<td class='muted'>—</td>" :
       `<td><b class="ltr ${x.excess >= 0 ? "up" : "down"}">${pct(x.excess)}</b>${x.ci != null ? `<small class="muted ltr"> ±${x.ci.toFixed(2)}</small>` : ""}` +
@@ -204,7 +204,13 @@ async function loadTest() {
     const vcol = { yes: "#14532d", no: "#7f1d1d", unclear: "#713f12", wait: "#1f2937" }[t.verdict.status];
     const sess = t.sessions || {}, r = t.rules || {};
     document.getElementById("test").innerHTML =
-      `<div style="background:${vcol};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-weight:600">${esc(t.verdict.text)}</div>
+      `<div class="toolbar" id="t-mode"><span class="lbl">البيانات:</span>
+         <button class="chip ${testMode === "live" ? "active" : ""}" data-v="live" title="الأخبار التي وصلت للمنصة مباشرة">⚡ مباشر</button>
+         <button class="chip ${testMode === "backtest" ? "active" : ""}" data-v="backtest" title="نماذج 8-K والبيانات المرفقة بها للأيام الماضية، من أداة backtest_news.py">📚 تاريخي (8-K)</button></div>
+       ${testMode === "backtest" ? (t.meta && t.meta.at
+         ? `<div class="muted" style="margin-bottom:6px">آخر تشغيل: ${new Date(t.meta.at * 1000).toLocaleString("ar-SA-u-ca-gregory-nu-latn")} · ${t.meta.count} خبر من آخر ${t.meta.days} يومًا · المصدر: ${esc(t.meta.source)} · الدخول = افتتاح أول شمعة دقيقة بعد وقت قبول النموذج</div>`
+         : `<div class="muted" style="margin-bottom:6px">لم يُشغَّل بعد. في نافذة PowerShell ثانية داخل مجلد المنصة اكتب: <code>py backtest_news.py --days 20 --max 800</code> (يأخذ 20–40 دقيقة، ولا يؤثر على المنصة)</div>`) : ""}
+       <div style="background:${vcol};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-weight:600">${esc(t.verdict.text)}</div>
        <div class="toolbar" id="t-sess"><span class="lbl">الجلسة:</span>${[["", "الكل"], ["pre", "قبل الافتتاح"], ["open", "الرسمية"], ["post", "بعد الإغلاق"]].map(([v, l]) =>
          `<button class="chip ${testSession === v ? "active" : ""}" data-v="${v}">${l}${v ? ` (${sess[v] || 0})` : ""}</button>`).join("")}</div>
        <div class="muted" style="margin-bottom:8px">أخبار مسجلة: <b>${t.total}</b>${t.median_delay_s != null ? ` · وسيط تأخر وصول الخبر للمنصة بعد نشره: <b>${t.median_delay_s < 120 ? t.median_delay_s + " ثانية" : Math.round(t.median_delay_s / 60) + " دقيقة"}</b>` : ""}
@@ -212,6 +218,7 @@ async function loadTest() {
        <h4 style="margin:6px 0">🎯 الاختبار الحاسم: هل رُصد الخبر قبل الحركة؟</h4>${table(t.decisive, "المجموعة")}
        <h4 style="margin:14px 0 6px">حسب درجة الاتجاه (كل الأخبار)</h4>${table(t.buckets, "الفئة")}`;
     document.getElementById("t-sess").onclick = e => { const b = e.target.closest(".chip"); if (!b) return; testSession = b.dataset.v; loadTest(); };
+    document.getElementById("t-mode").onclick = e => { const b = e.target.closest(".chip"); if (!b) return; testMode = b.dataset.v; loadTest(); };
   } catch {}
 }
 load(); setInterval(load, 60000);

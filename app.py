@@ -206,7 +206,7 @@ def api_smart_news():
 
 @app.route("/api/news_test")
 def api_news_test():
-    return jsonify(news_track.stats(request.args.get("session") or None))
+    return jsonify(news_track.stats(request.args.get("session") or None, request.args.get("mode") or "live"))
 
 
 @app.route("/api/events")
