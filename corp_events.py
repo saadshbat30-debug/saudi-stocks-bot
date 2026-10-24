@@ -31,10 +31,12 @@ def _num(v):
 
 def _item(symbol, name, new, old, when, source):
     """new سهم جديد مقابل كل old سهم قديم: أقل من القديم = تقسيم عكسي."""
-    if not symbol or not new or not old or new == old:
+    symbol = (symbol or "").strip().upper()
+    # تقويم ياهو عالمي (كوريا .KS، كندا .TO ...): نبقي الأسهم المتداولة في أمريكا فقط
+    if not _US.fullmatch(symbol) or not new or not old or new == old:
         return None
     fmt = lambda x: int(x) if float(x).is_integer() else round(x, 3)
-    return {"symbol": symbol.upper(), "name": (name or "").strip(), "date": when,
+    return {"symbol": symbol, "name": (name or "").strip(), "date": when,
             "reverse": new < old, "new": fmt(new), "old": fmt(old), "source": source}
 
 
@@ -61,6 +63,7 @@ def _from_yahoo():
     return out
 
 
+_US = re.compile(r"[A-Z]{1,5}(?:-[A-Z]{1,2})?")
 _RATIO = re.compile(r"([\d.,]+)\s*[:\-/]\s*([\d.,]+)")
 
 
