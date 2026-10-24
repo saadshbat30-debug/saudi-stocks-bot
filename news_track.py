@@ -261,4 +261,4 @@ def stats(session=None, mode="live"):
             "key_h": KEY_H, "min_n": MIN_N, "sessions": sessions,
             "median_delay_s": delays[len(delays) // 2] if delays else None,
             "rules": {"moved_5m": MOVED_5M, "moved_day": MOVED_DAY, "pos": POS, "neg": NEG}, "mode": mode, "meta": meta,
-            "recent": sorted(rows, key=lambda r: -r["t0"])[:30]}
+            "recent": sorted(rows, key=lambda r: -(r.get("t0") or 0))[:30]}
