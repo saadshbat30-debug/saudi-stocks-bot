@@ -339,6 +339,9 @@ _news_state = {"items": [], "at": 0, "watch": {}}
 
 
 def classify(title):
+    import news_score
+    if news_score.is_routine(title):
+        return None
     for kind, icon, label, prio, rx in _KINDS:
         if rx.search(title or ""):
             return {"kind": kind, "icon": icon, "label": label, "prio": prio}
@@ -486,10 +489,13 @@ def news_snapshot():
     # الشريط: الأخبار المصنّفة من ياهو + البيانات الفورية المهمة (مصنّفة أو درجتها قوية)
     fast = []
     for w in _wire_items():
-        c = classify(w["title"])
-        if not c and abs(w["score"]) < 40:
+        # إفصاحات 8-K كثيرة ومعظمها اتفاقيات عادية: تدخل الشريط فقط إذا كانت درجتها قوية (إنذار، بيع أسهم، إفلاس…)
+        c = classify(w["title"]) if w.get("source") != "8-K" else None
+        if not c and abs(w["score"]) < (25 if w.get("source") == "8-K" else 40):
             continue
-        c = c or {"kind": "wire", "icon": "⚡", "label": "بيان فوري", "prio": 1 if w["score"] <= -40 else 2}
+        if not c and w.get("source") == "8-K":
+            c = {"kind": "8k", "icon": "📄", "label": w.get("event") or "إفصاح 8-K", "prio": 1 if w["score"] <= -25 else 2}
+        c = c or {"kind": "wire", "icon": "⚡", "label": w.get("event") or "بيان فوري", "prio": 1 if w["score"] <= -40 else 2}
         fast.append({**c, "symbol": w["symbol"], "title": w["title"], "url": w["url"], "time": w["time"],
                      "publisher": w["publisher"], "score": w["score"], "score_label": w["label"]})
     have = {i["url"] for i in fast}

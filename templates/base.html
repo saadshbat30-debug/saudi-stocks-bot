@@ -146,7 +146,8 @@ async function loadNewsBar() {
     const mineSet = new Set(mine), txt = h => h.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     window.BreakingNews?.check([
       ...(d.delist || []).map(i => ({ id: "d:" + i.symbol + ":" + i.date, important: true, href: "/stock/" + encodeURIComponent(i.symbol), html: delist(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(delist(i)) })),
-      ...nw.map(i => ({ id: "n:" + i.url, important: i.prio <= 1 || mineSet.has(i.symbol) || Math.abs(i.score || 0) >= 60, href: i.url, html: news(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(news(i)) })),
+      // «عاجل» للأخبار الطازجة فقط (آخر ساعة) حتى لا تنهال التنبيهات القديمة دفعة واحدة
+      ...nw.map(i => ({ id: "n:" + i.url, important: (Date.now() / 1000 - (i.time || 0) < 3600) && (i.prio <= 1 || mineSet.has(i.symbol) || Math.abs(i.score || 0) >= 60), href: i.url, html: news(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(news(i)) })),
       ...(d.items || []).map(i => ({ id: "s:" + i.symbol + ":" + i.date, important: mineSet.has(i.symbol), href: "/stock/" + encodeURIComponent(i.symbol), html: split(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(split(i)) })),
     ]);
     if (!parts.length) return;

@@ -23,11 +23,11 @@ EVENTS = [
     (r"to be acquired|agree[sd]? to be acquired|acquired by|(definitive|merger) agreement .{0,40}\$\d|per share in cash|take[- ]private|buyout offer", 40, "عرض استحواذ على الشركة"),
     (r"\b(wins?|awarded|secures?|lands?|receives?)\b.{0,40}\b(contract|order|award|deal|grant)\b|purchase order", 25, "عقد / طلبية جديدة"),
     (r"partnership|collaborat|strategic (agreement|alliance)|joint venture|teams? up with|licens(e|ing) agreement", 15, "شراكة / تعاون"),
-    (r"beats?\b.{0,25}(estimates|expectations|consensus)|tops? (estimates|expectations)|record (revenue|sales|quarter|profit)|revenue (jumps|soars|surges)", 30, "نتائج أفضل من المتوقع"),
+    (r"(earnings|revenues?|sales|eps|profit)( (and|&) (earnings|revenues?|sales|eps))? (beat|top)|beats? (on )?(earnings|revenue|eps)|beats?\b.{0,25}(estimates|expectations|consensus)|tops? (estimates|expectations)|record (revenue|sales|quarter|profit)|revenue (jumps|soars|surges)", 30, "نتائج أفضل من المتوقع"),
     (r"raises?\b.{0,20}(guidance|outlook|forecast)|boosts? (guidance|outlook)", 30, "رفع التوقعات المستقبلية"),
     (r"(net income|profit|earnings) (rises|jumps|grows|increases|up)|swings? to (a )?profit|first (ever )?profit", 15, "نمو الأرباح"),
     (r"buyback|share repurchase|repurchase program", 20, "إعادة شراء أسهم"),
-    (r"(raises|increases|hikes) (its )?(quarterly )?dividend|special dividend", 15, "زيادة التوزيعات"),
+    (r"(raises|increases|hikes) (its )?(quarterly )?dividend|dividend (hiked|raised|increased|boosted)|special dividend", 15, "زيادة التوزيعات"),
     (r"upgrade[sd]?\b|price target (raised|increased|boosted)|raises? (price )?target|initiates? .{0,20}\b(buy|outperform|overweight)", 20, "ترقية من محللين"),
     (r"regain(s|ed)? compliance", 20, "استعاد الامتثال لشروط البورصة"),
     (r"insiders? (buy|bought|purchas)|ceo (buys|bought|purchases)|director (buys|bought)", 15, "شراء من المطلعين"),
@@ -89,9 +89,22 @@ def _tone(text):
     return max(-20, min(20, pts))
 
 
+# أخبار روتينية لا تحرك السهم: مواعيد النتائج والمؤتمرات، منح الموظفين، المشاركة في مؤتمرات
+ROUTINE = re.compile(r"inducement grants?|announces? .{0,40}(release date|date for|dates for)|schedules? .{0,60}(conference call|earnings (call|release)|webcast)|"
+                     r"(to|will) (host|hold|present|participate|ring)|conference call (schedule|and webcast)|earnings release and conference call|"
+                     r"annual (general )?meeting|investor (day|conference)|fireside chat|to report .{0,40}results on", re.I)
+
+
+def is_routine(title):
+    return bool(ROUTINE.search(title or ""))
+
+
 def score(title, summary="", ctx=None):
     """ctx: change_pct, vol_ratio, market_cap, publisher, time — كلها اختيارية."""
     ctx = ctx or {}
+    if is_routine(title):
+        return {"score": 0, "label": "⚪ محايد", "event": "خبر روتيني", "rank": 0,
+                "factors": [{"why": "خبر روتيني (موعد نتائج / مؤتمر / منح موظفين)", "pts": 0}]}
     text = f"{title} {summary or ''}"
     factors, raw, event = [], 0.0, None
 
