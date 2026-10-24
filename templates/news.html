@@ -211,6 +211,7 @@ async function loadTest() {
          ? `<div class="muted" style="margin-bottom:6px">آخر تشغيل: ${new Date(t.meta.at * 1000).toLocaleString("ar-SA-u-ca-gregory-nu-latn")} · ${t.meta.count} خبر من آخر ${t.meta.days} يومًا · المصدر: ${esc(t.meta.source)} · الدخول = افتتاح أول شمعة دقيقة بعد وقت قبول النموذج</div>`
          : `<div class="muted" style="margin-bottom:6px">لم يُشغَّل بعد. في نافذة PowerShell ثانية داخل مجلد المنصة اكتب: <code>py backtest_news.py --days 20 --max 800</code> (يأخذ 20–40 دقيقة، ولا يؤثر على المنصة)</div>`) : ""}
        <div style="background:${vcol};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-weight:600">${esc(t.verdict.text)}</div>
+       ${t.verdict_neg ? `<div style="background:${{ yes: "#14532d", no: "#7f1d1d", unclear: "#713f12", wait: "#1f2937" }[t.verdict_neg.status]};border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:13.5px">${esc(t.verdict_neg.text)}</div>` : ""}
        <div class="toolbar" id="t-sess"><span class="lbl">الجلسة:</span>${[["", "الكل"], ["pre", "قبل الافتتاح"], ["open", "الرسمية"], ["post", "بعد الإغلاق"]].map(([v, l]) =>
          `<button class="chip ${testSession === v ? "active" : ""}" data-v="${v}">${l}${v ? ` (${sess[v] || 0})` : ""}</button>`).join("")}</div>
        <div class="muted" style="margin-bottom:8px">أخبار مسجلة: <b>${t.total}</b>${t.median_delay_s != null ? ` · وسيط تأخر وصول الخبر للمنصة بعد نشره: <b>${t.median_delay_s < 120 ? t.median_delay_s + " ثانية" : Math.round(t.median_delay_s / 60) + " دقيقة"}</b>` : ""}

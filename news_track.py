@@ -255,9 +255,19 @@ def stats(session=None, mode="live"):
         else:
             verdict = {"status": "no", "text": f"❌ لم يثبت: لا تفوق على المجموعة الضابطة بعد {KEY_H} دقيقة ({diff:+.2f}%) — الدرجة تصف الخبر ولا تتنبأ بالسعر"}
 
+    # حكم الأخبار السلبية: هل السلبي المرصود قبل الحركة يهبط أكثر من الضابطة؟ (مفيد لتجنب الأسهم والخروج مبكرًا)
+    neg, verdict_neg = decisive[3]["h"].get(str(KEY_H)), None
+    if not neg or neg["n"] < MIN_N:
+        verdict_neg = {"status": "wait", "text": f"⏳ السلبي: {neg['n'] if neg else 0} من {MIN_N} خبر سلبي رُصد قبل الحركة"}
+    else:
+        d2 = (ctl["excess"] if ctl else 0) - neg["excess"]
+        lo2 = d2 - math.sqrt((neg["ci"] or 0) ** 2 + ((ctl or {}).get("ci") or 0) ** 2)
+        verdict_neg = ({"status": "yes", "text": f"✅ السلبي مثبت مبدئيًا: الأخبار السلبية المرصودة قبل الحركة تهبط أكثر من الضابطة بـ {d2:.2f}% بعد {KEY_H} دقيقة (الحد الأدنى {lo2:.2f}%)"} if lo2 > 0
+                       else {"status": "unclear", "text": f"🟡 السلبي غير حاسم: الفرق {d2:+.2f}% وفترة الثقة تشمل الصفر"} if d2 > 0
+                       else {"status": "no", "text": f"❌ السلبي لم يثبت: لا هبوط إضافي مقارنة بالضابطة ({d2:+.2f}%)"})
     delays = sorted(r["delay_s"] for r in rows if r.get("delay_s") is not None)
     sessions = {s: sum(1 for r in rows if r.get("session") == s) for s in ("pre", "open", "post")}
-    return {"decisive": decisive, "buckets": by_dir, "verdict": verdict, "total": len(rows), "horizons": HORIZONS,
+    return {"decisive": decisive, "buckets": by_dir, "verdict": verdict, "verdict_neg": verdict_neg, "total": len(rows), "horizons": HORIZONS,
             "key_h": KEY_H, "min_n": MIN_N, "sessions": sessions,
             "median_delay_s": delays[len(delays) // 2] if delays else None,
             "rules": {"moved_5m": MOVED_5M, "moved_day": MOVED_DAY, "pos": POS, "neg": NEG}, "mode": mode, "meta": meta,
