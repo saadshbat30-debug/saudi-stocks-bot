@@ -151,6 +151,8 @@ def _add(a):
                                "price": r.get("price"), "change_pct": r.get("change_pct"), "vol_ratio": r.get("vol_ratio"),
                                "market_cap": r.get("market_cap"), "float": r.get("float"),
                                "otc": r.get("otc") if r else is_otc, "sharia": r.get("sharia")})
+        import news_track
+        news_track.record(_items[0])  # تسجيل لحظة الوصول لاختبار الخوارزمية لاحقًا
 
 
 def _loop():

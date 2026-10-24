@@ -441,13 +441,15 @@ def _refresh_news(get_rows):
                                "time": a.get("time"), "publisher": a.get("publisher"), "summary": (a.get("summary") or "")[:240],
                                "price": r.get("price"), "change_pct": r.get("change_pct"), "vol_ratio": r.get("vol_ratio"),
                                "market_cap": r.get("market_cap"), "float": r.get("float"), "otc": r.get("otc"), "sharia": r.get("sharia")})
+                import news_track
+                news_track.record(scored[-1])  # يُختبر فقط إذا كان الخبر حديثًا (أقل من 30 دقيقة) والجلسة مفتوحة
                 c = classify(a["title"])
                 if not c:
                     if len(other) < 15:
                         other.append(f"{s}: {a['title'][:100]}")
                     continue
                 items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher"),
-                              "score": sc["score"], "score_label": sc["label"]})
+                              "score": sc["score"], "score_label": sc["label"], "importance": sc["importance"]})
             # النتائج تظهر أولًا بأول أثناء الفحص (أول فحص بعد التشغيل يأخذ دقائق)
             if st["scanned"] % 10 == 0 or st["scanned"] == len(syms):
                 ranked = sorted(items, key=lambda i: (i["prio"], -(i["time"] or 0)))[:60]
@@ -510,13 +512,13 @@ def news_snapshot():
     for w in _wire_items():
         # إفصاحات 8-K كثيرة ومعظمها اتفاقيات عادية: تدخل الشريط فقط إذا كانت درجتها قوية (إنذار، بيع أسهم، إفلاس…)
         c = classify(w["title"]) if w.get("source") != "8-K" else None
-        if not c and abs(w["score"]) < (25 if w.get("source") == "8-K" else 40):
+        if not c and (abs(w["score"]) < 25 if w.get("source") == "8-K" else w.get("importance", 0) < 45):
             continue
         if not c and w.get("source") == "8-K":
             c = {"kind": "8k", "icon": "📄", "label": w.get("event") or "إفصاح 8-K", "prio": 1 if w["score"] <= -25 else 2}
         c = c or {"kind": "wire", "icon": "⚡", "label": w.get("event") or "بيان فوري", "prio": 1 if w["score"] <= -40 else 2}
         fast.append({**c, "symbol": w["symbol"], "title": w["title"], "url": w["url"], "time": w["time"],
-                     "publisher": w["publisher"], "score": w["score"], "score_label": w["label"]})
+                     "publisher": w["publisher"], "score": w["score"], "score_label": w["label"], "importance": w.get("importance")})
     have = {i["url"] for i in fast}
     # من أخبار ياهو: ما له أثر واضح فقط (درجة ±15 أو أكثر)، حتى لا يمتلئ الشريط بمقالات محايدة
     scan = [i for i in _news_state["items"] if i["url"] not in have and abs(i.get("score") or 0) >= 15]

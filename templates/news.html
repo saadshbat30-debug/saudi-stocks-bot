@@ -21,6 +21,13 @@
   .ttl { display:block; margin:5px 0 6px; font-size:15px; line-height:1.45; direction:ltr; text-align:left; unicode-bidi:plaintext; }
   .ttl:hover { text-decoration:underline; }
   .fx { display:flex; flex-wrap:wrap; gap:5px; }
+  .meters { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:2px 0 6px; font-size:12px; }
+  .mt { display:flex; align-items:center; gap:6px; } .mt em { font-style:normal; color:var(--muted); }
+  .mt .bar { position:relative; width:70px; height:6px; background:#0f1419; border:1px solid var(--line); border-radius:3px; overflow:hidden; direction:ltr; }
+  .mt .bar i { position:absolute; top:0; bottom:0; } .mt .bar u { position:absolute; left:50%; top:-1px; bottom:-1px; width:1px; background:#475569; }
+  .test { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:16px; }
+  .test table { width:100%; border-collapse:collapse; font-size:13px; } .test th, .test td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:center; }
+  .test th:first-child, .test td:first-child { text-align:right; }
   .fx span { font-size:11.5px; padding:2px 8px; border-radius:999px; background:#0f1419; border:1px solid var(--line); color:var(--muted); }
   .fx span.p { color:#86efac; border-color:#14532d; } .fx span.n { color:#fca5a5; border-color:#7f1d1d; }
   .meta { font-size:12px; color:var(--muted); margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; }
@@ -34,17 +41,17 @@
 
 <h2 style="margin:4px 0 6px;font-size:20px">📰 الأخبار الذكية</h2>
 <details class="how">
-  <summary>كيف تُحسب درجة الخبر؟ (من −100 إلى +100)</summary>
+  <summary>كيف تُحسب الدرجات؟ ثلاث درجات منفصلة حتى لا تخفي إحداها الأخرى</summary>
   <ol>
-    <li><b>نوع الحدث</b> (الوزن الأكبر): موافقة FDA +45، عرض استحواذ +40، نتائج تجارب إيجابية +40، رفع التوقعات +30، عقد جديد +25 … مقابل: إفلاس −70، فشل في FDA −50، شطب −45، طرح أسهم −35، تقسيم عكسي −30، إنذار من البورصة −25</li>
-    <li><b>نبرة الكلمات</b>: يقفز، قياسي، قوي (+) — يهبط، خسارة، تحذير (−)، مع مراعاة النفي مثل "fails to"</li>
-    <li><b>المصدر</b>: بيان رسمي من الشركة ×1.15 — مقال رأي أو سؤال ("Should you buy?") ×0.55</li>
-    <li><b>حجم الشركة</b>: أقل من 300 مليون ×1.3 (الخبر يحركها أكثر) — أكبر من 200 مليار ×0.6</li>
-    <li><b>ردة فعل السوق اليوم</b>: إذا كان السعر والسيولة يتحركان باتجاه الخبر تزيد الدرجة، وإذا عاكساه تنقص</li>
-    <li><b>الحداثة</b>: الخبر الأحدث يظهر أعلى في ترتيب «الأهم»</li>
-    <li><b>المصادر</b>: أخبار ياهو لأنشط الأسهم كل 10 دقائق، و<b>⚡ الفورية</b> كل دقيقة: البيانات الصحفية من GlobeNewswire و PR Newswire و Business Wire لحظة نشرها، ونماذج 8-K في هيئة SEC (إنذار شطب، بيع أسهم، إفلاس، اتفاقيات…)</li>
+    <li><b>الاتجاه (−100 إلى +100)</b>: هل الحدث نفسه جيد أم سيئ للسهم؟ = نوع الحدث (الوزن الأكبر) + نبرة الكلمات (بحد ±15 فقط). جمع وليس ضربًا، فلا يتفوق عقد صغير على موافقة FDA.
+      <br>الأحداث: موافقة FDA +45، عرض استحواذ +40، نتائج تجارب إيجابية +40، رفع التوقعات +30، عقد +25، إيقاف طرح أسهم +25 … مقابل: إفلاس −70، فشل FDA −50، شطب −45، طرح أسهم −35، تقسيم عكسي −30، إنذار بورصة −25
+      <br>النفي يلغي الحدث الإيجابي ("not approved"، "fails to"، "rejects offer")، واللغة المستقبلية تخفضه إلى 40% ("expected"، "plans to submit"، "PDUFA")</li>
+    <li><b>الثقة (0 إلى 1)</b>: بيان رسمي أو إفصاح SEC = 0.95، خبر عادي = 0.75، يشرح حركة حصلت = 0.7، حدث متوقع = 0.6، مقال رأي = 0.45</li>
+    <li><b>الأهمية (0 إلى 100)</b>: قوة الاتجاه × الثقة + حجم الشركة (أقل من 300 مليون +15، أقل من 2 مليار +8، أكبر من 200 مليار −15). تُرتَّب بها القائمة مع الحداثة</li>
+    <li><b>استجابة السوق (−100 إلى +100)</b>: حركة السهم اليوم مقارنة بمؤشر S&amp;P 500، وتزيد مع السيولة العالية. منفصلة عن الاتجاه: خبر +40 مع استجابة −100 يعني أن السوق قرأ شيئًا سلبيًا في التفاصيل</li>
+    <li><b>المصادر</b>: ياهو لأنشط الأسهم كل 10 دقائق، و<b>⚡ الفورية</b> كل دقيقة: GlobeNewswire و PR Newswire و Business Wire لحظة النشر، ونماذج 8-K في SEC — تنبيه: نموذج 8-K قد يُقدَّم حتى 4 أيام عمل بعد الحدث</li>
   </ol>
-  <div class="muted">تقدير آلي من نص الخبر وليس توصية — اقرأ الخبر نفسه قبل أي قرار.</div>
+  <div class="muted">تقدير آلي من نص الخبر وليس توصية، ودقته التنبؤية تُقاس في «📈 اختبار الخوارزمية» أسفل الصفحة.</div>
 </details>
 
 <div class="toolbar" id="f-side"><span class="lbl">الاتجاه:</span>
@@ -56,7 +63,7 @@
 <div class="toolbar" id="f-price"><span class="lbl">السعر:</span>
   <button class="chip" data-v="all">الكل</button><button class="chip" data-v="0-1">تحت 1$</button><button class="chip" data-v="1-5">1–5$</button><button class="chip" data-v="5-20">5–20$</button><button class="chip" data-v="20-1e9">20$+</button></div>
 <div class="toolbar"><span class="lbl">الترتيب:</span><span id="f-sort">
-  <button class="chip" data-v="rank">الأهم</button><button class="chip" data-v="new">الأحدث</button><button class="chip" data-v="score">الأعلى درجة</button></span>
+  <button class="chip" data-v="rank">الأهم</button><button class="chip" data-v="new">الأحدث</button><button class="chip" data-v="score">الأعلى اتجاهًا</button><button class="chip" data-v="early" title="خبر إيجابي (اتجاه 25+) والسهم لم يتحرك بعد مقارنة بالسوق (استجابة أقل من 15)">🕐 إيجابي لم يتحرك بعد</button></span>
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-one"> خبر واحد لكل سهم (الأقوى)</label>
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-sharia"> ☪️ الشرعية فقط</label>
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-otc"> إخفاء OTC</label>
@@ -65,6 +72,14 @@
 </div>
 <div class="stats" id="stats">⏳ جارٍ التحميل…</div>
 <div class="list" id="list"></div>
+
+<div class="test">
+  <h3 style="margin:0 0 6px;font-size:16px">📈 اختبار الخوارزمية على أرض الواقع</h3>
+  <div class="muted" style="margin-bottom:8px">كل خبر حديث (منشور قبل أقل من 30 دقيقة) يصل أثناء الجلسة الرسمية يُسجَّل لحظة وصوله مع سعر السهم، ثم يُقاس العائد بعد 5 و15 و60 دقيقة،
+    و«الزائد» = عائد السهم − عائد S&amp;P 500 في نفس الفترة. إذا كانت الفئات الإيجابية لا تتفوق على المحايدة بعد عدد كافٍ من الأخبار (100+)، فالدرجة تصف الخبر ولا تتنبأ بالسعر.
+    لا تشمل الأرقام السبريد والعمولات والانزلاق السعري.</div>
+  <div id="test"></div>
+</div>
 
 <script>
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
@@ -104,7 +119,8 @@ function render() {
     (!cfg.otc || !i.otc) &&
     (!cfg.fast || i.source) &&
     (!q || i.symbol.toLowerCase().includes(q) || i.title.toLowerCase().includes(q) || (i.name || "").toLowerCase().includes(q)));
-  const key = { rank: i => -i.rank, new: i => -(i.time || 0), score: i => cfg.side === "neg" ? i.score : -i.score }[cfg.sort] || (i => -i.rank);
+  if (cfg.sort === "early") rows = rows.filter(i => i.score >= 25 && (i.reaction == null || i.reaction < 15));
+  const key = { rank: i => -i.rank, new: i => -(i.time || 0), early: i => -(i.time || 0), score: i => cfg.side === "neg" ? i.score : -i.score }[cfg.sort] || (i => -i.rank);
   rows.sort((a, b) => key(a) - key(b));
   if (cfg.one) { const seen = new Set(); rows = rows.filter(i => !seen.has(i.symbol) && seen.add(i.symbol)); }
 
@@ -120,6 +136,13 @@ function render() {
     Object.entries((data.wires || {}).feeds || {}).map(([n, f]) => `<span title="${esc(f.error || "")}">${f.ok ? "⚡" : "⚠️"} ${esc(n)}</span>`).join("");
 
   const cls = s => s >= 40 ? "p2" : s >= 15 ? "p1" : s <= -40 ? "n2" : s <= -15 ? "n1" : "z";
+  // مقياس صغير: شريط ملوّن مع الرقم
+  const meter = (name, v, lo, hi) => {
+    if (v == null) return `<span class="mt"><em>${name}</em><b>—</b></span>`;
+    const pct = lo < 0 ? Math.abs(v) / hi * 50 : v / hi * 100, col = lo < 0 ? (v >= 0 ? "#22c55e" : "#ef4444") : "#60a5fa";
+    const bar = lo < 0 ? `<i style="${v >= 0 ? "left:50%" : "right:50%"};width:${pct}%;background:${col}"></i><u></u>` : `<i style="left:0;width:${pct}%;background:${col}"></i>`;
+    return `<span class="mt"><em>${name}</em><span class="bar">${bar}</span><b class="ltr">${lo < 0 && v > 0 ? "+" : ""}${v}</b></span>`;
+  };
   document.getElementById("list").innerHTML = rows.slice(0, 150).map(i => {
     const ch = i.change_pct == null ? "" : `<span class="${i.change_pct >= 0 ? "up" : "down"} ltr">${i.change_pct >= 0 ? "+" : ""}${i.change_pct.toFixed(2)}%</span>`;
     const fx = (i.factors || []).map(f => {
@@ -137,6 +160,8 @@ function render() {
           ${my.has(i.symbol) ? "<span>💼★</span>" : ""}
           ${i.source === "wire" ? '<span style="color:#facc15" title="بيان صحفي من وكالة النشر مباشرة — أسرع من ياهو">⚡ بيان فوري</span>' : i.source === "8-K" ? '<span style="color:#facc15" title="إفصاح إلزامي مقدَّم لهيئة SEC">⚡ إفصاح 8-K</span>' : ""}</div>
         <a class="ttl" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
+        <div class="meters">${meter("الاتجاه", i.direction ?? i.score, -100, 100)}${meter("الأهمية", i.importance, 0, 100)}${meter("استجابة السوق", i.reaction, -100, 100)}
+          <span class="muted" title="الثقة في الخبر حسب مصدره ونوعه">الثقة <b class="ltr">${i.confidence != null ? i.confidence.toFixed(2) : "—"}</b></span></div>
         <div class="fx">${fx || '<span>لا يوجد حدث واضح في العنوان</span>'}</div>
         ${i.summary ? `<div class="sum">${esc(i.summary)}</div>` : ""}
         <div class="meta"><span>${ago(i.time)}</span><span>${esc(i.publisher)}</span></div>
@@ -151,6 +176,18 @@ async function load() {
     render();
   } catch {}
 }
+async function loadTest() {
+  try {
+    const t = await (await fetch("/api/news_test")).json(), H = t.horizons || [5, 15, 60];
+    const cell = x => !x ? "<td class='muted'>—</td>" : `<td><b class="ltr ${x.excess >= 0 ? "up" : "down"}">${x.excess >= 0 ? "+" : ""}${x.excess.toFixed(2)}%</b><br><small class="muted ltr">عائد ${x.avg >= 0 ? "+" : ""}${x.avg.toFixed(2)}% · صعد ${x.up}% · ${x.n} خبر</small></td>`;
+    document.getElementById("test").innerHTML = !t.total
+      ? `<div class="muted">لا توجد قياسات بعد — تبدأ تلقائيًا مع أول خبر حديث أثناء الجلسة الرسمية (9:30 ص – 4 م نيويورك).</div>`
+      : `<div class="muted" style="margin-bottom:6px">أخبار مسجلة: <b>${t.total}</b>${t.median_delay_s != null ? ` · متوسط وصول الخبر للمنصة بعد نشره: <b>${Math.round(t.median_delay_s / 60)} دقيقة</b>` : ""}</div>
+         <table><tr><th>الفئة (حسب الاتجاه)</th>${H.map(h => `<th>العائد الزائد بعد ${h} د</th>`).join("")}</tr>
+         ${t.buckets.map(b => `<tr><td>${esc(b.bucket)} <small class="muted">(${b.count})</small></td>${H.map(h => cell(b.h[String(h)])).join("")}</tr>`).join("")}</table>`;
+  } catch {}
+}
 load(); setInterval(load, 60000);
+loadTest(); setInterval(loadTest, 120000);
 </script>
 {% endblock %}

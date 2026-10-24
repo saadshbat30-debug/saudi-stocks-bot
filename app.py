@@ -5,6 +5,7 @@ from flask import Flask, abort, jsonify, render_template, request
 import breakout
 import corp_events
 import wires
+import news_track
 import extras
 import options
 from alerts import send_telegram, start_alerts
@@ -203,6 +204,11 @@ def api_smart_news():
     return jsonify(corp_events.smart_news())
 
 
+@app.route("/api/news_test")
+def api_news_test():
+    return jsonify(news_track.stats())
+
+
 @app.route("/api/events")
 def api_events():
     corp_events.watch([s.strip().upper() for s in request.args.get("watch", "").split(",") if s.strip()])
@@ -275,6 +281,7 @@ start_alerts()
 corp_events.start()
 corp_events.start_news(lambda: get_market("us"))
 wires.start()  # البيانات الصحفية الفورية ونماذج 8-K كل دقيقة
+news_track.start()  # اختبار الخوارزمية: عائد الأسهم بعد 5/15/60 دقيقة من وصول الخبر
 
 if __name__ == "__main__":
     import saudi_runner

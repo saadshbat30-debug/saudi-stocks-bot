@@ -105,76 +105,124 @@ def is_routine(title):
     return bool(ROUTINE.search(title or ""))
 
 
-def score(title, summary="", ctx=None):
-    """ctx: change_pct, vol_ratio, market_cap, publisher, time — كلها اختيارية."""
-    ctx = ctx or {}
-    if is_routine(title):
-        return {"score": 0, "label": "⚪ محايد", "event": "خبر روتيني", "rank": 0,
-                "factors": [{"why": "خبر روتيني (موعد نتائج / مؤتمر / منح موظفين)", "pts": 0}]}
-    text = f"{title} {summary or ''}"
-    factors, raw, event = [], 0.0, None
+# لغة مستقبلية أو احتمالية: الحدث لم يقع بعد ("expected", "plans to submit", "PDUFA date")
+HEDGE = re.compile(r"\b(expect(s|ed)?|anticipat\w*|plans? to|planning to|seeks?|seeking|aims? to|intends? to|could|may|might|potential(ly)?|"
+                   r"pdufa|submit(s|ted|ting)?|filing for|files? for|applies for|appl(y|ied) for|rumou?r\w*|report(edly|s say)|in talks|exploring|before|ahead of|awaits?|awaiting)\b", re.I)
+# نفي قبل الحدث الإيجابي يلغيه: "not approved", "fails to win", "denies", "no plans"
+EVENT_NEG = re.compile(r"\b(not|no|never|fails? to|failed to|did not|does not|won'?t|without|denie[sd]|den(y|ying)|rejects?|rejected|declin(es|ed))\b[\w\s,'-]{0,25}$", re.I)
+_mkt = {"chg": None, "at": 0}
 
-    # 1) نوع الحدث: أقوى حدث إيجابي + أقوى حدث سلبي (العنوان أهم من الملخص)
+
+def market_change():
+    """تغير مؤشر S&P 500 اليوم (لقياس حركة السهم مقارنة بالسوق) — مخزن دقيقة."""
+    if time.time() - _mkt["at"] > 60:
+        try:
+            from market import get_quotes
+            _mkt["chg"] = (get_quotes(["^GSPC"]).get("^GSPC") or {}).get("change_pct")
+        except Exception:
+            pass
+        _mkt["at"] = time.time()
+    return _mkt["chg"] or 0.0
+
+
+def _label(d):
+    return ("🟢 إيجابي قوي" if d >= 40 else "🟢 إيجابي" if d >= 15 else
+            "🔴 سلبي قوي" if d <= -40 else "🔴 سلبي" if d <= -15 else "⚪ محايد")
+
+
+def score(title, summary="", ctx=None):
+    """ثلاث درجات منفصلة حتى لا يخفي أحدها الآخر:
+    - الاتجاه (−100..+100): هل الحدث نفسه إيجابي أم سلبي للسهم؟ نوع الحدث + نبرة الكلمات فقط (جمع بحدود، بلا ضرب)
+    - الأهمية (0..100): حجم الأثر المتوقع = قوة الحدث × الثقة + حجم الشركة + المصدر
+    - استجابة السوق (−100..+100): حركة السهم اليوم مقارنة بمؤشر S&P 500 والسيولة
+    والثقة (0..1) منفصلة: بيان رسمي أعلى، مقال رأي أو لغة مستقبلية أقل.
+    ctx: change_pct, vol_ratio, market_cap, publisher, time, market_chg — كلها اختيارية."""
+    ctx = ctx or {}
+    age_h = (time.time() - ctx["time"]) / 3600 if ctx.get("time") else 24
+    fresh = 1.0 if age_h <= 2 else max(0.35, math.exp(-age_h / 30))  # الحداثة للترتيب فقط
+    if is_routine(title):
+        return {"score": 0, "direction": 0, "importance": 0, "reaction": None, "confidence": 1.0, "label": "⚪ محايد",
+                "event": "خبر روتيني", "rank": 0, "factors": [{"why": "خبر روتيني (موعد نتائج / مؤتمر / منح موظفين)", "pts": 0, "g": "dir"}]}
+    factors = []
+    add = lambda why, pts, g: factors.append({"why": why, "pts": pts, "g": g})
+
+    # ===== 1) الاتجاه: نوع الحدث (الوزن الأكبر) =====
     best_pos = best_neg = None
     stop_offer = bool(STOP_OFFERING.search(title))
     if stop_offer:
         best_pos = (25, "إيقاف/إلغاء طرح أسهم (لا تخفيف)")
+    hedged = False
     for rx, w, why in EVENTS:
         if stop_offer and why.startswith("طرح أسهم"):
             continue
-        hit_t, hit_s = rx.search(title), (rx.search(summary) if summary else None)
-        if not (hit_t or hit_s):
+        m_t = rx.search(title)
+        m_s = None if m_t else (rx.search(summary) if summary else None)
+        m = m_t or m_s
+        if not m:
             continue
-        w2 = w if hit_t else w * 0.6
+        src = title if m_t else summary
+        w2 = w if m_t else w * 0.6
+        if w2 > 0:
+            before = src[max(0, m.start() - 40):m.start()]
+            if EVENT_NEG.search(before):  # "not approved"، "fails to win" ← الحدث الإيجابي لم يحصل
+                w2, why = -w2 * 0.5, "نفي: " + why + " لم يحصل"
+            elif HEDGE.search(src[max(0, m.start() - 40):m.end() + 25]):
+                w2, why, hedged = w2 * 0.4, why + " (متوقع وليس واقعًا)", True
         if w2 > 0 and (best_pos is None or w2 > best_pos[0]):
             best_pos = (w2, why)
         if w2 < 0 and (best_neg is None or w2 < best_neg[0]):
             best_neg = (w2, why)
+    event_pts = 0.0
     for b in (best_pos, best_neg):
         if b:
-            raw += b[0]; factors.append((b[1], round(b[0])))
+            event_pts += b[0]; add(b[1], round(b[0]), "dir")
+    event = None
     if best_pos or best_neg:
         event = (best_neg if not best_pos or (best_neg and abs(best_neg[0]) >= best_pos[0]) else best_pos)[1]
 
-    # 2) نبرة الكلمات
-    t = _tone(title) + _tone(summary or "") * 0.5
+    # نبرة الكلمات: تعديل محدود ±15 حتى لا تتفوق على نوع الحدث
+    t = max(-15, min(15, _tone(title) + _tone(summary or "") * 0.5))
     if abs(t) >= 5:
-        raw += t; factors.append(("نبرة الكلمات " + ("إيجابية" if t > 0 else "سلبية"), round(t)))
+        add("نبرة الكلمات " + ("إيجابية" if t > 0 else "سلبية"), round(t), "dir")
+    direction = max(-100, min(100, round(event_pts + t)))
 
-    # 3) المصدر ونوع المقال
+    # ===== 2) الثقة (0..1): مصدر الخبر ونوعه =====
     pub = ctx.get("publisher") or ""
-    mult = 1.0
-    if WIRE.search(pub) or WIRE.search(summary or ""):
-        mult *= 1.15; factors.append(("بيان رسمي من الشركة", "×1.15"))
+    conf = 0.75
+    if WIRE.search(pub) or WIRE.search(summary or "") or pub == "SEC 8-K":
+        conf = 0.95; add("بيان رسمي / إفصاح SEC", "ثقة 0.95", "conf")
     if SPECULATIVE.search(title):
-        mult *= 0.55; factors.append(("مقال رأي / تخمين", "×0.55"))
+        conf = min(conf, 0.45); add("مقال رأي / تخمين", "ثقة 0.45", "conf")
     elif EXPLAINER.search(title):
-        mult *= 0.8; factors.append(("مقال يشرح حركة حصلت", "×0.8"))
+        conf = min(conf, 0.7); add("مقال يشرح حركة حصلت", "ثقة 0.7", "conf")
+    if hedged:
+        conf = min(conf, 0.6); add("لغة مستقبلية (الحدث لم يقع بعد)", "ثقة 0.6", "conf")
 
-    # 4) حجم الشركة
+    # ===== 3) الأهمية (0..100): قوة الحدث × الثقة + حجم الشركة =====
+    imp = abs(direction) * 1.1 * conf
     cap = ctx.get("market_cap") or 0
-    if cap and cap < 300e6:
-        mult *= 1.3; factors.append(("شركة صغيرة: الخبر يحركها أكثر", "×1.3"))
-    elif cap > 200e9:
-        mult *= 0.6; factors.append(("شركة عملاقة: أثر الخبر أقل", "×0.6"))
+    if cap and abs(direction) >= 10:
+        size = 15 if cap < 300e6 else 8 if cap < 2e9 else -15 if cap > 200e9 else -5 if cap > 50e9 else 0
+        if size:
+            imp += size
+            add({15: "شركة صغيرة جدًا: الخبر يحركها أكثر", 8: "شركة صغيرة/متوسطة"}.get(size, "شركة كبيرة: أثر الخبر أقل"), f"{size:+d}", "imp")
+    importance = max(0, min(100, round(imp)))
 
-    s = raw * mult
-
-    # 5) ردة فعل السوق اليوم: تأكيد أو تعارض
+    # ===== 4) استجابة السوق (−100..+100): حركة السهم اليوم مقارنة بـ S&P 500 =====
+    reaction = None
     chg, rv = ctx.get("change_pct"), ctx.get("vol_ratio") or 0
-    if chg is not None and abs(s) >= 10 and abs(chg) >= 3:
-        same = (s > 0) == (chg > 0)
-        adj = min(15, abs(chg) / 2) * (1 if same else -0.6) * (1 if s > 0 else -1)
-        if rv >= 2:
-            adj *= 1.3
-        s += adj
-        factors.append((("السعر يؤكد الخبر" if same else "السعر يعاكس الخبر") + f" ({chg:+.1f}%" + (f"، سيولة {rv:.1f}×" if rv >= 2 else "") + ")", round(adj)))
+    if chg is not None:
+        mk = ctx["market_chg"] if ctx.get("market_chg") is not None else market_change()
+        rel = chg - mk
+        r = max(-70, min(70, rel * 3))
+        if abs(rel) >= 2 and rv >= 2:
+            r += (30 if rv >= 5 else 15) * (1 if rel > 0 else -1)
+        reaction = max(-100, min(100, round(r)))
+        if abs(direction) >= 15 and abs(reaction) >= 15:
+            same = (direction > 0) == (reaction > 0)
+            add(("السوق يؤكد الخبر" if same else "السوق يعاكس الخبر") + f" (السهم {chg:+.1f}% مقابل السوق {mk:+.1f}%" +
+                (f"، سيولة {rv:.1f}×" if rv >= 2 else "") + ")", reaction, "react")
 
-    s = max(-100, min(100, round(s)))
-    # 6) الحداثة: للترتيب فقط
-    age_h = (time.time() - ctx["time"]) / 3600 if ctx.get("time") else 24
-    fresh = 1.0 if age_h <= 2 else max(0.35, math.exp(-age_h / 30))
-    label = ("🟢 إيجابي قوي" if s >= 40 else "🟢 إيجابي" if s >= 15 else
-             "🔴 سلبي قوي" if s <= -40 else "🔴 سلبي" if s <= -15 else "⚪ محايد")
-    return {"score": s, "label": label, "event": event, "rank": round(abs(s) * fresh, 1),
-            "factors": [{"why": w, "pts": p} for w, p in factors]}
+    return {"score": direction, "direction": direction, "importance": importance, "reaction": reaction,
+            "confidence": round(conf, 2), "label": _label(direction), "event": event,
+            "rank": round(importance * fresh, 1), "factors": factors}
