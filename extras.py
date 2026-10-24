@@ -47,25 +47,76 @@ def _parse_article(item):
     }
 
 
+RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline?s={}&region=US&lang=en-US"
+NEWS_SRC = {"yahoo": 0, "rss": 0, "empty": 0, "errors": 0, "last_error": None}
+_RSS_ITEM = re.compile(r"<item\b[^>]*>(.*?)</item>", re.S | re.I)
+
+
+def _rss_field(block, tag):
+    m = re.search(rf"<{tag}\b[^>]*>(.*?)</{tag}\s*>", block, re.S | re.I)
+    if not m:
+        return ""
+    v = m.group(1).strip()
+    if v.startswith("<![CDATA["):
+        v = v[9:].rsplit("]]>", 1)[0]
+    return html.unescape(v).strip()
+
+
+def _rss_news(symbol, count=12):
+    """بديل أخبار ياهو: خلاصة RSS لكل سهم (لا تحتاج مفتاح جلسة ياهو)."""
+    from email.utils import parsedate_to_datetime
+    url = RSS_URL.format(symbol)
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
+    text = ""
+    try:
+        r = requests.get(url, timeout=10, headers=headers)
+        text = r.text if r.ok else ""
+    except requests.RequestException:
+        pass
+    if "<item" not in text:
+        from curl_cffi import requests as creq
+        text = creq.get(url, timeout=10, impersonate="chrome").text
+    out = []
+    for block in _RSS_ITEM.findall(text)[:count]:
+        title, link = _rss_field(block, "title"), _rss_field(block, "link")
+        if not title or not link:
+            continue
+        try:
+            t = int(parsedate_to_datetime(_rss_field(block, "pubDate")).timestamp())
+        except (TypeError, ValueError):
+            t = None
+        out.append({"title": title, "url": link, "publisher": "Yahoo Finance", "time": t,
+                    "summary": re.sub(r"<[^>]+>", "", _rss_field(block, "description"))[:300]})
+    return out
+
+
 def get_news(symbol, count=12, tab=None):
-    """tab=None: الأحدث ثم الكل ثم البيانات الصحفية حتى نجد أخبارًا؛ أو تبويب محدد مثل "press releases"."""
+    """tab=None: الأحدث ثم الكل ثم البيانات الصحفية حتى نجد أخبارًا؛ أو تبويب محدد مثل "press releases".
+    إذا لم يرجع ياهو شيئًا (يرفض الطلب أحيانًا بصمت) نأخذ الأخبار من خلاصة RSS."""
     now = time.time()
     key = symbol if tab is None else (symbol, tab)
     with _news_lock:
         cached = _news.get(key)
         if cached and now - cached["at"] < NEWS_SECONDS:
             return cached["items"]
+    items = []
     try:
-        # ياهو يقسم الأخبار: الأحدث، الكل، البيانات الصحفية — نجرب حتى نجد أخبارًا
-        items = []
         for tb in ((tab,) if tab else ("news", "all", "press releases")):
             t = yf.Ticker(symbol)
             items = [a for a in map(_parse_article, t.get_news(count=count, tab=tb) or []) if a]
             if items:
+                NEWS_SRC["yahoo"] += 1
                 break
     except Exception as e:
-        print(f"⚠️ فشل جلب أخبار {symbol}: {e}")
-        items = cached["items"] if cached else []
+        NEWS_SRC["errors"] += 1; NEWS_SRC["last_error"] = f"{symbol}: {str(e)[:120]}"
+    if not items and tab is None:  # خلاصة RSS واحدة لكل سهم (لا تفرق بين الأخبار والبيانات الصحفية)
+        try:
+            items = _rss_news(symbol, count)
+            NEWS_SRC["rss" if items else "empty"] += 1
+        except Exception as e:
+            NEWS_SRC["errors"] += 1; NEWS_SRC["last_error"] = f"RSS {symbol}: {str(e)[:120]}"
+    if not items and cached:
+        items = cached["items"]
     with _news_lock:
         _news[key] = {"items": items, "at": now}
     return items

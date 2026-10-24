@@ -107,7 +107,7 @@ setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
 {% if not request.path.startswith('/saudi') %}
 <div class="news-bar" id="news-bar" hidden>
-  <span class="nb-label" title="الأسهم المغادرة لناسداك (قائمة ناسداك الرسمية) + الأخبار المهمة لأنشط الأسهم وصفقاتك (ياهو) + تقسيم الأسهم — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
+  <span class="nb-label" title="الأسهم قيد الشطب (نماذج Form 25 في SEC وقائمة ناسداك) + الأخبار المهمة لأنشط الأسهم وصفقاتك (ياهو) + تقسيم الأسهم — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
   <div class="nb-view"><div class="nb-track" id="nb-track"></div></div>
 </div>
 <script>
@@ -128,8 +128,8 @@ async function loadNews() {
     const split = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${esc(i.name)} — كل ${i.old} سهم تصبح ${i.new} (المصدر: ${esc(i.source)})">` +
       (i.reverse ? `<span class="r">🔻 تقسيم عكسي</span>` : `<span class="f">🔺 تقسيم أسهم</span>`) +
       ` · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)} · بنسبة <b class="ltr">${i.new} : ${i.old}</b> · ${when(i.date)}</a>`;
-    const delist = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="قائمة ناسداك الرسمية للأسهم المعلّق تداولها أو قيد الشطب${i.status ? " · " + esc(i.status) : ""}">` +
-      `<span class="r">🚫 يغادر ناسداك</span> · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)}${i.reason ? " · " + esc(i.reason).slice(0, 60) : ""}${i.date ? " · " + esc(i.date) : ""}</a>`;
+    const delist = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${i.source === "SEC" ? "نموذج شطب مقدَّم لهيئة الأوراق المالية الأمريكية (SEC) — يُشطب السهم عادةً بعد نحو 10 أيام" : "قائمة ناسداك الرسمية للأسهم المعلّق تداولها أو قيد الشطب"}${i.status ? " · " + esc(i.status) : ""}">` +
+      `<span class="r">🚫 شطب من البورصة</span> · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)}${i.reason ? " · " + esc(i.reason).slice(0, 60) : ""}${i.date ? " · " + esc(i.date) : ""}</a>`;
     const news = i => `<a class="nb-item" href="${esc(i.url)}" target="_blank" rel="noopener" title="${esc(i.publisher)} — يفتح الخبر">` +
       `<span class="${i.prio <= 1 ? "r" : "f"}">${i.icon} ${esc(i.label)}</span> · ${sym(i.symbol)} <span class="ltr" style="direction:ltr">${esc(i.title).slice(0, 110)}</span> · <span class="muted">${i.time ? ago(i.time) : ""}</span></a>`;
     const nw = d.news || [];

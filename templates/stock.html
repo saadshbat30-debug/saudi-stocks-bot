@@ -687,7 +687,7 @@ setInterval(barTimer, 1000);
     const box = document.getElementById("split-note");
     const dl = (d.delist || []).find(i => i.symbol === SYMBOL);
     if (dl) {  // السهم في قائمة ناسداك للأسهم المعلّق تداولها أو قيد الشطب
-      box.innerHTML = `🚫 <b>هذا السهم يغادر ناسداك</b> (قائمة ناسداك الرسمية)${dl.reason ? " · " + escH(dl.reason) : ""}${dl.status ? " · " + escH(dl.status) : ""}${dl.date ? " · " + escH(dl.date) : ""} — بعد الشطب ينتقل عادةً إلى OTC بسيولة أقل`;
+      box.innerHTML = `🚫 <b>هذا السهم قيد الشطب من البورصة</b> (${dl.source === "SEC" ? "نموذج Form 25 في SEC" : "قائمة ناسداك الرسمية"})${dl.reason ? " · " + escH(dl.reason) : ""}${dl.status ? " · " + escH(dl.status) : ""}${dl.date ? " · " + escH(dl.date) : ""} — بعد الشطب ينتقل عادةً إلى OTC بسيولة أقل`;
       box.hidden = false; return;
     }
     const it = (d.items || []).find(i => i.symbol === SYMBOL);

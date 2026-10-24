@@ -2,6 +2,7 @@
 
 المصدر الأول تقويم التقسيمات في ياهو، والبديل تقويم ناسداك. يُحدَّث كل 30 دقيقة في الخلفية.
 """
+import os
 import re
 import threading
 import time
@@ -190,22 +191,95 @@ def _parse_delist(html):
 _HINT = re.compile(r"""["'(]([^"'()\s]{0,120}(?:\.ashx|\.asmx|\.svc|/api/|GetData|WebMethod|\.json|Handler|Service\.)[^"'()\s]{0,120})["')]""", re.I)
 
 
-def _refresh_delist():
+# ===== المصدر الرسمي الأوضح: نماذج Form 25 في هيئة الأوراق المالية الأمريكية (SEC EDGAR) =====
+# Form 25-NSE تقدمه البورصة (ناسداك أو نيويورك) قبل شطب السهم بنحو 10 أيام، و Form 25 تقدمه الشركة عند الانسحاب طوعًا
+SEC_FEED = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type={}&company=&dateb=&owner=include&start=0&count=100&output=atom"
+SEC_TICKERS = "https://www.sec.gov/files/company_tickers.json"
+SEC_UA = {"User-Agent": os.environ.get("SEC_UA", "StocksPlatform personal research stocks-platform@example.com"), "Accept-Encoding": "gzip, deflate"}
+_ciks = {"map": {}, "at": 0}
+_EXCHANGE = re.compile(r"stock market llc|stock exchange|\bexchange,? (inc|llc)|nyse|cboe", re.I)
+_ENTRY = re.compile(r"<entry>(.*?)</entry>", re.S)
+_TITLE = re.compile(r"<title>\s*([\w-]+)\s*-\s*(.*?)\s*\((\d{6,10})\)\s*\((\w[\w ]*)\)\s*</title>", re.S)
+
+
+def _sec_get(url):
     try:
-        html = _get_html(DELIST_URL)
-        items = _parse_delist(html)
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, "html.parser")
-        _delist["info"] = {"bytes": len(html), "title": (soup.title.get_text(strip=True) if soup.title else "")[:80],
-                           "tables": [[c.get_text(" ", strip=True)[:25] for c in (t.find("tr") or t).find_all(["th", "td"])][:8] for t in soup.find_all("table")][:6],
-                           # الجدول يُملأ بجافاسكربت: روابط الطلبات المحتملة في الصفحة لمعرفة مصدر البيانات
-                           "hints": sorted(set(_HINT.findall(html)))[:25]}
-        _delist.update(items=items, error=None, fails=0)
+        r = requests.get(url, timeout=15, headers=SEC_UA)
+        if r.ok:
+            return r
+    except requests.RequestException:
+        pass
+    from curl_cffi import requests as creq
+    return creq.get(url, timeout=15, headers=SEC_UA, impersonate="chrome")
+
+
+def _cik_map():
+    if time.time() - _ciks["at"] > 86400 or not _ciks["map"]:
+        data = _sec_get(SEC_TICKERS).json()
+        m = {}
+        for row in data.values():
+            m.setdefault(int(row["cik_str"]), row["ticker"].upper().replace(".", "-"))
+        _ciks.update(map=m, at=time.time())
+    return _ciks["map"]
+
+
+def _from_sec():
+    ciks, out, seen = _cik_map(), [], set()
+    for form in ("25-NSE", "25"):
+        text = _sec_get(SEC_FEED.format(form)).text
+        for e in _ENTRY.findall(text):
+            m = _TITLE.search(e)
+            if not m or m.group(1).upper() not in ("25-NSE", "25"):
+                continue
+            # في 25-NSE نأخذ الشركة (Subject) وليس البورصة التي قدّمت النموذج
+            if (m.group(1).upper() == "25-NSE" and m.group(4).lower() != "subject") or _EXCHANGE.search(m.group(2)):
+                continue
+            sym = ciks.get(int(m.group(3)))
+            if not sym or not _US.fullmatch(sym) or sym in seen:
+                continue
+            seen.add(sym)
+            when = re.search(r"<updated>(\d{4}-\d{2}-\d{2})", e)
+            link = re.search(r'<link[^>]*href="([^"]+)"', e)
+            out.append({"symbol": sym, "name": html_unescape(m.group(2)),
+                        "reason": "البورصة قدّمت طلب الشطب (Form 25-NSE)" if m.group(1).upper() == "25-NSE" else "الشركة طلبت الانسحاب من البورصة (Form 25)",
+                        "status": "", "date": when.group(1) if when else "", "url": link.group(1) if link else "", "source": "SEC"})
+    return out
+
+
+def html_unescape(s):
+    import html
+    return html.unescape(s)
+
+
+def _refresh_delist():
+    """قائمتان: نماذج الشطب في SEC (رسمية وسهلة القراءة) + صفحة ناسداك (إن أمكن قراءتها)."""
+    items, errors = [], []
+    try:
+        items = _parse_delist(_nasdaq_delist_html())
     except Exception as e:
-        if not _delist["fails"]:
-            print(f"⚠️ تعذر جلب قائمة ناسداك للأسهم قيد الشطب: {str(e)[:120]}")
-        _delist.update(error=str(e)[:150], fails=_delist["fails"] + 1)
-    _delist["at"] = time.time()
+        errors.append(f"Nasdaq: {str(e)[:100]}")
+    try:
+        have = {i["symbol"] for i in items}
+        items += [i for i in _from_sec() if i["symbol"] not in have]
+        _delist["sec_error"] = None
+    except Exception as e:
+        _delist["sec_error"] = str(e)[:150]
+        errors.append(f"SEC: {str(e)[:100]}")
+    if items or not _delist["items"]:
+        _delist["items"] = items
+    if errors and not items and not _delist["fails"]:
+        print(f"⚠️ تعذر جلب قائمة الأسهم قيد الشطب: {'; '.join(errors)[:160]}")
+    _delist.update(error="; ".join(errors) or None, fails=_delist["fails"] + 1 if errors and not items else 0, at=time.time())
+
+
+def _nasdaq_delist_html():
+    html = _get_html(DELIST_URL)
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    _delist["info"] = {"bytes": len(html), "title": (soup.title.get_text(strip=True) if soup.title else "")[:80],
+                       "tables": [[c.get_text(" ", strip=True)[:25] for c in (t.find("tr") or t).find_all(["th", "td"])][:8] for t in soup.find_all("table")][:6],
+                       "hints": sorted(set(_HINT.findall(html)))[:25]}
+    return html
 
 
 # ===== الأخبار المهمة: عناوين أخبار ياهو لأنشط الأسهم وصفقاتك، مصنفة حسب نوع الخبر =====
@@ -318,4 +392,5 @@ def start_news(get_rows):
 
 def news_snapshot():
     return {"news": _news_state["items"], "news_at": _news_state["at"], "news_stats": _news_state.get("stats"),
-            "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"], "delist_info": _delist.get("info")}
+            "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"], "delist_info": _delist.get("info"),
+            "sec_error": _delist.get("sec_error"), "news_sources": __import__("extras").NEWS_SRC}
