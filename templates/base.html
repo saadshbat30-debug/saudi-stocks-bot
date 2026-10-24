@@ -136,7 +136,9 @@ async function loadNewsBar() {
     const delist = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${i.source === "SEC" ? "نموذج شطب مقدَّم لهيئة الأوراق المالية الأمريكية (SEC) — يُشطب السهم عادةً بعد نحو 10 أيام" : "قائمة ناسداك الرسمية للأسهم المعلّق تداولها أو قيد الشطب"}${i.status ? " · " + esc(i.status) : ""}">` +
       `<span class="r">🚫 شطب من البورصة</span> · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)}${i.reason ? " · " + esc(i.reason).slice(0, 60) : ""}${i.date ? " · " + esc(i.date) : ""}</a>`;
     const news = i => `<a class="nb-item" href="${esc(i.url)}" target="_blank" rel="noopener" title="${esc(i.publisher)} — يفتح الخبر">` +
-      `<span class="${i.prio <= 1 ? "r" : "f"}">${i.icon} ${esc(i.label)}</span> · ${sym(i.symbol)} <span class="ltr" style="direction:ltr">${esc(i.title).slice(0, 110)}</span> · <span class="muted">${i.time ? ago(i.time) : ""}</span></a>`;
+      `<span class="${i.prio <= 1 ? "r" : "f"}">${i.icon} ${esc(i.label)}</span>` +
+      (i.score != null ? ` <b class="ltr" title="${esc(i.score_label || "")} — درجة الخبر من −100 إلى +100" style="color:${i.score >= 15 ? "#4ade80" : i.score <= -15 ? "#f87171" : "#cbd5e1"}">(${i.score > 0 ? "+" : ""}${i.score})</b>` : "") +
+      ` · ${sym(i.symbol)} <span class="ltr" style="direction:ltr">${esc(i.title).slice(0, 110)}</span> · <span class="muted">${i.time ? ago(i.time) : ""}</span></a>`;
     const nw = d.news || [];
     const parts = [...(d.delist || []).map(delist), ...nw.filter(i => i.prio <= 1).map(news), ...(d.items || []).map(split), ...nw.filter(i => i.prio > 1).map(news)];
     bar.hidden = !parts.length;
