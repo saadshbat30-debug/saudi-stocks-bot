@@ -49,6 +49,8 @@ EVENTS = [
     (r"(nasdaq|nyse)( american)? (notice|notification|deficiency|letter)|minimum bid|non-?compliance|listing (rule|requirement|standard)", -25, "إنذار من البورصة"),
     (r"reverse (stock |share )?split", -30, "تقسيم عكسي"),
     (r"(public|registered direct|direct|private placement|at-the-market|\batm\b|underwritten|secondary|follow-on) offering|prices? .{0,40}offering|warrant (inducement|exercise)|shelf registration|(?<!non-)(?<!non)\bdilut", -35, "طرح أسهم جديدة (تخفيف)"),
+    # بند 8-K 3.02: غالبًا تحويل سندات أو تنفيذ خيارات أو طرح أُعلن سابقًا، فأثره أضعف بكثير من إعلان طرح جديد
+    (r"unregistered sales? of equity", -10, "إصدار أسهم غير مسجلة (8-K 3.02)"),
     (r"going concern|substantial doubt", -35, "شك في استمرار الشركة"),
     (r"complete response letter|\bcrl\b|fda (rejects|declines|refuses)|(?<!lifts )(?<!lifted )(?<!removes )(?<!removed )clinical hold(?! (lifted|removed))|fail(s|ed)? to (meet|achieve)|did not meet|missed (the )?primary endpoint|discontinu(es|ed) (the )?(trial|program|development)", -50, "فشل/رفض في FDA أو التجارب"),
     (r"miss(es|ed)?\b.{0,25}(estimates|expectations|consensus)|falls? short of|below (estimates|expectations)", -30, "نتائج أقل من المتوقع"),

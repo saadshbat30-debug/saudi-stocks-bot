@@ -40,7 +40,7 @@ ITEMS_8K = {
     "1.03": "Bankruptcy or Receivership", "2.01": "Completion of Acquisition or Disposition of Assets",
     "2.02": "Results of Operations and Financial Condition", "2.04": "Triggering Events That Accelerate a Financial Obligation (default)",
     "2.06": "Material Impairments", "3.01": "Notice of Failure to Satisfy a Continued Listing Rule or Standard",
-    "3.02": "Unregistered Sales of Equity Securities (dilution)", "3.03": "Material Modification to Rights of Security Holders",
+    "3.02": "Unregistered Sales of Equity Securities", "3.03": "Material Modification to Rights of Security Holders",
     "4.01": "Changes in Registrant's Certifying Accountant", "4.02": "Non-Reliance on Previously Issued Financial Statements (restatement)",
     "5.01": "Changes in Control of Registrant", "5.02": "Departure or Appointment of Directors or Officers",
     "5.03": "Amendments to Articles of Incorporation or Bylaws", "7.01": "Regulation FD Disclosure", "8.01": "Other Events",

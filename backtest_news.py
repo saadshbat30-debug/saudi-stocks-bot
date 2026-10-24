@@ -206,8 +206,11 @@ def main():
     ap.add_argument("--neutral", type=int, default=250, help="أقصى عدد أخبار محايدة (المجموعة الضابطة)")
     ap.add_argument("--fresh", action="store_true", help="ابدأ من جديد بدل استكمال التشغيل السابق")
     ap.add_argument("--workers", type=int, default=4, help="عدد الطلبات المتوازية (2 لجهاز أخف)")
+    ap.add_argument("--rescore", action="store_true", help="أعد حساب درجات نماذج 8-K المحفوظة بالخوارزمية الحالية بلا تحميل")
     a = ap.parse_args()
     sys.path.insert(0, HERE)
+    if a.rescore:
+        return rescore()
     import news_score
     from news_track import _state_at_arrival, POS, NEG
     from wires import ITEMS_8K
@@ -340,6 +343,34 @@ def main():
     pos = sum(1 for r in rows if r["direction"] >= POS)
     negs = sum(1 for r in rows if r["direction"] <= NEG)
     print(f"✅ تم: {len(rows)} خبر ({pos} إيجابي، {negs} سلبي، {neutral[0]} محايد) — النتائج في صفحة «الأخبار الذكية» ← تبويب «📚 تاريخي (8-K)»")
+
+
+def rescore():
+    """يعيد تقييم عناوين 8-K المحفوظة بعد تعديل الخوارزمية (الأسعار والعوائد المقاسة لا تتغير).
+    البيانات الصحفية (wire) لا يُعاد تقييمها لأن نص البيان الكامل لم يُحفظ."""
+    import news_score
+    from news_track import _state_at_arrival, POS, NEG
+    with open(OUT, encoding="utf-8") as fh:
+        d = json.load(fh)
+    changed = 0
+    for r in d.get("rows", []):
+        if r.get("source") != "8-K":
+            continue
+        r["title"] = r["title"].replace(" (dilution)", "")
+        sc = news_score.score(r["title"], "بنود: " + ", ".join(r.get("items", [])),
+                              {"publisher": "SEC 8-K", "time": r.get("published"), "market_chg": 0})
+        if sc["direction"] != r["direction"]:
+            changed += 1
+        r.update(direction=sc["direction"], importance=sc["importance"], confidence=sc["confidence"], event=sc["event"],
+                 state=_state_at_arrival(sc["direction"], r.get("pre5m"), r.get("day_rel")) if abs(sc["direction"]) >= 15 else "neutral")
+    d.setdefault("meta", {})["rescored_at"] = int(time.time())
+    tmp = OUT + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False)
+    os.replace(tmp, OUT)
+    rows = d["rows"]
+    print(f"✅ أُعيد التقييم: تغيّرت درجة {changed} خبر · إيجابي {sum(1 for r in rows if r['direction'] >= POS)}، "
+          f"سلبي {sum(1 for r in rows if r['direction'] <= NEG)}، محايد {sum(1 for r in rows if -15 < r['direction'] < 15)}")
 
 
 def save(rows, a, skipped=()):
