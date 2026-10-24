@@ -67,10 +67,23 @@ EVENTS = [
 ]
 EVENTS = [(re.compile(rx, re.I), w, why) for rx, w, why in EVENTS]
 
-POS_WORDS = r"surge|soar|jump|rall(y|ies)|skyrocket|spike|record|strong|robust|growth|milestone|breakthrough|wins?|gains?|climbs?|rockets?|outperform|bullish|beats?|accelerat|exceed"
-NEG_WORDS = r"plunge|tumble|slump|sink|crash|fall|drop|weak|loss|losses|decline|slide|warns?|concern|bearish|cut|underperform|risk|trouble|struggl|halt|probe|lawsuit|miss"
+# قوائم كلمات مالية على طريقة Loughran-McDonald: كلمات مثل cost و liability و tax ليست سلبية في السياق المالي،
+# مع فئتين إضافيتين: الغموض (يخفض الثقة) والتقاضي. جذور كلمات تشمل كل التصريفات.
+POS_WORDS = (r"surg|soar|jump|rall(y|ies|ied)|skyrocket|spik|record|strong|robust|growth|grow|milestone|breakthrough|wins?|won|gain|climb|rocket|"
+             r"outperform|bullish|beat|accelerat|exceed|surpass|achiev|improv|profitab|boost|expand|upgrad|success|favorabl|strength|"
+             r"momentum|outstanding|excellent|impressive|advanc|attain|enhanc|optimis|confiden|rebound|recover|upside|innovat|lead(s|ing)? the")
+NEG_WORDS = (r"plung|tumbl|slump|sink|sank|crash|fall|fell|drop|weak|loss|losses|declin|slid|warn|concern|bearish|cut|underperform|"
+             r"trouble|struggl|halt|probe|miss|deteriorat|impair|default|delinquen|downgrad|shortfall|adverse|unfavorabl|"
+             r"disappoint|failure|fail|terminat|suspend|delay|penalt|violat|breach|layoff|restructur|writedown|write-down|"
+             r"downturn|slowdown|headwind|downside|plummet|collaps|turmoil|crisis|bankrupt|insolven|dilut|worsen|lower(s|ed)? (guidance|outlook)")
+UNCERTAIN_WORDS = (r"uncertain|might|could|possibl|perhaps|approximat|anticipat|believ|expect|tentativ|preliminar|"
+                   r"unclear|unknown|unpredictab|volatil|fluctuat|depend|assum|estimat|speculat|risk|exposure|contingen|pending|potential")
+LITIGIOUS_WORDS = r"lawsuit|litigat|plaintiff|defendant|indict|subpoena|settlement|class action|allegation|alleg|sued|sues|court|legal proceeding|arbitrat|injunction"
 _POS = re.compile(rf"\b({POS_WORDS})\w*", re.I)
 _NEG = re.compile(rf"\b({NEG_WORDS})\w*", re.I)
+_UNC = re.compile(rf"\b({UNCERTAIN_WORDS})\w*|\bmay\b(?! \d)", re.I)
+_MAY = re.compile(r"(?<![A-Z][a-z]{2} )\bmay\b(?! \d)")  # "may" بمعنى ربما وليس شهر May (حساس لحالة الأحرف)
+_LIT = re.compile(rf"\b({LITIGIOUS_WORDS})\w*", re.I)
 _NEGATION = re.compile(r"\b(not|no|fails? to|failed to|without|lack of|despite)\s+(\w+\s+){0,2}$", re.I)
 
 # بيانات رسمية من الشركة (وكالات نشر البيانات الصحفية)
@@ -106,7 +119,7 @@ def is_routine(title):
 
 
 # لغة مستقبلية أو احتمالية: الحدث لم يقع بعد ("expected", "plans to submit", "PDUFA date")
-HEDGE = re.compile(r"\b(expect(s|ed)?|anticipat\w*|plans? to|planning to|seeks?|seeking|aims? to|intends? to|could|may|might|potential(ly)?|"
+HEDGE = re.compile(r"\b(expect(s|ed)?|anticipat\w*|plans? to|planning to|seeks?|seeking|aims? to|intends? to|could|might|potential(ly)?|"
                    r"pdufa|submit(s|ted|ting)?|filing for|files? for|applies for|appl(y|ied) for|rumou?r\w*|report(edly|s say)|in talks|exploring|before|ahead of|awaits?|awaiting)\b", re.I)
 # نفي قبل الحدث الإيجابي يلغيه: "not approved", "fails to win", "denies", "no plans"
 EVENT_NEG = re.compile(r"\b(not|no|never|fails? to|failed to|did not|does not|won'?t|without|denie[sd]|den(y|ying)|rejects?|rejected|declin(es|ed))\b[\w\s,'-]{0,25}$", re.I)
@@ -166,7 +179,7 @@ def score(title, summary="", ctx=None):
             before = src[max(0, m.start() - 40):m.start()]
             if EVENT_NEG.search(before):  # "not approved"، "fails to win" ← الحدث الإيجابي لم يحصل
                 w2, why = -w2 * 0.5, "نفي: " + why + " لم يحصل"
-            elif HEDGE.search(src[max(0, m.start() - 40):m.end() + 25]):
+            elif HEDGE.search(src[max(0, m.start() - 40):m.end() + 25]) or _MAY.search(src[max(0, m.start() - 40):m.end() + 25]):
                 w2, why, hedged = w2 * 0.4, why + " (متوقع وليس واقعًا)", True
         if w2 > 0 and (best_pos is None or w2 > best_pos[0]):
             best_pos = (w2, why)
@@ -184,6 +197,10 @@ def score(title, summary="", ctx=None):
     t = max(-15, min(15, _tone(title) + _tone(summary or "") * 0.5))
     if abs(t) >= 5:
         add("نبرة الكلمات " + ("إيجابية" if t > 0 else "سلبية"), round(t), "dir")
+    # كلمات التقاضي: سلبية خفيفة إن لم يكن الحدث نفسه دعوى قضائية
+    lit = len(_LIT.findall(title))
+    if lit and not (event and "دعوى" in event):
+        t2 = -5 * min(lit, 2); t += t2; add("لغة تقاضٍ ونزاعات", t2, "dir")
     direction = max(-100, min(100, round(event_pts + t)))
 
     # ===== 2) الثقة (0..1): مصدر الخبر ونوعه =====
@@ -197,6 +214,9 @@ def score(title, summary="", ctx=None):
         conf = min(conf, 0.7); add("مقال يشرح حركة حصلت", "ثقة 0.7", "conf")
     if hedged:
         conf = min(conf, 0.6); add("لغة مستقبلية (الحدث لم يقع بعد)", "ثقة 0.6", "conf")
+    unc = len([m for m in _UNC.finditer(title) if m.group(0).lower() != "may" or _MAY.search(m.group(0))])
+    if unc and not hedged:  # كلمات غموض في العنوان: "may"، "preliminary"، "uncertain"
+        conf = max(0.4, conf - 0.1 * min(unc, 2)); add(f"لغة غموض ({unc})", f"ثقة −{0.1 * min(unc, 2):.1f}", "conf")
 
     # ===== 3) الأهمية (0..100): قوة الحدث × الثقة + حجم الشركة =====
     imp = abs(direction) * 1.1 * conf
@@ -226,3 +246,21 @@ def score(title, summary="", ctx=None):
     return {"score": direction, "direction": direction, "importance": importance, "reaction": reaction,
             "confidence": round(conf, 2), "label": _label(direction), "event": event,
             "rank": round(importance * fresh, 1), "factors": factors}
+
+
+HALF_LIFE_H = 6  # نصف عمر أثر الخبر في مزاج السهم: بعد 6 ساعات يصبح وزنه النصف
+
+
+def mood(items, now=None):
+    """مزاج الأخبار للسهم (−100..+100) = Σ الاتجاه × الثقة × e^(−λΔt) ÷ Σ الثقة × e^(−λΔt)."""
+    now = now or time.time()
+    lam = math.log(2) / (HALF_LIFE_H * 3600)
+    num = den = 0.0
+    n = 0
+    for i in items:
+        if i.get("event") == "خبر روتيني":
+            continue
+        w = (i.get("confidence") or 0.75) * math.exp(-lam * max(0, now - (i.get("time") or now)))
+        num += (i.get("direction", i.get("score")) or 0) * w
+        den += w; n += 1
+    return {"mood": round(num / den) if den else None, "n": n, "weight": round(den, 2)}
