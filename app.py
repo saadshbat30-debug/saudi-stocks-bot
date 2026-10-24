@@ -9,7 +9,7 @@ import options
 from alerts import send_telegram, start_alerts
 from config import SAUDI_URL, ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 import stream
-from market import STATUS, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
+from market import STATUS, row_for, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
 # إخفاء سطور الطلبات العادية حتى تظهر رسائل المنصة المهمة فقط
@@ -88,7 +88,12 @@ def api_news(symbol):
     symbol = symbol.upper()
     if not valid_symbol(symbol):
         abort(404)
-    return jsonify(extras.get_news(symbol))
+    import news_score
+    r = row_for(symbol) or {}
+    items = [{**a, **news_score.score(a["title"], a.get("summary", ""), {
+        "change_pct": r.get("change_pct"), "vol_ratio": r.get("vol_ratio"), "market_cap": r.get("market_cap"),
+        "publisher": a.get("publisher"), "time": a.get("time")})} for a in extras.get_news(symbol)]
+    return jsonify(items)
 
 
 @app.route("/api/news")
@@ -184,6 +189,17 @@ def api_trades(symbol):
         abort(404)
     stream.watch([symbol])
     return jsonify(stream.tape(symbol))
+
+
+@app.route("/news")
+def smart_news_page():
+    return render_template("news.html", market=MARKETS["us"], market_id="us", markets=MARKETS)
+
+
+@app.route("/api/smart_news")
+def api_smart_news():
+    corp_events.watch([s.strip().upper() for s in request.args.get("watch", "").split(",") if s.strip()])
+    return jsonify(corp_events.smart_news())
 
 
 @app.route("/api/events")

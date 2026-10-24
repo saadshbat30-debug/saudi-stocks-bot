@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}📰 الأخبار الذكية — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .chip { padding:5px 11px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:#2b3340; border-color:#64748b; color:#f1f5f9; font-weight:600; }
+  .lbl { color:var(--muted); font-size:12px; margin-inline:8px 2px; }
+  .field { background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:5px 10px; font:inherit; font-size:13px; }
+  .stats { display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin:4px 0 12px; }
+  .stats b { color:var(--text); }
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .nw { display:grid; grid-template-columns:58px 1fr; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .nw.pos { border-inline-start:3px solid #16a34a; } .nw.neg { border-inline-start:3px solid #dc2626; }
+  .sc { width:58px; height:58px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:700; font-size:18px; direction:ltr; }
+  .sc small { font-size:9.5px; font-weight:500; opacity:.85; direction:rtl; }
+  .sc.p2 { background:#14532d; color:#bbf7d0; } .sc.p1 { background:#163322; color:#86efac; }
+  .sc.n2 { background:#7f1d1d; color:#fecaca; } .sc.n1 { background:#3b1717; color:#fca5a5; } .sc.z { background:#1f2937; color:#cbd5e1; }
+  .top { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; font-size:13px; }
+  .top a.sym { font-weight:700; font-size:15px; } .top .nm { color:var(--muted); }
+  .ttl { display:block; margin:5px 0 6px; font-size:15px; line-height:1.45; direction:ltr; text-align:left; unicode-bidi:plaintext; }
+  .ttl:hover { text-decoration:underline; }
+  .fx { display:flex; flex-wrap:wrap; gap:5px; }
+  .fx span { font-size:11.5px; padding:2px 8px; border-radius:999px; background:#0f1419; border:1px solid var(--line); color:var(--muted); }
+  .fx span.p { color:#86efac; border-color:#14532d; } .fx span.n { color:#fca5a5; border-color:#7f1d1d; }
+  .meta { font-size:12px; color:var(--muted); margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; }
+  .sum { font-size:12.5px; color:#a3b0bd; margin-top:6px; direction:ltr; text-align:left; unicode-bidi:plaintext; }
+  details.how { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:13px; color:#cbd5e1; }
+  details.how summary { cursor:pointer; color:var(--text); }
+  details.how li { margin:3px 0; }
+  .empty { padding:30px; text-align:center; color:var(--muted); background:var(--card); border-radius:12px; }
+  @media (max-width:700px) { .nw { grid-template-columns:46px 1fr; } .sc { width:46px; height:46px; font-size:15px; } }
+</style>
+
+<h2 style="margin:4px 0 6px;font-size:20px">📰 الأخبار الذكية</h2>
+<details class="how">
+  <summary>كيف تُحسب درجة الخبر؟ (من −100 إلى +100)</summary>
+  <ol>
+    <li><b>نوع الحدث</b> (الوزن الأكبر): موافقة FDA +45، عرض استحواذ +40، نتائج تجارب إيجابية +40، رفع التوقعات +30، عقد جديد +25 … مقابل: إفلاس −70، فشل في FDA −50، شطب −45، طرح أسهم −35، تقسيم عكسي −30، إنذار من البورصة −25</li>
+    <li><b>نبرة الكلمات</b>: يقفز، قياسي، قوي (+) — يهبط، خسارة، تحذير (−)، مع مراعاة النفي مثل "fails to"</li>
+    <li><b>المصدر</b>: بيان رسمي من الشركة ×1.15 — مقال رأي أو سؤال ("Should you buy?") ×0.55</li>
+    <li><b>حجم الشركة</b>: أقل من 300 مليون ×1.3 (الخبر يحركها أكثر) — أكبر من 200 مليار ×0.6</li>
+    <li><b>ردة فعل السوق اليوم</b>: إذا كان السعر والسيولة يتحركان باتجاه الخبر تزيد الدرجة، وإذا عاكساه تنقص</li>
+    <li><b>الحداثة</b>: الخبر الأحدث يظهر أعلى في ترتيب «الأهم»</li>
+  </ol>
+  <div class="muted">تقدير آلي من نص الخبر وليس توصية — اقرأ الخبر نفسه قبل أي قرار.</div>
+</details>
+
+<div class="toolbar" id="f-side"><span class="lbl">الاتجاه:</span>
+  <button class="chip" data-v="pos">🟢 إيجابي</button><button class="chip" data-v="neg">🔴 سلبي</button><button class="chip" data-v="all">الكل</button></div>
+<div class="toolbar" id="f-min"><span class="lbl">القوة:</span>
+  <button class="chip" data-v="15">15+</button><button class="chip" data-v="40">قوي 40+</button><button class="chip" data-v="0">أي درجة</button></div>
+<div class="toolbar" id="f-scope"><span class="lbl">الأسهم:</span>
+  <button class="chip" data-v="all">الكل</button><button class="chip" data-v="mine">💼 صفقاتي ★ مفضلتي</button></div>
+<div class="toolbar" id="f-price"><span class="lbl">السعر:</span>
+  <button class="chip" data-v="all">الكل</button><button class="chip" data-v="0-1">تحت 1$</button><button class="chip" data-v="1-5">1–5$</button><button class="chip" data-v="5-20">5–20$</button><button class="chip" data-v="20-1e9">20$+</button></div>
+<div class="toolbar"><span class="lbl">الترتيب:</span><span id="f-sort">
+  <button class="chip" data-v="rank">الأهم</button><button class="chip" data-v="new">الأحدث</button><button class="chip" data-v="score">الأعلى درجة</button></span>
+  <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-one"> خبر واحد لكل سهم (الأقوى)</label>
+  <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-sharia"> ☪️ الشرعية فقط</label>
+  <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-otc"> إخفاء OTC</label>
+  <input class="field" id="f-q" placeholder="🔍 رمز أو كلمة" style="width:150px">
+</div>
+<div class="stats" id="stats">⏳ جارٍ التحميل…</div>
+<div class="list" id="list"></div>
+
+<script>
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const cfg = store.get("smart_news", { side: "pos", min: "15", scope: "all", price: "all", sort: "rank", one: true, sharia: false, otc: true });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const ago = t => { if (!t) return ""; const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60)); return m < 60 ? `قبل ${m} د` : m < 1440 ? `قبل ${Math.round(m / 60)} س` : `قبل ${Math.round(m / 1440)} يوم`; };
+const big = v => v == null ? "—" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(v);
+let data = { items: [] };
+
+function chips(id, key) {
+  const box = document.getElementById(id);
+  const sync = () => box.querySelectorAll(".chip").forEach(b => b.classList.toggle("active", b.dataset.v === String(cfg[key])));
+  box.onclick = e => { const b = e.target.closest(".chip"); if (!b) return; cfg[key] = b.dataset.v; store.set("smart_news", cfg); sync(); render(); };
+  sync();
+}
+[["f-side", "side"], ["f-min", "min"], ["f-scope", "scope"], ["f-price", "price"], ["f-sort", "sort"]].forEach(a => chips(...a));
+for (const [id, key] of [["f-one", "one"], ["f-sharia", "sharia"], ["f-otc", "otc"]]) {
+  const el = document.getElementById(id); el.checked = !!cfg[key];
+  el.onchange = () => { cfg[key] = el.checked; store.set("smart_news", cfg); render(); };
+}
+document.getElementById("f-q").oninput = () => render();
+
+function mine() {
+  return new Set([...Object.keys(store.get("positions", {}) || {}), ...store.get("favs_us", [])]);
+}
+
+function render() {
+  const q = document.getElementById("f-q").value.trim().toLowerCase(), my = mine();
+  const [lo, hi] = cfg.price === "all" ? [0, Infinity] : cfg.price.split("-").map(Number);
+  const min = Number(cfg.min);
+  let rows = (data.items || []).filter(i =>
+    (cfg.side === "all" || (cfg.side === "pos" ? i.score > 0 : i.score < 0)) &&
+    Math.abs(i.score) >= min &&
+    (cfg.scope !== "mine" || my.has(i.symbol)) &&
+    (i.price == null || (i.price >= lo && i.price < hi)) &&
+    (!cfg.sharia || i.sharia === "ok") &&
+    (!cfg.otc || !i.otc) &&
+    (!q || i.symbol.toLowerCase().includes(q) || i.title.toLowerCase().includes(q) || (i.name || "").toLowerCase().includes(q)));
+  const key = { rank: i => -i.rank, new: i => -(i.time || 0), score: i => cfg.side === "neg" ? i.score : -i.score }[cfg.sort] || (i => -i.rank);
+  rows.sort((a, b) => key(a) - key(b));
+  if (cfg.one) { const seen = new Set(); rows = rows.filter(i => !seen.has(i.symbol) && seen.add(i.symbol)); }
+
+  const all = data.items || [];
+  const pos = all.filter(i => i.score >= 15).length, neg = all.filter(i => i.score <= -15).length;
+  const st = data.stats || {};
+  document.getElementById("stats").innerHTML =
+    `<span>فُحص <b>${st.symbols ?? "…"}</b> سهم</span><span><b>${all.length}</b> خبر في آخر 48 ساعة</span>` +
+    `<span>🟢 إيجابي <b>${pos}</b></span><span>🔴 سلبي <b>${neg}</b></span><span>المعروض <b>${rows.length}</b></span>` +
+    (data.at ? `<span>آخر فحص ${ago(data.at)}</span>` : "") +
+    (st.scanned != null && st.symbols && st.scanned < st.symbols ? `<span>⏳ الفحص جارٍ ${st.scanned}/${st.symbols}</span>` : "");
+
+  const cls = s => s >= 40 ? "p2" : s >= 15 ? "p1" : s <= -40 ? "n2" : s <= -15 ? "n1" : "z";
+  document.getElementById("list").innerHTML = rows.slice(0, 150).map(i => {
+    const ch = i.change_pct == null ? "" : `<span class="${i.change_pct >= 0 ? "up" : "down"} ltr">${i.change_pct >= 0 ? "+" : ""}${i.change_pct.toFixed(2)}%</span>`;
+    const fx = (i.factors || []).map(f => {
+      const n = typeof f.pts === "number" ? f.pts : null;
+      return `<span class="${n == null ? "" : n > 0 ? "p" : n < 0 ? "n" : ""}">${esc(f.why)} <b class="ltr">${n == null ? esc(f.pts) : (n > 0 ? "+" : "") + n}</b></span>`;
+    }).join("");
+    return `<div class="nw ${i.score >= 15 ? "pos" : i.score <= -15 ? "neg" : ""}">
+      <div class="sc ${cls(i.score)}" title="${esc(i.label)}">${i.score > 0 ? "+" : ""}${i.score}<small>${esc(i.label.replace(/^\S+\s/, ""))}</small></div>
+      <div>
+        <div class="top"><a class="sym ltr" href="/stock/${encodeURIComponent(i.symbol)}">${esc(i.symbol)}</a>${i.otc ? '<span class="muted" style="font-size:11px">OTC</span>' : ""}
+          <span class="nm">${esc(i.name).slice(0, 40)}</span>
+          ${i.price != null ? `<span class="ltr">$${i.price < 1 ? i.price.toFixed(4) : i.price.toFixed(2)}</span>` : ""} ${ch}
+          ${i.vol_ratio ? `<span class="muted">سيولة ${i.vol_ratio.toFixed(1)}×</span>` : ""}
+          ${i.market_cap ? `<span class="muted">القيمة ${big(i.market_cap)}</span>` : ""}
+          ${my.has(i.symbol) ? "<span>💼★</span>" : ""}</div>
+        <a class="ttl" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
+        <div class="fx">${fx || '<span>لا يوجد حدث واضح في العنوان</span>'}</div>
+        ${i.summary ? `<div class="sum">${esc(i.summary)}</div>` : ""}
+        <div class="meta"><span>${ago(i.time)}</span><span>${esc(i.publisher)}</span></div>
+      </div></div>`;
+  }).join("") || `<div class="empty">${(data.items || []).length ? "لا توجد أخبار بهذه الشروط — جرّب «أي درجة» أو «الكل»" : "⏳ يُفحص السوق الآن، تظهر الأخبار خلال دقائق من تشغيل المنصة"}</div>`;
+}
+
+async function load() {
+  try {
+    const w = [...mine()].slice(0, 40).join(",");
+    data = await (await fetch("/api/smart_news?watch=" + encodeURIComponent(w))).json();
+    render();
+  } catch {}
+}
+load(); setInterval(load, 60000);
+</script>
+{% endblock %}

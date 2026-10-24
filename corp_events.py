@@ -358,7 +358,8 @@ def _news_symbols(get_rows):
     by = lambda key, rev=True: [r["symbol"] for r in sorted(rows, key=lambda r: r.get(key) or 0, reverse=rev)]
     now = time.time()
     mine = [s for s, t in list(_news_state["watch"].items()) if now - t < 3600]
-    return list(dict.fromkeys(mine + by("value")[:40] + by("change_pct")[:25] + by("change_pct", False)[:10]))
+    # صفقاتك ومفضلتك + الأعلى قيمة + الأكثر ارتفاعًا وانخفاضًا + الأعلى سيولة نسبية (حيث تظهر الأخبار المحركة عادةً)
+    return list(dict.fromkeys(mine + by("value")[:50] + by("change_pct")[:40] + by("change_pct", False)[:20] + by("vol_ratio")[:40]))
 
 
 _SUFFIX = {"inc", "corp", "corporation", "co", "company", "ltd", "limited", "plc", "holdings", "holding", "group", "the",
@@ -384,8 +385,11 @@ def _refresh_news(get_rows):
     import extras
     from concurrent.futures import ThreadPoolExecutor
     cutoff, items, seen = time.time() - NEWS_HOURS * 3600, [], set()
+    import news_score
     rows = get_rows() or []
     names = {r["symbol"]: r.get("name") for r in rows}
+    by_sym = {r["symbol"]: r for r in rows}
+    scored = []
     syms, st = _news_symbols(lambda: rows), {"articles": 0, "last_48h": 0, "scanned": 0}
     other = []
 
@@ -407,15 +411,25 @@ def _refresh_news(get_rows):
                 if (a.get("time") or 0) < cutoff:
                     continue
                 st["last_48h"] += 1
+                r = by_sym.get(s) or {}
+                sc = news_score.score(a["title"], a.get("summary", ""), {
+                    "change_pct": r.get("change_pct"), "vol_ratio": r.get("vol_ratio"), "market_cap": r.get("market_cap"),
+                    "publisher": a.get("publisher"), "time": a.get("time")})
+                scored.append({**sc, "symbol": s, "name": r.get("name") or names.get(s) or "", "title": a["title"], "url": a["url"],
+                               "time": a.get("time"), "publisher": a.get("publisher"), "summary": (a.get("summary") or "")[:240],
+                               "price": r.get("price"), "change_pct": r.get("change_pct"), "vol_ratio": r.get("vol_ratio"),
+                               "market_cap": r.get("market_cap"), "float": r.get("float"), "otc": r.get("otc"), "sharia": r.get("sharia")})
                 c = classify(a["title"])
                 if not c:
                     if len(other) < 15:
                         other.append(f"{s}: {a['title'][:100]}")
                     continue
-                items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher")})
+                items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher"),
+                              "score": sc["score"], "score_label": sc["label"]})
             # النتائج تظهر أولًا بأول أثناء الفحص (أول فحص بعد التشغيل يأخذ دقائق)
             if st["scanned"] % 10 == 0 or st["scanned"] == len(syms):
                 ranked = sorted(items, key=lambda i: (i["prio"], -(i["time"] or 0)))[:60]
+                _news_state["scored"] = sorted(scored, key=lambda i: -i["rank"])[:600]
                 _news_state.update(items=ranked if st["scanned"] == len(syms) or ranked else _news_state["items"], at=time.time(),
                                    stats={**st, "symbols": len(syms), "important": len(items), "other_samples": other})
     if not syms:
@@ -446,6 +460,10 @@ def start_news(get_rows):
         _state["news_started"] = True
         _state["get_rows"] = get_rows
     threading.Thread(target=_events_loop, args=(get_rows,), daemon=True).start()
+
+
+def smart_news():
+    return {"items": _news_state.get("scored", []), "at": _news_state["at"], "stats": _news_state.get("stats")}
 
 
 def news_snapshot():

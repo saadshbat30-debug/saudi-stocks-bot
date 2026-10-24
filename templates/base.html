@@ -57,6 +57,7 @@
   <span class="session" id="stream-status" title="البث المباشر للأسعار من ياهو">—</span>
   <nav>
     <a href="/options" class="{{ 'active' if request.path.startswith('/options') }}" title="عقود الخيارات: كول وبوت">📑 العقود</a>
+    <a href="/news" class="{{ 'active' if request.path == '/news' }}" title="الأخبار الذكية: كل خبر بدرجة من −100 إلى +100 حسب أثره المتوقع على السهم">📰 الأخبار الذكية</a>
     <a href="/breakout" class="{{ 'active' if request.path == '/breakout' }}" title="فلتر قبل الانطلاق: نشاط غير معتاد والسعر في نطاق ضيق">⚡ قبل الانطلاق</a>
     {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>

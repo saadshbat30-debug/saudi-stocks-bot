@@ -858,8 +858,10 @@ const escH = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<":
 async function loadNews() {
   try {
     const items = await (await fetch(`/api/news/${encodeURIComponent(SYMBOL)}`)).json();
+    // درجة الخبر (−100 إلى +100) من نوع الحدث والنبرة والمصدر وحجم الشركة وردة فعل السعر
+    const badge = a => a.score == null ? "" : `<span title="${escH((a.factors || []).map(f => f.why + " " + f.pts).join(" · "))}" style="display:inline-block;min-width:38px;text-align:center;padding:1px 6px;margin-inline-end:6px;border-radius:999px;font-size:12px;font-weight:700;direction:ltr;${a.score >= 15 ? "background:#14532d;color:#bbf7d0" : a.score <= -15 ? "background:#7f1d1d;color:#fecaca" : "background:#1f2937;color:#cbd5e1"}">${a.score > 0 ? "+" : ""}${a.score}</span>`;
     document.getElementById("news-list").innerHTML = items.length ? items.map(a => `<li>
-        <a href="${escH(a.url)}" target="_blank" rel="noopener">${escH(a.title)}</a>
+        ${badge(a)}${a.event ? `<span class="muted" style="font-size:12px">${escH(a.event)} · </span>` : ""}<a href="${escH(a.url)}" target="_blank" rel="noopener">${escH(a.title)}</a>
         ${a.summary ? `<p>${escH(a.summary)}</p>` : ""}
         <div class="muted">${escH(a.publisher)} · ${ago(a.time)}</div>
       </li>`).join("") : `<li class="muted">لا توجد أخبار حديثة لهذا السهم</li>`;
