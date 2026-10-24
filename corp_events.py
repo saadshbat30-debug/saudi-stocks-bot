@@ -187,6 +187,9 @@ def _parse_delist(html):
     return out
 
 
+_HINT = re.compile(r"""["'(]([^"'()\s]{0,120}(?:\.ashx|\.asmx|\.svc|/api/|GetData|WebMethod|\.json|Handler|Service\.)[^"'()\s]{0,120})["')]""", re.I)
+
+
 def _refresh_delist():
     try:
         html = _get_html(DELIST_URL)
@@ -194,7 +197,9 @@ def _refresh_delist():
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
         _delist["info"] = {"bytes": len(html), "title": (soup.title.get_text(strip=True) if soup.title else "")[:80],
-                           "tables": [[c.get_text(" ", strip=True)[:25] for c in (t.find("tr") or t).find_all(["th", "td"])][:8] for t in soup.find_all("table")][:6]}
+                           "tables": [[c.get_text(" ", strip=True)[:25] for c in (t.find("tr") or t).find_all(["th", "td"])][:8] for t in soup.find_all("table")][:6],
+                           # الجدول يُملأ بجافاسكربت: روابط الطلبات المحتملة في الصفحة لمعرفة مصدر البيانات
+                           "hints": sorted(set(_HINT.findall(html)))[:25]}
         _delist.update(items=items, error=None, fails=0)
     except Exception as e:
         if not _delist["fails"]:
@@ -250,28 +255,40 @@ def _news_symbols(get_rows):
 
 def _refresh_news(get_rows):
     import extras
+    from concurrent.futures import ThreadPoolExecutor
     cutoff, items, seen = time.time() - NEWS_HOURS * 3600, [], set()
-    syms, total, recent, other = _news_symbols(get_rows), 0, 0, []
-    for s in syms:
+    syms, st = _news_symbols(get_rows), {"articles": 0, "last_48h": 0, "scanned": 0}
+    other = []
+
+    def fetch(s):
         # الأخبار + البيانات الصحفية للشركة (فيها إشعارات ناسداك والطروحات عادةً)
-        for a in extras.get_news(s)[:10] + extras.get_news(s, tab="press releases")[:10]:
-            if a["url"] in seen:
-                continue
-            seen.add(a["url"]); total += 1
-            if (a.get("time") or 0) < cutoff:
-                continue
-            recent += 1
-            c = classify(a["title"])
-            if not c:
-                if len(other) < 15:
-                    other.append(f"{s}: {a['title'][:100]}")
-                continue
-            items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher")})
-        time.sleep(0.4)  # لا نُثقل على ياهو
-    items.sort(key=lambda i: (i["prio"], -(i["time"] or 0)))
-    # إحصائية للتشخيص: كم سهمًا فُحص وكم خبرًا وصل وأمثلة لأخبار لم تُصنّف مهمة
-    _news_state.update(items=items[:60], at=time.time(),
-                       stats={"symbols": len(syms), "articles": total, "last_48h": recent, "important": len(items), "other_samples": other})
+        out = extras.get_news(s)[:10] + extras.get_news(s, tab="press releases")[:10]
+        time.sleep(0.3)  # لا نُثقل على ياهو
+        return s, out
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for s, arts in pool.map(fetch, syms):
+            st["scanned"] += 1
+            for a in arts:
+                if a["url"] in seen:
+                    continue
+                seen.add(a["url"]); st["articles"] += 1
+                if (a.get("time") or 0) < cutoff:
+                    continue
+                st["last_48h"] += 1
+                c = classify(a["title"])
+                if not c:
+                    if len(other) < 15:
+                        other.append(f"{s}: {a['title'][:100]}")
+                    continue
+                items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher")})
+            # النتائج تظهر أولًا بأول أثناء الفحص (أول فحص بعد التشغيل يأخذ دقائق)
+            if st["scanned"] % 10 == 0 or st["scanned"] == len(syms):
+                ranked = sorted(items, key=lambda i: (i["prio"], -(i["time"] or 0)))[:60]
+                _news_state.update(items=ranked if st["scanned"] == len(syms) or ranked else _news_state["items"], at=time.time(),
+                                   stats={**st, "symbols": len(syms), "important": len(items), "other_samples": other})
+    if not syms:
+        _news_state["stats"] = {"symbols": 0, "note": "قائمة السوق لم تجهز بعد"}
     return len(syms)
 
 
