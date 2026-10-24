@@ -28,6 +28,17 @@
   .muted { color:var(--muted); font-size:13px; }
   .up { color:var(--up); } .down { color:var(--down); }
   .ltr { direction:ltr; unicode-bidi:isolate; }
+  /* 📢 شريط الإعلانات: تقسيم الأسهم */
+  .news-bar { display:flex; align-items:stretch; border-bottom:1px solid var(--line); background:#121820; font-size:13.5px; height:34px; }
+  .news-bar[hidden] { display:none; }
+  .news-bar .nb-label { flex:none; display:flex; align-items:center; gap:6px; padding:0 14px; background:#1e2a38; color:#e2e8f0; font-weight:600; white-space:nowrap; }
+  .news-bar .nb-view { flex:1; overflow:hidden; position:relative; }
+  .news-bar .nb-track { position:absolute; top:0; bottom:0; right:0; display:flex; align-items:center; white-space:nowrap; animation:nb-move var(--nb-dur, 60s) linear infinite; }
+  .news-bar:hover .nb-track { animation-play-state:paused; }
+  .news-bar .nb-item { padding:0 22px; border-inline-start:1px solid var(--line); color:var(--text); }
+  .news-bar .nb-item:hover b { text-decoration:underline; }
+  .news-bar .nb-item .r { color:#f87171; font-weight:600; } .news-bar .nb-item .f { color:#4ade80; font-weight:600; }
+  @keyframes nb-move { from { transform:translateX(0); } to { transform:translateX(50%); } }
 </style>
 <script src="{{ url_for('static', filename='price_alerts.js') }}"></script>
 </head>
@@ -94,6 +105,38 @@ async function loadStatus() {
 renderSession(); loadIndices(); loadStatus(); setInterval(loadStatus, 15000);
 setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
+{% if not request.path.startswith('/saudi') %}
+<div class="news-bar" id="news-bar" hidden>
+  <span class="nb-label" title="إعلانات تقسيم الأسهم من تقويم ياهو وناسداك — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
+  <div class="nb-view"><div class="nb-track" id="nb-track"></div></div>
+</div>
+<script>
+// شريط الإعلانات: التقسيم العكسي أولًا ثم التقسيم العادي، مع موعد التنفيذ
+async function loadNews() {
+  try {
+    const d = await (await fetch("/api/events")).json();
+    const bar = document.getElementById("news-bar"), items = d.items || [];
+    bar.hidden = !items.length;
+    if (!items.length) return;
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    const dayMs = 86400000, diff = s => Math.round((new Date(s) - new Date(today)) / dayMs);
+    const when = s => {
+      const n = diff(s), txt = new Date(s + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long" });
+      return n === 0 ? "<b>اليوم</b>" : n === 1 ? "<b>غدًا</b> " + txt : n < 0 ? "نُفّذ " + txt : "اعتبارًا من " + txt;
+    };
+    const one = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${esc(i.name)} — كل ${i.old} سهم تصبح ${i.new} (المصدر: ${esc(i.source)})">` +
+      (i.reverse ? `<span class="r">🔻 تقسيم عكسي</span>` : `<span class="f">🔺 تقسيم أسهم</span>`) +
+      ` · <b class="ltr">${esc(i.symbol)}</b> ${esc(i.name).slice(0, 40)} · بنسبة <b class="ltr">${i.new} : ${i.old}</b> · ${when(i.date)}</a>`;
+    const html = items.map(one).join("");
+    const track = document.getElementById("nb-track");
+    track.innerHTML = html + html;  // نسختان متتاليتان حتى يدور الشريط بلا فراغ
+    track.style.setProperty("--nb-dur", Math.max(30, items.length * 7) + "s");
+  } catch {}
+}
+loadNews(); setInterval(loadNews, 600000);
+</script>
+{% endif %}
 <div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>
 <main>{% block content %}{% endblock %}</main>
 {% if not hide_position %}<script src="{{ url_for('static', filename='position.js') }}"></script>{% endif %}

@@ -170,6 +170,7 @@
   .panels-menu { position:absolute; z-index:300; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,.5); min-width:200px; }
   .panels-menu label { display:flex; gap:8px; align-items:center; padding:4px 2px; cursor:pointer; }
 </style>
+<div id="split-note" hidden style="margin-bottom:8px;padding:8px 12px;border-radius:10px;background:#2a1616;border:1px solid #7f1d1d;color:#fecaca;font-size:14px"></div>
 <div class="strip">
   <div class="st-name"><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
   <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span></div>
@@ -678,6 +679,22 @@ function barTimer() {
   box.hidden = false;
 }
 setInterval(barTimer, 1000);
+
+// تنبيه إذا كان للسهم تقسيم قريب (عكسي أو عادي)
+(async () => {
+  try {
+    const d = await (await fetch("/api/events")).json();
+    const it = (d.items || []).find(i => i.symbol === SYMBOL);
+    if (!it) return;
+    const box = document.getElementById("split-note");
+    const txt = new Date(it.date + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long", year: "numeric" });
+    box.innerHTML = (it.reverse ? "🔻 <b>تقسيم عكسي</b>" : "🔺 <b>تقسيم أسهم</b>") +
+      ` بنسبة <b class="ltr">${it.new} : ${it.old}</b> (كل ${it.old} سهم تصبح ${it.new}) — التنفيذ ${txt}` +
+      (it.reverse ? " · السعر يرتفع بنفس النسبة وعدد أسهمك يقل؛ قيمة صفقتك لا تتغير بسبب التقسيم نفسه" : "");
+    if (!it.reverse) Object.assign(box.style, { background: "#0f1f17", borderColor: "#14532d", color: "#bbf7d0" });
+    box.hidden = false;
+  } catch {}
+})();
 
 async function loadKpis() {
   try {

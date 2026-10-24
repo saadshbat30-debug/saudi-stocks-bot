@@ -3,6 +3,7 @@ import time
 from flask import Flask, abort, jsonify, render_template, request
 
 import breakout
+import corp_events
 import extras
 import options
 from alerts import send_telegram, start_alerts
@@ -185,6 +186,11 @@ def api_trades(symbol):
     return jsonify(stream.tape(symbol))
 
 
+@app.route("/api/events")
+def api_events():
+    return jsonify(corp_events.snapshot())
+
+
 @app.route("/api/status")
 def api_status():
     age = screener_age()
@@ -248,6 +254,7 @@ def test():
 
 
 start_alerts()
+corp_events.start()
 
 if __name__ == "__main__":
     import saudi_runner
