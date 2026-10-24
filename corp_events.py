@@ -93,6 +93,13 @@ def _from_nasdaq():
     return out
 
 
+def _days_apart(a, b):
+    try:
+        return abs((date.fromisoformat(a) - date.fromisoformat(b)).days)
+    except ValueError:
+        return 99
+
+
 def refresh():
     items, errors, source = {}, [], []
     for name, fn in (("Yahoo", _from_yahoo), ("Nasdaq", _from_nasdaq)):
@@ -104,7 +111,10 @@ def refresh():
         if got:
             source.append(name)
         for it in filter(None, got):
-            items.setdefault((it["symbol"], it["date"]), it)  # ياهو أولًا، وناسداك يكمل الناقص
+            # ياهو أولًا، وناسداك يكمل الناقص؛ نفس التقسيم قد يأتي من المصدرين بفارق يوم أو يومين
+            dup = any(k[0] == it["symbol"] and _days_apart(k[1], it["date"]) <= 3 for k in items)
+            if not dup:
+                items[(it["symbol"], it["date"])] = it
     lo = (_today() - timedelta(days=DAYS_BACK)).isoformat()
     hi = (_today() + timedelta(days=DAYS_AHEAD)).isoformat()
     rows = sorted((i for i in items.values() if lo <= i["date"] <= hi), key=lambda i: (not i["reverse"], i["date"], i["symbol"]))
