@@ -47,25 +47,27 @@ def _parse_article(item):
     }
 
 
-def get_news(symbol, count=12):
+def get_news(symbol, count=12, tab=None):
+    """tab=None: الأحدث ثم الكل ثم البيانات الصحفية حتى نجد أخبارًا؛ أو تبويب محدد مثل "press releases"."""
     now = time.time()
+    key = symbol if tab is None else (symbol, tab)
     with _news_lock:
-        cached = _news.get(symbol)
+        cached = _news.get(key)
         if cached and now - cached["at"] < NEWS_SECONDS:
             return cached["items"]
     try:
         # ياهو يقسم الأخبار: الأحدث، الكل، البيانات الصحفية — نجرب حتى نجد أخبارًا
         items = []
-        for tab in ("news", "all", "press releases"):
+        for tb in ((tab,) if tab else ("news", "all", "press releases")):
             t = yf.Ticker(symbol)
-            items = [a for a in map(_parse_article, t.get_news(count=count, tab=tab) or []) if a]
+            items = [a for a in map(_parse_article, t.get_news(count=count, tab=tb) or []) if a]
             if items:
                 break
     except Exception as e:
         print(f"⚠️ فشل جلب أخبار {symbol}: {e}")
         items = cached["items"] if cached else []
     with _news_lock:
-        _news[symbol] = {"items": items, "at": now}
+        _news[key] = {"items": items, "at": now}
     return items
 
 

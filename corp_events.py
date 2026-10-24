@@ -166,17 +166,18 @@ def _parse_delist(html):
     from bs4 import BeautifulSoup
     out = []
     for table in BeautifulSoup(html, "html.parser").find_all("table"):
-        rows = table.find_all("tr")
-        if not rows:
+        # صفوف هذا الجدول فقط (بدون الجداول المتداخلة)، وصف العناوين هو أول صف فيه خانة "Symbol"
+        rows = [tr for tr in table.find_all("tr") if tr.find_parent("table") is table]
+        cells_of = lambda tr: [c.get_text(" ", strip=True) for c in tr.find_all(["th", "td"]) if c.find_parent("tr") is tr]
+        h = next((i for i, tr in enumerate(rows) if any("symbol" in c.lower() and len(c) < 30 for c in cells_of(tr))), None)
+        if h is None:
             continue
-        head = [c.get_text(" ", strip=True).lower() for c in rows[0].find_all(["th", "td"])]
-        if not any("symbol" in h for h in head):
-            continue
+        head, rows = [c.lower() for c in cells_of(rows[h])], rows[h:]
         idx = lambda *keys: next((i for i, h in enumerate(head) if any(k in h for k in keys)), None)
         i_sym, i_name, i_reason = idx("symbol"), idx("issuer", "company", "name"), idx("reason", "deficiency")
         i_status, i_date = idx("status"), idx("effective", "suspension date", "delisting date", "date")
         for tr in rows[1:]:
-            cells = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+            cells = cells_of(tr)
             cell = lambda i: cells[i] if i is not None and i < len(cells) else ""
             sym = cell(i_sym).upper()
             if not _US.fullmatch(sym):
@@ -188,7 +189,12 @@ def _parse_delist(html):
 
 def _refresh_delist():
     try:
-        items = _parse_delist(_get_html(DELIST_URL))
+        html = _get_html(DELIST_URL)
+        items = _parse_delist(html)
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+        _delist["info"] = {"bytes": len(html), "title": (soup.title.get_text(strip=True) if soup.title else "")[:80],
+                           "tables": [[c.get_text(" ", strip=True)[:25] for c in (t.find("tr") or t).find_all(["th", "td"])][:8] for t in soup.find_all("table")][:6]}
         _delist.update(items=items, error=None, fails=0)
     except Exception as e:
         if not _delist["fails"]:
@@ -245,16 +251,28 @@ def _news_symbols(get_rows):
 def _refresh_news(get_rows):
     import extras
     cutoff, items, seen = time.time() - NEWS_HOURS * 3600, [], set()
-    for s in _news_symbols(get_rows):
-        for a in extras.get_news(s)[:8]:
-            c = classify(a["title"])
-            if not c or (a.get("time") or 0) < cutoff or a["url"] in seen:
+    syms, total, recent, other = _news_symbols(get_rows), 0, 0, []
+    for s in syms:
+        # الأخبار + البيانات الصحفية للشركة (فيها إشعارات ناسداك والطروحات عادةً)
+        for a in extras.get_news(s)[:10] + extras.get_news(s, tab="press releases")[:10]:
+            if a["url"] in seen:
                 continue
-            seen.add(a["url"])
+            seen.add(a["url"]); total += 1
+            if (a.get("time") or 0) < cutoff:
+                continue
+            recent += 1
+            c = classify(a["title"])
+            if not c:
+                if len(other) < 15:
+                    other.append(f"{s}: {a['title'][:100]}")
+                continue
             items.append({**c, "symbol": s, "title": a["title"], "url": a["url"], "time": a.get("time"), "publisher": a.get("publisher")})
         time.sleep(0.4)  # لا نُثقل على ياهو
     items.sort(key=lambda i: (i["prio"], -(i["time"] or 0)))
-    _news_state.update(items=items[:60], at=time.time())
+    # إحصائية للتشخيص: كم سهمًا فُحص وكم خبرًا وصل وأمثلة لأخبار لم تُصنّف مهمة
+    _news_state.update(items=items[:60], at=time.time(),
+                       stats={"symbols": len(syms), "articles": total, "last_48h": recent, "important": len(items), "other_samples": other})
+    return len(syms)
 
 
 def _events_loop(get_rows):
@@ -265,10 +283,11 @@ def _events_loop(get_rows):
             _refresh_delist(); last_delist = now
         if now - last_news > NEWS_EVERY:
             try:
-                _refresh_news(get_rows)
+                if _refresh_news(get_rows):  # قائمة السوق لم تجهز بعد عند التشغيل: نعيد بعد 30 ثانية
+                    last_news = now
             except Exception as e:
                 print(f"⚠️ تعذر تحديث الأخبار المهمة: {str(e)[:120]}")
-            last_news = now
+                last_news = now
         time.sleep(30)
 
 
@@ -281,5 +300,5 @@ def start_news(get_rows):
 
 
 def news_snapshot():
-    return {"news": _news_state["items"], "news_at": _news_state["at"],
-            "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"]}
+    return {"news": _news_state["items"], "news_at": _news_state["at"], "news_stats": _news_state.get("stats"),
+            "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"], "delist_info": _delist.get("info")}
