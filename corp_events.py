@@ -143,10 +143,31 @@ def start():
     threading.Thread(target=_loop, daemon=True).start()
 
 
+# التقسيمات المعروضة: أسهم ناسداك ونيويورك فقط (بدون OTC والصناديق المتداولة ETF)
+LISTED = {"NMS", "NGM", "NCM", "NAS", "NYQ", "NYS", "ASE"}  # ناسداك (3 شرائح) · بورصة نيويورك · نيويورك أمريكان
+_listed = {"set": set(), "at": 0}
+
+
+def _listed_symbols():
+    rows_fn = _state.get("get_rows")
+    if rows_fn and time.time() - _listed["at"] > 120:
+        try:
+            got = {r["symbol"] for r in (rows_fn() or []) if r.get("exchange") in LISTED and not r.get("otc")}
+            if got:
+                _listed.update(set=got, at=time.time())
+        except Exception:
+            pass
+    return _listed["set"]
+
+
 def snapshot():
     start()
     with _lock:
-        return {k: _state[k] for k in ("items", "at", "source", "error")}
+        out = {k: _state[k] for k in ("items", "at", "source", "error")}
+    listed = _listed_symbols()
+    if listed:  # قبل جهوز قائمة السوق تُعرض كل التقسيمات
+        out["items"] = [i for i in out["items"] if i["symbol"] in listed]
+    return out
 
 
 def for_symbol(symbol):
@@ -420,6 +441,7 @@ def start_news(get_rows):
         if _state.get("news_started"):
             return
         _state["news_started"] = True
+        _state["get_rows"] = get_rows
     threading.Thread(target=_events_loop, args=(get_rows,), daemon=True).start()
 
 
