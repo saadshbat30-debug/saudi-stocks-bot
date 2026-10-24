@@ -32,6 +32,8 @@
   .news-bar { display:flex; align-items:stretch; border-bottom:1px solid var(--line); background:#121820; font-size:13.5px; height:34px; }
   .news-bar[hidden] { display:none; }
   .news-bar .nb-label { flex:none; display:flex; align-items:center; gap:6px; padding:0 14px; background:#1e2a38; color:#e2e8f0; font-weight:600; white-space:nowrap; }
+  .news-bar .nb-sound { background:none; border:0; cursor:pointer; font-size:15px; padding:0 2px; opacity:.9; }
+  .news-bar .nb-sound.off { opacity:.45; filter:grayscale(1); }
   .news-bar .nb-view { flex:1; overflow:hidden; position:relative; }
   .news-bar .nb-track { position:absolute; top:0; bottom:0; right:0; display:flex; align-items:center; white-space:nowrap; animation:nb-move var(--nb-dur, 60s) linear infinite; }
   .news-bar:hover .nb-track { animation-play-state:paused; }
@@ -41,6 +43,7 @@
   @keyframes nb-move { from { transform:translateX(0); } to { transform:translateX(50%); } }
 </style>
 <script src="{{ url_for('static', filename='price_alerts.js') }}"></script>
+<script src="{{ url_for('static', filename='breaking.js') }}"></script>
 </head>
 <body>
 <header>
@@ -107,12 +110,13 @@ setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
 {% if not request.path.startswith('/saudi') %}
 <div class="news-bar" id="news-bar" hidden>
-  <span class="nb-label" title="الأسهم قيد الشطب (نماذج Form 25 في SEC وقائمة ناسداك) + الأخبار المهمة لأنشط الأسهم وصفقاتك (ياهو) + تقسيم الأسهم — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
+  <span class="nb-label" title="الأسهم قيد الشطب (نماذج Form 25 في SEC وقائمة ناسداك) + الأخبار المهمة لأنشط الأسهم وصفقاتك (ياهو) + تقسيم الأسهم — مرّر الفأرة لإيقاف الشريط">📢 إعلانات
+    <button type="button" id="nb-sound" class="nb-sound" title="نغمة «عاجل» عند إعلان مهم جديد — اضغط للتشغيل/الإيقاف">🔔</button></span>
   <div class="nb-view"><div class="nb-track" id="nb-track"></div></div>
 </div>
 <script>
 // شريط الإعلانات: الأسهم المغادرة لناسداك والأخبار المهمة أولًا، ثم تقسيم الأسهم، ثم بقية الأخبار
-async function loadNews() {
+async function loadNewsBar() {
   try {
     const ls = k => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
     const mine = [...Object.keys(ls("positions") || {}), ...ls("favs_us")].slice(0, 40);
@@ -135,6 +139,13 @@ async function loadNews() {
     const nw = d.news || [];
     const parts = [...(d.delist || []).map(delist), ...nw.filter(i => i.prio <= 1).map(news), ...(d.items || []).map(split), ...nw.filter(i => i.prio > 1).map(news)];
     bar.hidden = !parts.length;
+    // 🔴 عاجل: الشطب والأخبار العاجلة، وأي إعلان عن سهم في صفقاتك أو مفضلتك
+    const mineSet = new Set(mine), txt = h => h.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    window.BreakingNews?.check([
+      ...(d.delist || []).map(i => ({ id: "d:" + i.symbol + ":" + i.date, important: true, href: "/stock/" + encodeURIComponent(i.symbol), html: delist(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(delist(i)) })),
+      ...nw.map(i => ({ id: "n:" + i.url, important: i.prio <= 1 || mineSet.has(i.symbol), href: i.url, html: news(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(news(i)) })),
+      ...(d.items || []).map(i => ({ id: "s:" + i.symbol + ":" + i.date, important: mineSet.has(i.symbol), href: "/stock/" + encodeURIComponent(i.symbol), html: split(i).replace(/<a[^>]*>|<\/a>/g, ""), title: txt(split(i)) })),
+    ]);
     if (!parts.length) return;
     const html = parts.join("");
     const track = document.getElementById("nb-track");
@@ -142,7 +153,11 @@ async function loadNews() {
     track.style.setProperty("--nb-dur", Math.max(40, parts.length * 9) + "s");
   } catch {}
 }
-loadNews(); setInterval(loadNews, 120000);
+const nbSound = document.getElementById("nb-sound");
+const nbPaint = () => { const on = window.BreakingNews?.enabled(); nbSound.textContent = on ? "🔔" : "🔕"; nbSound.classList.toggle("off", !on); };
+nbSound.onclick = e => { e.stopPropagation(); window.BreakingNews?.toggle(); nbPaint(); };
+nbPaint();
+loadNewsBar(); setInterval(loadNewsBar, 120000);
 </script>
 {% endif %}
 <div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>
