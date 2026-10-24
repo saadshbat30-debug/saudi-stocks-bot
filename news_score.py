@@ -37,6 +37,9 @@ EVENTS = [
     (r"patent (granted|issued|award)|receives? .{0,20}patent", 10, "براءة اختراع"),
     (r"\blaunch(es|ed)?\b|unveil|introduc(es|ed) (new|its)", 8, "إطلاق منتج"),
     (r"entry into a material definitive agreement", 10, "اتفاقية جوهرية (8-K)"),
+    (r"\b(to |will )?present\w* .{0,40}\b(data|results)\b|late-breaking", 12, "عرض بيانات تجارب قادم"),
+    (r"medicare (reimbursement|coverage|payment)|reimbursement (approval|coverage)|\bcms\b .{0,20}(approv|cover|code)|(secures?|receives?|grant(ed|s)?) .{0,20}(reimbursement|coverage)", 25, "تغطية تأمينية / تعويض Medicare"),
+    (r"deleverag|debt[- ](paydown|reduction|repayment|free)|pays? (down|off) .{0,20}debt|refinanc", 12, "خفض الديون / إعادة تمويل"),
     (r"completion of acquisition", 10, "إتمام استحواذ (8-K)"),
     (r"changes? in control of registrant", 10, "تغيّر السيطرة على الشركة (8-K)"),
     (r"expan(ds|sion)|enters? .{0,20}market|opens? new", 8, "توسع"),
@@ -78,12 +81,12 @@ NEG_WORDS = (r"plung|tumbl|slump|sink|sank|crash|fall|fell|drop|weak|loss|losses
              r"downturn|slowdown|headwind|downside|plummet|collaps|turmoil|crisis|bankrupt|insolven|dilut|worsen|lower(s|ed)? (guidance|outlook)")
 UNCERTAIN_WORDS = (r"uncertain|might|could|possibl|perhaps|approximat|anticipat|believ|expect|tentativ|preliminar|"
                    r"unclear|unknown|unpredictab|volatil|fluctuat|depend|assum|estimat|speculat|risk|exposure|contingen|pending|potential")
-LITIGIOUS_WORDS = r"lawsuit|litigat|plaintiff|defendant|indict|subpoena|settlement|class action|allegation|alleg|sued|sues|court|legal proceeding|arbitrat|injunction"
+LITIGIOUS_WORDS = r"lawsuit|litigat|plaintiff|defendant|indict|subpoena|settlement|class action|alleg(e|ed|es|ing|ation|ations|edly)\b|sued\b|sues\b|courts?\b|legal proceeding|arbitrat|injunction"
 _POS = re.compile(rf"\b({POS_WORDS})\w*", re.I)
 _NEG = re.compile(rf"\b({NEG_WORDS})\w*", re.I)
 _UNC = re.compile(rf"\b({UNCERTAIN_WORDS})\w*|\bmay\b(?! \d)", re.I)
 _MAY = re.compile(r"(?<![A-Z][a-z]{2} )\bmay\b(?! \d)")  # "may" بمعنى ربما وليس شهر May (حساس لحالة الأحرف)
-_LIT = re.compile(rf"\b({LITIGIOUS_WORDS})\w*", re.I)
+_LIT = re.compile(rf"\b({LITIGIOUS_WORDS})", re.I)
 # الشركة هي المدعية أو كسبت القضية: التقاضي هنا ليس سلبيًا عليها
 PLAINTIFF = re.compile(r"\b(sues|suing|files? (a )?(patent )?(lawsuit|suit|complaint|claim) against|brings? (a )?(lawsuit|suit|action) against|takes? legal action against)\b", re.I)
 LIT_WIN = re.compile(r"\b(wins?|won|prevails?|prevailed)\b.{0,30}\b(lawsuit|case|verdict|ruling|appeal|litigation|arbitration|patent)|"
@@ -161,7 +164,7 @@ def _tone(text):
 
 # أخبار روتينية لا تحرك السهم: مواعيد النتائج والمؤتمرات، منح الموظفين، المشاركة في مؤتمرات
 ROUTINE = re.compile(r"inducement grants?|announces? .{0,40}(release date|date for|dates for)|schedules? .{0,60}(conference call|earnings (call|release)|webcast)|"
-                     r"(to|will) (host|hold|present|participate|ring)|conference call (schedule|and webcast)|earnings release and conference call|"
+                     r"(to|will) (host|hold|participate|ring)|(to|will) present(?!.{0,50}\b(data|results)\b)|conference call (schedule|and webcast)|earnings release and conference call|"
                      r"annual (general )?meeting|investor (day|conference)|fireside chat|to report .{0,40}results on|"
                      r"earnings call transcript|call transcript|said on its .{0,20}(earnings )?call|earnings snapshot|what to expect (from|ahead)|"
                      r"earnings preview|ahead of (its )?(q[1-4]|earnings)|key metrics", re.I)
@@ -255,12 +258,13 @@ def score(title, summary="", ctx=None):
         event = (best_neg if not best_pos or (best_neg and abs(best_neg[0]) >= best_pos[0]) else best_pos)[1]
 
     # نبرة الكلمات: تعديل محدود ±15 حتى لا تتفوق على نوع الحدث
-    t = max(-15, min(15, _tone(title) + _tone(summary or "") * 0.5))
+    is_8k = (ctx.get("publisher") or "") == "SEC 8-K"
+    t = 0 if is_8k else max(-15, min(15, _tone(title) + _tone(summary or "") * 0.5))
     if abs(t) >= 5:
         add("نبرة الكلمات " + ("إيجابية" if t > 0 else "سلبية"), round(t), "dir")
     # كلمات التقاضي: سلبية خفيفة إن لم يكن الحدث نفسه دعوى قضائية
     lmc = lm_counts(title)
-    lit = lmc["lit"] if lmc is not None else len(_LIT.findall(title))
+    lit = 0 if is_8k else (lmc["lit"] if lmc is not None else len(_LIT.findall(title)))
     if lit and not (event and "دعوى" in event) and not (plaintiff or lit_win):
         t2 = -5 * min(lit, 2); t += t2; add("لغة تقاضٍ ونزاعات", t2, "dir")
     elif plaintiff and not lit_win:
