@@ -462,11 +462,38 @@ def start_news(get_rows):
     threading.Thread(target=_events_loop, args=(get_rows,), daemon=True).start()
 
 
+def _wire_items():
+    try:
+        import wires
+        return wires.items()
+    except Exception:
+        return []
+
+
 def smart_news():
-    return {"items": _news_state.get("scored", []), "at": _news_state["at"], "stats": _news_state.get("stats")}
+    """أخبار ياهو المقيّمة + البيانات الصحفية الفورية ونماذج 8-K (الأحدث أولًا عند التكرار)."""
+    import wires
+    seen, out = set(), []
+    for i in _wire_items() + _news_state.get("scored", []):
+        if i["url"] in seen:
+            continue
+        seen.add(i["url"]); out.append(i)
+    out.sort(key=lambda i: -i["rank"])
+    return {"items": out[:800], "at": _news_state["at"], "stats": _news_state.get("stats"), "wires": wires.status()}
 
 
 def news_snapshot():
-    return {"news": _news_state["items"], "news_at": _news_state["at"], "news_stats": _news_state.get("stats"),
+    # الشريط: الأخبار المصنّفة من ياهو + البيانات الفورية المهمة (مصنّفة أو درجتها قوية)
+    fast = []
+    for w in _wire_items():
+        c = classify(w["title"])
+        if not c and abs(w["score"]) < 40:
+            continue
+        c = c or {"kind": "wire", "icon": "⚡", "label": "بيان فوري", "prio": 1 if w["score"] <= -40 else 2}
+        fast.append({**c, "symbol": w["symbol"], "title": w["title"], "url": w["url"], "time": w["time"],
+                     "publisher": w["publisher"], "score": w["score"], "score_label": w["label"]})
+    have = {i["url"] for i in fast}
+    merged = sorted(fast + [i for i in _news_state["items"] if i["url"] not in have], key=lambda i: (i["prio"], -(i["time"] or 0)))[:80]
+    return {"news": merged, "news_at": _news_state["at"], "news_stats": _news_state.get("stats"),
             "delist": _delist["items"], "delist_at": _delist["at"], "delist_error": _delist["error"], "delist_info": _delist.get("info"),
             "sec_error": _delist.get("sec_error"), "news_sources": __import__("extras").NEWS_SRC}

@@ -42,6 +42,7 @@
     <li><b>حجم الشركة</b>: أقل من 300 مليون ×1.3 (الخبر يحركها أكثر) — أكبر من 200 مليار ×0.6</li>
     <li><b>ردة فعل السوق اليوم</b>: إذا كان السعر والسيولة يتحركان باتجاه الخبر تزيد الدرجة، وإذا عاكساه تنقص</li>
     <li><b>الحداثة</b>: الخبر الأحدث يظهر أعلى في ترتيب «الأهم»</li>
+    <li><b>المصادر</b>: أخبار ياهو لأنشط الأسهم كل 10 دقائق، و<b>⚡ الفورية</b> كل دقيقة: البيانات الصحفية من GlobeNewswire و PR Newswire و Business Wire لحظة نشرها، ونماذج 8-K في هيئة SEC (إنذار شطب، بيع أسهم، إفلاس، اتفاقيات…)</li>
   </ol>
   <div class="muted">تقدير آلي من نص الخبر وليس توصية — اقرأ الخبر نفسه قبل أي قرار.</div>
 </details>
@@ -59,6 +60,7 @@
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-one"> خبر واحد لكل سهم (الأقوى)</label>
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-sharia"> ☪️ الشرعية فقط</label>
   <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-otc"> إخفاء OTC</label>
+  <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-fast"> ⚡ الفورية فقط</label>
   <input class="field" id="f-q" placeholder="🔍 رمز أو كلمة" style="width:150px">
 </div>
 <div class="stats" id="stats">⏳ جارٍ التحميل…</div>
@@ -79,7 +81,7 @@ function chips(id, key) {
   sync();
 }
 [["f-side", "side"], ["f-min", "min"], ["f-scope", "scope"], ["f-price", "price"], ["f-sort", "sort"]].forEach(a => chips(...a));
-for (const [id, key] of [["f-one", "one"], ["f-sharia", "sharia"], ["f-otc", "otc"]]) {
+for (const [id, key] of [["f-one", "one"], ["f-sharia", "sharia"], ["f-otc", "otc"], ["f-fast", "fast"]]) {
   const el = document.getElementById(id); el.checked = !!cfg[key];
   el.onchange = () => { cfg[key] = el.checked; store.set("smart_news", cfg); render(); };
 }
@@ -100,6 +102,7 @@ function render() {
     (i.price == null || (i.price >= lo && i.price < hi)) &&
     (!cfg.sharia || i.sharia === "ok") &&
     (!cfg.otc || !i.otc) &&
+    (!cfg.fast || i.source) &&
     (!q || i.symbol.toLowerCase().includes(q) || i.title.toLowerCase().includes(q) || (i.name || "").toLowerCase().includes(q)));
   const key = { rank: i => -i.rank, new: i => -(i.time || 0), score: i => cfg.side === "neg" ? i.score : -i.score }[cfg.sort] || (i => -i.rank);
   rows.sort((a, b) => key(a) - key(b));
@@ -112,7 +115,9 @@ function render() {
     `<span>فُحص <b>${st.symbols ?? "…"}</b> سهم</span><span><b>${all.length}</b> خبر في آخر 48 ساعة</span>` +
     `<span>🟢 إيجابي <b>${pos}</b></span><span>🔴 سلبي <b>${neg}</b></span><span>المعروض <b>${rows.length}</b></span>` +
     (data.at ? `<span>آخر فحص ${ago(data.at)}</span>` : "") +
-    (st.scanned != null && st.symbols && st.scanned < st.symbols ? `<span>⏳ الفحص جارٍ ${st.scanned}/${st.symbols}</span>` : "");
+    (st.scanned != null && st.symbols && st.scanned < st.symbols ? `<span>⏳ الفحص جارٍ ${st.scanned}/${st.symbols}</span>` : "") +
+    // حالة المصادر الفورية (تُفحص كل دقيقة)
+    Object.entries((data.wires || {}).feeds || {}).map(([n, f]) => `<span title="${esc(f.error || "")}">${f.ok ? "⚡" : "⚠️"} ${esc(n)}</span>`).join("");
 
   const cls = s => s >= 40 ? "p2" : s >= 15 ? "p1" : s <= -40 ? "n2" : s <= -15 ? "n1" : "z";
   document.getElementById("list").innerHTML = rows.slice(0, 150).map(i => {
@@ -129,7 +134,8 @@ function render() {
           ${i.price != null ? `<span class="ltr">$${i.price < 1 ? i.price.toFixed(4) : i.price.toFixed(2)}</span>` : ""} ${ch}
           ${i.vol_ratio ? `<span class="muted">سيولة ${i.vol_ratio.toFixed(1)}×</span>` : ""}
           ${i.market_cap ? `<span class="muted">القيمة ${big(i.market_cap)}</span>` : ""}
-          ${my.has(i.symbol) ? "<span>💼★</span>" : ""}</div>
+          ${my.has(i.symbol) ? "<span>💼★</span>" : ""}
+          ${i.source === "wire" ? '<span style="color:#facc15" title="بيان صحفي من وكالة النشر مباشرة — أسرع من ياهو">⚡ بيان فوري</span>' : i.source === "8-K" ? '<span style="color:#facc15" title="إفصاح إلزامي مقدَّم لهيئة SEC">⚡ إفصاح 8-K</span>' : ""}</div>
         <a class="ttl" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
         <div class="fx">${fx || '<span>لا يوجد حدث واضح في العنوان</span>'}</div>
         ${i.summary ? `<div class="sum">${esc(i.summary)}</div>` : ""}

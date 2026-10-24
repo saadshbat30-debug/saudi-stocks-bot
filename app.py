@@ -4,6 +4,7 @@ from flask import Flask, abort, jsonify, render_template, request
 
 import breakout
 import corp_events
+import wires
 import extras
 import options
 from alerts import send_telegram, start_alerts
@@ -273,6 +274,7 @@ def test():
 start_alerts()
 corp_events.start()
 corp_events.start_news(lambda: get_market("us"))
+wires.start()  # البيانات الصحفية الفورية ونماذج 8-K كل دقيقة
 
 if __name__ == "__main__":
     import saudi_runner

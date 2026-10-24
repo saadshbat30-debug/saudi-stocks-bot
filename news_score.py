@@ -34,6 +34,9 @@ EVENTS = [
     (r"uplist|approved (for|to) list(ing)? on (the )?(nasdaq|nyse)", 20, "الانتقال لبورصة رئيسية"),
     (r"patent (granted|issued|award)|receives? .{0,20}patent", 10, "براءة اختراع"),
     (r"\blaunch(es|ed)?\b|unveil|introduc(es|ed) (new|its)", 8, "إطلاق منتج"),
+    (r"entry into a material definitive agreement", 10, "اتفاقية جوهرية (8-K)"),
+    (r"completion of acquisition", 10, "إتمام استحواذ (8-K)"),
+    (r"changes? in control of registrant", 10, "تغيّر السيطرة على الشركة (8-K)"),
     (r"expan(ds|sion)|enters? .{0,20}market|opens? new", 8, "توسع"),
     # ===== سلبي =====
     (r"chapter 11|chapter 7|bankrupt|insolven|receivership|wind(s|ing)? down", -70, "إفلاس / تصفية"),
@@ -56,6 +59,9 @@ EVENTS = [
     (r"default(s|ed)? on|missed (a )?(debt )?payment|covenant", -40, "تعثر في سداد الديون"),
     (r"impairment|write[- ]?down|restat(e|ement)", -15, "شطب أصول / إعادة قوائم"),
     (r"\bhalt(ed|s)?\b", -8, "إيقاف تداول"),
+    (r"triggering events that accelerate|acceleration of (a )?(debt|obligation)", -35, "تسريع سداد دين / تعثر (8-K)"),
+    (r"termination of a material definitive agreement", -15, "إلغاء اتفاقية جوهرية (8-K)"),
+    (r"changes? in registrant'?s certifying accountant|auditor (resign|dismiss)", -10, "تغيير مدقق الحسابات"),
 ]
 EVENTS = [(re.compile(rx, re.I), w, why) for rx, w, why in EVENTS]
 
