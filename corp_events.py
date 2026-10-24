@@ -327,16 +327,39 @@ def _news_symbols(get_rows):
     return list(dict.fromkeys(mine + by("value")[:40] + by("change_pct")[:25] + by("change_pct", False)[:10]))
 
 
+_SUFFIX = {"inc", "corp", "corporation", "co", "company", "ltd", "limited", "plc", "holdings", "holding", "group", "the",
+           "technologies", "technology", "international", "sa", "nv", "ag", "se", "lp", "llc", "class", "common", "stock", "and", "&"}
+# مقالات ملخص السوق تذكر شركات كثيرة: لا تُنسب لسهم بعينه
+_ROUNDUP = re.compile(r"stocks? to (watch|buy)|stock market today|mag(nificent)? ?7|wall street|stocktwits|dow jones|s&p 500|nasdaq composite|week ahead|movers|futures|earnings (calendar|week)|\btop \d+\b", re.I)
+
+
+def about_company(title, symbol, name):
+    """هل الخبر عن هذه الشركة؟ يذكر رمزها أو اسمها المميز (وليس مقال ملخص للسوق)."""
+    if _ROUNDUP.search(title):
+        return False
+    if len(symbol) >= 2 and re.search(rf"(?<![A-Za-z]){re.escape(symbol)}(?![A-Za-z])", title):
+        return True
+    words = [w for w in re.findall(r"[A-Za-z0-9]+", (name or "").lower()) if w not in _SUFFIX and len(w) >= 3]
+    if not words:
+        return True  # لا نعرف الاسم: نقبل الخبر
+    t = title.lower()
+    return words[0] in t or " ".join(words[:2]) in t
+
+
 def _refresh_news(get_rows):
     import extras
     from concurrent.futures import ThreadPoolExecutor
     cutoff, items, seen = time.time() - NEWS_HOURS * 3600, [], set()
-    syms, st = _news_symbols(get_rows), {"articles": 0, "last_48h": 0, "scanned": 0}
+    rows = get_rows() or []
+    names = {r["symbol"]: r.get("name") for r in rows}
+    syms, st = _news_symbols(lambda: rows), {"articles": 0, "last_48h": 0, "scanned": 0}
     other = []
 
     def fetch(s):
         # الأخبار + البيانات الصحفية للشركة (فيها إشعارات ناسداك والطروحات عادةً)
         out = extras.get_news(s)[:10] + extras.get_news(s, tab="press releases")[:10]
+        name = names.get(s) or (extras._floats.get(s) or {}).get("name")
+        out = [a for a in out if about_company(a["title"], s, name)]
         time.sleep(0.3)  # لا نُثقل على ياهو
         return s, out
 
