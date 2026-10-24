@@ -70,6 +70,12 @@
   .news-list a { direction:ltr; text-align:left; display:block; font-weight:500; line-height:1.5; }
   .news-list a:hover { color:var(--accent); }
   .news-list p { direction:ltr; text-align:left; margin:4px 0 0; font-size:12px; color:var(--muted); }
+  .alert-pop { position:absolute; top:34px; right:70px; z-index:6; width:320px; max-width:calc(100% - 90px); background:#151c24; border:1px solid #334155; border-radius:10px; padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.45); }
+  .alert-pop[hidden] { display:none; }
+  .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
+  .alert-pop #alert-list { max-height:160px; overflow-y:auto; margin-top:6px; }
+  #alert-count:not(:empty) { background:#facc15; color:#111; border-radius:999px; padding:0 6px; font-size:11px; margin-inline-start:4px; }
   .alert-form { display:flex; gap:6px; flex-wrap:wrap; }
   .alert-form input { width:130px; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; direction:ltr; }
   .alert-form button, .quick button { padding:7px 12px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; font:inherit; font-size:13px; }
@@ -237,6 +243,7 @@
     <button class="chip" data-interval="1w">أسبوع</button>
     <button class="chip" data-interval="1mo">شهر</button>
   </span>
+  <button class="chip" id="alert-btn" type="button" title="تنبيهات السعر — أو Alt + نقرة على الشارت لوضع تنبيه عند ذلك السعر">🔔 تنبيه سعر <b id="alert-count"></b></button>
   <span id="ind-buttons" style="display:flex;gap:6px;align-items:center">
     <span class="sep"></span>
     <span class="muted">مؤشرات:</span>
@@ -255,6 +262,16 @@
 <div class="chart-box">
   <div class="draw-toolbar" id="draw-toolbar"></div>
   <div class="legend" id="legend"></div>
+  <div class="alert-pop" id="alert-pop" hidden>
+    <div class="ap-h"><b>🔔 تنبيهات السعر</b><button type="button" id="alert-close" title="إغلاق">×</button></div>
+    <form class="alert-form" id="alert-form">
+      <input id="alert-price" type="number" step="any" min="0" placeholder="السعر المستهدف" required>
+      <button>أضف</button>
+    </form>
+    <div class="quick" id="alert-quick"></div>
+    <div id="alert-list"></div>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">صوت وإشعار عند الاختراق أو الكسر، وخط متقطع أصفر على الشارت · <b>Alt + نقرة</b> على الشارت تضع تنبيهًا عند ذلك السعر</div>
+  </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
   <div id="tv_chart" hidden></div>
@@ -273,7 +290,7 @@
     <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
   </header>
   <div class="pn-b"><div class="d-tabs" id="d-tabs">
-    <button class="active" data-d="ladder">🪜 سلم السيولة</button><button data-d="news">📰 الأخبار</button><button data-d="alerts">🎯 تنبيهات السعر</button>
+    <button class="active" data-d="ladder">🪜 سلم السيولة</button><button data-d="news">📰 الأخبار</button>
     <span id="d-tools" style="margin-inline-start:auto"><div id="ladder-int">
         <button class="mini-chip" data-m="1">1د</button><button class="mini-chip active" data-m="5">5د</button>
         <button class="mini-chip" data-m="15">15د</button><button class="mini-chip" data-m="30">30د</button><button class="mini-chip" data-m="60">ساعة</button>
@@ -289,15 +306,7 @@
     <div id="news-mood" class="muted" style="font-size:13px;margin-bottom:6px" title="مزاج الأخبار = متوسط اتجاه أخبار السهم موزونًا بالثقة والحداثة (نصف عمر الخبر 6 ساعات)"></div>
     <ul class="news-list" id="news-list"><li class="muted">جارٍ التحميل…</li></ul>
   </div>
-  <div data-dpanel="alerts" class="d-fill pad" hidden>
-    <form class="alert-form" id="alert-form">
-      <input id="alert-price" type="number" step="any" min="0" placeholder="السعر المستهدف" required>
-      <button>🔔 أضف تنبيه</button>
-    </form>
-    <div class="quick" id="alert-quick"></div>
-    <div class="muted" style="margin:8px 0 4px">يتنبه عند الوصول للسعر (اختراق للأعلى أو كسر للأسفل) بصوت وإشعار، ويظهر خطًا متقطعًا على الشارت</div>
-    <div id="alert-list"></div>
-  </div></div>
+</div>
 </section><section class="pn" data-panel="flow">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
     <span class="grip">⠿</span><b>💧 السيولة اللحظية</b><div class="pn-tools"><span class="muted" id="f-updated"></span></div>
@@ -729,6 +738,7 @@ async function loadKpis() {
       document.getElementById("k-ext").innerHTML = `${CURRENCY}${f(sideP, sideP < 1 ? 4 : 2)} ${pctHtml(sideC)}`;
     }
     window.PositionWidget?.price(SYMBOL, mainPx);
+    window.sessionPx = mainPx;  // سعر الجلسة الحالية (الرسمية أو قبل/بعد) — تعتمد عليه تنبيهات السعر
     document.getElementById("k-price").textContent = CURRENCY + f(mainPx, mainPx < 1 ? 4 : 2);
     document.getElementById("k-live").innerHTML = (inExt ? xlive : q.live) ? live : "";
     const ch = document.getElementById("k-change");
@@ -917,12 +927,13 @@ const PosLines = (() => {
 let alertLines = [];
 function renderAlerts() {
   const list = PriceAlerts.forSymbol(SYMBOL);
+  document.getElementById("alert-count").textContent = list.length || "";
   alertLines.forEach(l => candles.removePriceLine(l));
   alertLines = list.map(a => candles.createPriceLine({ price: a.price, color: "#facc15", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "🔔" }));
   document.getElementById("alert-list").innerHTML = list.length ? list.map(a => `<div class="alert-row">
       <span>${a.dir === "above" ? "📈 عند الاختراق ≥" : "📉 عند الكسر ≤"} <bdi dir="ltr">${CURRENCY}${a.price}</bdi></span>
       <button data-del="${a.id}" title="حذف">✕</button></div>`).join("") : `<div class="muted">لا توجد تنبيهات لهذا السهم</div>`;
-  const p = lastQuote?.price;
+  const p = window.sessionPx ?? lastQuote?.price;
   document.getElementById("alert-quick").innerHTML = p ? [5, 10, 20, -5, -10].map(pct => {
     const v = +(p * (1 + pct / 100)).toFixed(p < 1 ? 4 : 2);
     return `<button type="button" data-quick="${v}">${pct > 0 ? "+" : ""}${pct}% (<bdi dir="ltr">${v}</bdi>)</button>`;
@@ -930,10 +941,11 @@ function renderAlerts() {
 }
 function checkMyAlerts() {
   if (!lastQuote) return;
-  const hit = PriceAlerts.check({ [SYMBOL]: lastQuote.price });
+  const now = window.sessionPx ?? lastQuote.price;
+  const hit = PriceAlerts.check({ [SYMBOL]: now });
   if (!hit.length) return;
   for (const a of hit) {
-    const text = `${SYMBOL} وصل ${CURRENCY}${lastQuote.price} (التنبيه: ${CURRENCY}${a.price})`;
+    const text = `${SYMBOL} وصل ${CURRENCY}${now} (التنبيه: ${CURRENCY}${a.price})`;
     try { const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.1; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.4); } catch {}
     if ("Notification" in window && Notification.permission === "granted") new Notification("🎯 تنبيه سعر", { body: text });
     else alert("🎯 " + text);
@@ -944,19 +956,36 @@ document.getElementById("alert-form").onsubmit = e => {
   e.preventDefault();
   const v = parseFloat(document.getElementById("alert-price").value);
   if (!(v > 0)) return;
-  PriceAlerts.add(SYMBOL, v, lastQuote?.price);
+  PriceAlerts.add(SYMBOL, v, window.sessionPx ?? lastQuote?.price);
   document.getElementById("alert-price").value = "";
   if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
   renderAlerts();
 };
 document.getElementById("alert-quick").onclick = e => {
   const b = e.target.closest("[data-quick]");
-  if (b) { PriceAlerts.add(SYMBOL, +b.dataset.quick, lastQuote?.price); renderAlerts(); }
+  if (b) { PriceAlerts.add(SYMBOL, +b.dataset.quick, window.sessionPx ?? lastQuote?.price); renderAlerts(); }
 };
 document.getElementById("alert-list").onclick = e => {
   const b = e.target.closest("[data-del]");
   if (b) { PriceAlerts.remove(b.dataset.del); renderAlerts(); }
 };
+const alertPop = document.getElementById("alert-pop");
+document.getElementById("alert-btn").onclick = () => {
+  alertPop.hidden = !alertPop.hidden;
+  if (!alertPop.hidden) { renderAlerts(); document.getElementById("alert-price").focus(); }
+};
+document.getElementById("alert-close").onclick = () => { alertPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !alertPop.hidden) alertPop.hidden = true; });
+// Alt + نقرة على الشارت: تنبيه عند السعر تحت المؤشر
+el.addEventListener("click", e => {
+  if (!e.altKey) return;
+  const y = e.clientY - el.getBoundingClientRect().top, price = candles.coordinateToPrice(y);
+  if (price == null || !(price > 0)) return;
+  const v = +price.toFixed(price < 1 ? 4 : 2);
+  PriceAlerts.add(SYMBOL, v, window.sessionPx ?? lastQuote?.price);
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  renderAlerts();
+});
 
 // ===== وسيلة إيضاح الإشارات =====
 document.getElementById("sig-legend").innerHTML = Object.values(SIGNALS).map(s => `<span><b style="color:${s.color}">${s === SIGNALS.drop ? "⬇" : "⬆"}</b> ${s.label}</span>`).join("");
