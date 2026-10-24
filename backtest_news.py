@@ -158,6 +158,7 @@ def bars(symbol, around, cache={}):
     key = (symbol, around.date())
     if key in cache:
         return cache[key]
+    keep = symbol == "SPY"  # نحفظ شموع SPY فقط (تتكرر لكل الأخبار)؛ شموع كل سهم تُستخدم مرة ثم تُترك لتوفير الذاكرة
     start = around.date() - timedelta(days=4)
     end = around.date() + timedelta(days=4)
     try:
@@ -169,7 +170,8 @@ def bars(symbol, around, cache={}):
     if df is not None and not df.empty:
         for ts, row in df.iterrows():
             out.append((ts.tz_convert(NY).to_pydatetime(), float(row["Open"]), float(row["Close"])))
-    cache[key] = out
+    if keep:
+        cache[key] = out
     return out
 
 
@@ -203,6 +205,7 @@ def main():
     ap.add_argument("--max", type=int, default=800, help="أقصى عدد نماذج تُختبر")
     ap.add_argument("--neutral", type=int, default=250, help="أقصى عدد أخبار محايدة (المجموعة الضابطة)")
     ap.add_argument("--fresh", action="store_true", help="ابدأ من جديد بدل استكمال التشغيل السابق")
+    ap.add_argument("--workers", type=int, default=4, help="عدد الطلبات المتوازية (2 لجهاز أخف)")
     a = ap.parse_args()
     sys.path.insert(0, HERE)
     import news_score
@@ -302,7 +305,7 @@ def main():
         print(f"  … فُحص {checked[0]}/{len(todo)} نموذج · مُقاس {len(rows)} خبر (إيجابي {pos}، سلبي {negs}، محايد {neutral[0]}) · {mins:.1f} دقيقة", flush=True)
 
     print(f"⏳ يبدأ الفحص ({len(todo)} نموذج متبقٍ) — يظهر التقدم كل 10 نماذج، و Ctrl+C يحفظ ويتوقف", flush=True)
-    pool = ThreadPoolExecutor(max_workers=4)
+    pool = ThreadPoolExecutor(max_workers=max(1, min(a.workers, 6)))
     try:
         futs = {pool.submit(work, f): f for f in todo}
         from concurrent.futures import as_completed
