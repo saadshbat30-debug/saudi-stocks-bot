@@ -188,7 +188,8 @@ def api_trades(symbol):
 
 @app.route("/api/events")
 def api_events():
-    return jsonify(corp_events.snapshot())
+    corp_events.watch([s.strip().upper() for s in request.args.get("watch", "").split(",") if s.strip()])
+    return jsonify({**corp_events.snapshot(), **corp_events.news_snapshot()})
 
 
 @app.route("/api/status")
@@ -255,6 +256,7 @@ def test():
 
 start_alerts()
 corp_events.start()
+corp_events.start_news(lambda: get_market("us"))
 
 if __name__ == "__main__":
     import saudi_runner

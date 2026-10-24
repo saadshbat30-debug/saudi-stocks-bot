@@ -107,34 +107,42 @@ setInterval(renderSession, 30000); setInterval(loadIndices, 10000);
 </script>
 {% if not request.path.startswith('/saudi') %}
 <div class="news-bar" id="news-bar" hidden>
-  <span class="nb-label" title="إعلانات تقسيم الأسهم من تقويم ياهو وناسداك — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
+  <span class="nb-label" title="الأسهم المغادرة لناسداك (قائمة ناسداك الرسمية) + الأخبار المهمة لأنشط الأسهم وصفقاتك (ياهو) + تقسيم الأسهم — مرّر الفأرة لإيقاف الشريط">📢 إعلانات</span>
   <div class="nb-view"><div class="nb-track" id="nb-track"></div></div>
 </div>
 <script>
-// شريط الإعلانات: التقسيم العكسي أولًا ثم التقسيم العادي، مع موعد التنفيذ
+// شريط الإعلانات: الأسهم المغادرة لناسداك والأخبار المهمة أولًا، ثم تقسيم الأسهم، ثم بقية الأخبار
 async function loadNews() {
   try {
-    const d = await (await fetch("/api/events")).json();
-    const bar = document.getElementById("news-bar"), items = d.items || [];
-    bar.hidden = !items.length;
-    if (!items.length) return;
+    const ls = k => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
+    const mine = [...Object.keys(ls("positions") || {}), ...ls("favs_us")].slice(0, 40);
+    const d = await (await fetch("/api/events?watch=" + encodeURIComponent(mine.join(",")))).json();
+    const bar = document.getElementById("news-bar");
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    const dayMs = 86400000, diff = s => Math.round((new Date(s) - new Date(today)) / dayMs);
-    const when = s => {
-      const n = diff(s), txt = new Date(s + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long" });
-      return n === 0 ? "<b>اليوم</b>" : n === 1 ? "<b>غدًا</b> " + txt : n < 0 ? "نُفّذ " + txt : "اعتبارًا من " + txt;
-    };
-    const one = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${esc(i.name)} — كل ${i.old} سهم تصبح ${i.new} (المصدر: ${esc(i.source)})">` +
+    const diff = s => Math.round((new Date(s) - new Date(today)) / 86400000);
+    const dname = s => new Date(s + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long" });
+    const when = s => { const n = diff(s); return n === 0 ? "<b>اليوم</b>" : n === 1 ? "<b>غدًا</b> " + dname(s) : n < 0 ? "نُفّذ " + dname(s) : "اعتبارًا من " + dname(s); };
+    const ago = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60)); return m < 60 ? `قبل ${m} د` : m < 1440 ? `قبل ${Math.round(m / 60)} س` : `قبل ${Math.round(m / 1440)} يوم`; };
+    const sym = s => `<b class="ltr">${esc(s)}</b>`;
+    const split = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="${esc(i.name)} — كل ${i.old} سهم تصبح ${i.new} (المصدر: ${esc(i.source)})">` +
       (i.reverse ? `<span class="r">🔻 تقسيم عكسي</span>` : `<span class="f">🔺 تقسيم أسهم</span>`) +
-      ` · <b class="ltr">${esc(i.symbol)}</b> ${esc(i.name).slice(0, 40)} · بنسبة <b class="ltr">${i.new} : ${i.old}</b> · ${when(i.date)}</a>`;
-    const html = items.map(one).join("");
+      ` · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)} · بنسبة <b class="ltr">${i.new} : ${i.old}</b> · ${when(i.date)}</a>`;
+    const delist = i => `<a class="nb-item" href="/stock/${encodeURIComponent(i.symbol)}" title="قائمة ناسداك الرسمية للأسهم المعلّق تداولها أو قيد الشطب${i.status ? " · " + esc(i.status) : ""}">` +
+      `<span class="r">🚫 يغادر ناسداك</span> · ${sym(i.symbol)} ${esc(i.name).slice(0, 40)}${i.reason ? " · " + esc(i.reason).slice(0, 60) : ""}${i.date ? " · " + esc(i.date) : ""}</a>`;
+    const news = i => `<a class="nb-item" href="${esc(i.url)}" target="_blank" rel="noopener" title="${esc(i.publisher)} — يفتح الخبر">` +
+      `<span class="${i.prio <= 1 ? "r" : "f"}">${i.icon} ${esc(i.label)}</span> · ${sym(i.symbol)} <span class="ltr" style="direction:ltr">${esc(i.title).slice(0, 110)}</span> · <span class="muted">${i.time ? ago(i.time) : ""}</span></a>`;
+    const nw = d.news || [];
+    const parts = [...(d.delist || []).map(delist), ...nw.filter(i => i.prio <= 1).map(news), ...(d.items || []).map(split), ...nw.filter(i => i.prio > 1).map(news)];
+    bar.hidden = !parts.length;
+    if (!parts.length) return;
+    const html = parts.join("");
     const track = document.getElementById("nb-track");
     track.innerHTML = html + html;  // نسختان متتاليتان حتى يدور الشريط بلا فراغ
-    track.style.setProperty("--nb-dur", Math.max(30, items.length * 7) + "s");
+    track.style.setProperty("--nb-dur", Math.max(40, parts.length * 9) + "s");
   } catch {}
 }
-loadNews(); setInterval(loadNews, 600000);
+loadNews(); setInterval(loadNews, 120000);
 </script>
 {% endif %}
 <div id="stale-banner" hidden style="margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:#3d3315;border:1px solid #713f12;color:#fde68a;font-size:14px"></div>

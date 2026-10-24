@@ -684,9 +684,14 @@ setInterval(barTimer, 1000);
 (async () => {
   try {
     const d = await (await fetch("/api/events")).json();
+    const box = document.getElementById("split-note");
+    const dl = (d.delist || []).find(i => i.symbol === SYMBOL);
+    if (dl) {  // السهم في قائمة ناسداك للأسهم المعلّق تداولها أو قيد الشطب
+      box.innerHTML = `🚫 <b>هذا السهم يغادر ناسداك</b> (قائمة ناسداك الرسمية)${dl.reason ? " · " + escH(dl.reason) : ""}${dl.status ? " · " + escH(dl.status) : ""}${dl.date ? " · " + escH(dl.date) : ""} — بعد الشطب ينتقل عادةً إلى OTC بسيولة أقل`;
+      box.hidden = false; return;
+    }
     const it = (d.items || []).find(i => i.symbol === SYMBOL);
     if (!it) return;
-    const box = document.getElementById("split-note");
     const txt = new Date(it.date + "T12:00:00").toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long", year: "numeric" });
     box.innerHTML = (it.reverse ? "🔻 <b>تقسيم عكسي</b>" : "🔺 <b>تقسيم أسهم</b>") +
       ` بنسبة <b class="ltr">${it.new} : ${it.old}</b> (كل ${it.old} سهم تصبح ${it.new}) — التنفيذ ${txt}` +
