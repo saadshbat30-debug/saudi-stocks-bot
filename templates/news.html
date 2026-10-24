@@ -47,7 +47,9 @@
       <br>الأحداث: موافقة FDA +45، عرض استحواذ +40، نتائج تجارب إيجابية +40، رفع التوقعات +30، عقد +25، إيقاف طرح أسهم +25 … مقابل: إفلاس −70، فشل FDA −50، شطب −45، طرح أسهم −35، تقسيم عكسي −30، إنذار بورصة −25
       <br>النفي يلغي الحدث الإيجابي ("not approved"، "fails to"، "rejects offer")، واللغة المستقبلية تخفضه إلى 40% ("expected"، "plans to submit"، "PDUFA")</li>
     <li><b>نبرة الكلمات</b> بقوائم مالية على طريقة Loughran-McDonald: إيجابية وسلبية، و<b>الغموض</b> ("might"، "preliminary"، "uncertain") يخفض الثقة، و<b>التقاضي</b> ("lawsuit"، "subpoena") سلبي خفيف — وكلمات مثل cost و tax و liability ليست سلبية</li>
-    <li><b>📰 مزاج السهم</b>: متوسط اتجاه كل أخبار السهم موزونًا بالثقة والحداثة = Σ الاتجاه × الثقة × e^(−λt) ÷ Σ الثقة × e^(−λt)، ونصف عمر الخبر 6 ساعات</li>
+    <li><b>📰 مزاج السهم</b>: متوسط اتجاه كل أخبار السهم موزونًا بالثقة والحداثة = Σ الاتجاه × الثقة × e^(−λt) ÷ (Σ الثقة × e^(−λt) + 0.3)، ونصف عمر الخبر 6 ساعات. الحد 0.3 يسحب المزاج نحو الصفر عندما تقل الأخبار أو تقدم، وبعد 24 ساعة بلا خبر جديد يُعرض «أخبار قديمة»</li>
+    <li><b>التقاضي حسب السياق</b>: إذا كانت الشركة هي المدعية ("sues"، "files lawsuit against") أو كسبت القضية ("wins lawsuit"، "jury rules in favor") فلا يُحسب ضدها</li>
+    <li><b>القاموس الأصلي (اختياري)</b>: ضع ملف <code>LoughranMcDonald_MasterDictionary_*.csv</code> من موقع جامعة Notre Dame في مجلد <code>data</code> فتستخدمه المنصة تلقائيًا بدل القوائم المضمنة (مجاني للاستخدام الشخصي والبحثي)</li>
     <li><b>الثقة (0 إلى 1)</b>: بيان رسمي أو إفصاح SEC = 0.95، خبر عادي = 0.75، يشرح حركة حصلت = 0.7، حدث متوقع = 0.6، مقال رأي = 0.45</li>
     <li><b>الأهمية (0 إلى 100)</b>: قوة الاتجاه × الثقة + حجم الشركة (أقل من 300 مليون +15، أقل من 2 مليار +8، أكبر من 200 مليار −15). تُرتَّب بها القائمة مع الحداثة</li>
     <li><b>استجابة السوق (−100 إلى +100)</b>: حركة السهم اليوم مقارنة بمؤشر S&amp;P 500، وتزيد مع السيولة العالية. منفصلة عن الاتجاه: خبر +40 مع استجابة −100 يعني أن السوق قرأ شيئًا سلبيًا في التفاصيل</li>
@@ -129,10 +131,11 @@ function render() {
   for (const i of data.items || []) {
     if (i.event === "خبر روتيني") continue;
     const w = (i.confidence ?? 0.75) * Math.exp(-lam * Math.max(0, nowS - (i.time || nowS)));
-    const m = moodAcc[i.symbol] ||= { num: 0, den: 0, n: 0 };
-    m.num += (i.direction ?? i.score) * w; m.den += w; m.n++;
+    const m = moodAcc[i.symbol] ||= { num: 0, den: 0, n: 0, newest: 0 };
+    m.num += (i.direction ?? i.score) * w; m.den += w; m.n++; m.newest = Math.max(m.newest, i.time || 0);
   }
-  const moodOf = s => { const m = moodAcc[s]; return m && m.den > 0.02 ? { v: Math.round(m.num / m.den), n: m.n } : null; };
+  // + 0.3 في المقام: قلة الأخبار أو قدمها تسحب المزاج نحو الصفر، وبعد 24 ساعة بلا أخبار يُعرض «أخبار قديمة»
+  const moodOf = s => { const m = moodAcc[s]; return m && m.n ? { v: Math.round(m.num / (m.den + 0.3)), n: m.n, stale: nowS - m.newest > 86400, w: m.den } : null; };
   if (cfg.one) { const seen = new Set(); rows = rows.filter(i => !seen.has(i.symbol) && seen.add(i.symbol)); }
 
   const all = data.items || [];
@@ -173,7 +176,7 @@ function render() {
         <a class="ttl" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
         <div class="meters">${meter("الاتجاه", i.direction ?? i.score, -100, 100)}${meter("الأهمية", i.importance, 0, 100)}${meter("استجابة السوق", i.reaction, -100, 100)}
           <span class="muted" title="الثقة في الخبر حسب مصدره ونوعه">الثقة <b class="ltr">${i.confidence != null ? i.confidence.toFixed(2) : "—"}</b></span>
-          ${(m => m && m.n > 1 ? `<span class="muted" title="مزاج كل أخبار السهم موزونًا بالثقة والحداثة">📰 مزاج السهم <b class="ltr ${m.v >= 15 ? "up" : m.v <= -15 ? "down" : ""}">${m.v > 0 ? "+" : ""}${m.v}</b> (${m.n} أخبار)</span>` : "")(moodOf(i.symbol))}</div>
+          ${(m => m && m.n > 1 ? (m.stale ? `<span class="muted">📰 مزاج السهم: أخبار قديمة (${m.n})</span>` : `<span class="muted" title="مزاج كل أخبار السهم موزونًا بالثقة والحداثة · الوزن المتبقي ${m.w.toFixed(2)}">📰 مزاج السهم <b class="ltr ${m.v >= 15 ? "up" : m.v <= -15 ? "down" : ""}">${m.v > 0 ? "+" : ""}${m.v}</b> (${m.n} أخبار)</span>`) : "")(moodOf(i.symbol))}</div>
         <div class="fx">${fx || '<span>لا يوجد حدث واضح في العنوان</span>'}</div>
         ${i.summary ? `<div class="sum">${esc(i.summary)}</div>` : ""}
         <div class="meta"><span>${ago(i.time)}</span><span>${esc(i.publisher)}</span></div>

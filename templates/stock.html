@@ -861,15 +861,18 @@ async function loadNews() {
     const items = await (await fetch(`/api/news/${encodeURIComponent(SYMBOL)}`)).json();
     // مزاج الأخبار: Σ الاتجاه × الثقة × e^(−λΔt) ÷ Σ الثقة × e^(−λΔt)، نصف العمر 6 ساعات
     const lam = Math.log(2) / (6 * 3600), now = Date.now() / 1000;
-    let num = 0, den = 0, n = 0;
+    // + 0.3 في المقام: قلة الأخبار أو قدمها تسحب المزاج نحو الصفر (المتوسط وحده يُبقي خبرًا وحيدًا قديمًا قويًا)
+    let num = 0, den = 0, n = 0, newest = 0;
     for (const a of items) {
       if (a.direction == null || a.event === "خبر روتيني") continue;
       const w = (a.confidence ?? 0.75) * Math.exp(-lam * Math.max(0, now - (a.time || now)));
-      num += a.direction * w; den += w; n++;
+      num += a.direction * w; den += w; n++; newest = Math.max(newest, a.time || 0);
     }
-    const md = den > 0.02 ? Math.round(num / den) : null;
-    document.getElementById("news-mood").innerHTML = md == null ? "📰 مزاج الأخبار: لا توجد أخبار حديثة مؤثرة"
-      : `📰 مزاج الأخبار: <b class="ltr ${md >= 15 ? "up" : md <= -15 ? "down" : ""}">${md > 0 ? "+" : ""}${md}</b> ${md >= 15 ? "إيجابي" : md <= -15 ? "سلبي" : "محايد"} · من ${n} خبر (الأحدث والأوثق وزنه أكبر)`;
+    const md = n ? Math.round(num / (den + 0.3)) : null, ageH = newest ? (now - newest) / 3600 : null;
+    const ageTxt = ageH == null ? "" : ageH < 1 ? `قبل ${Math.round(ageH * 60)} د` : ageH < 48 ? `قبل ${Math.round(ageH)} س` : `قبل ${Math.round(ageH / 24)} يوم`;
+    document.getElementById("news-mood").innerHTML = md == null ? "📰 مزاج الأخبار: لا توجد أخبار مؤثرة"
+      : ageH > 24 ? `📰 مزاج الأخبار: <b>أخبار قديمة</b> — آخر خبر مؤثر ${ageTxt} (${n} خبر)`
+      : `📰 مزاج الأخبار: <b class="ltr ${md >= 15 ? "up" : md <= -15 ? "down" : ""}">${md > 0 ? "+" : ""}${md}</b> ${md >= 15 ? "إيجابي" : md <= -15 ? "سلبي" : "محايد"} · ${n} خبر · آخرها ${ageTxt} · الوزن المتبقي ${den.toFixed(2)}`;
     // درجة الخبر (−100 إلى +100) من نوع الحدث والنبرة والمصدر وحجم الشركة وردة فعل السعر
     const badge = a => a.score == null ? "" : `<span title="${escH((a.factors || []).map(f => f.why + " " + f.pts).join(" · "))}" style="display:inline-block;min-width:38px;text-align:center;padding:1px 6px;margin-inline-end:6px;border-radius:999px;font-size:12px;font-weight:700;direction:ltr;${a.score >= 15 ? "background:#14532d;color:#bbf7d0" : a.score <= -15 ? "background:#7f1d1d;color:#fecaca" : "background:#1f2937;color:#cbd5e1"}">${a.score > 0 ? "+" : ""}${a.score}</span>`;
     document.getElementById("news-list").innerHTML = items.length ? items.map(a => `<li>

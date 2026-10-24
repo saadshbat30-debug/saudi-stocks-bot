@@ -84,6 +84,10 @@ _NEG = re.compile(rf"\b({NEG_WORDS})\w*", re.I)
 _UNC = re.compile(rf"\b({UNCERTAIN_WORDS})\w*|\bmay\b(?! \d)", re.I)
 _MAY = re.compile(r"(?<![A-Z][a-z]{2} )\bmay\b(?! \d)")  # "may" بمعنى ربما وليس شهر May (حساس لحالة الأحرف)
 _LIT = re.compile(rf"\b({LITIGIOUS_WORDS})\w*", re.I)
+# الشركة هي المدعية أو كسبت القضية: التقاضي هنا ليس سلبيًا عليها
+PLAINTIFF = re.compile(r"\b(sues|suing|files? (a )?(patent )?(lawsuit|suit|complaint|claim) against|brings? (a )?(lawsuit|suit|action) against|takes? legal action against)\b", re.I)
+LIT_WIN = re.compile(r"\b(wins?|won|prevails?|prevailed)\b.{0,30}\b(lawsuit|case|verdict|ruling|appeal|litigation|arbitration|patent)|"
+                     r"(favorable|favourable) (ruling|verdict|decision)|awarded .{0,20}(damages|\$)|(court|judge|jury) (rules|ruled|sides) (in favor|for)|dismiss(es|ed)? (the )?(lawsuit|case|claims?) against", re.I)
 _NEGATION = re.compile(r"\b(not|no|fails? to|failed to|without|lack of|despite)\s+(\w+\s+){0,2}$", re.I)
 
 # بيانات رسمية من الشركة (وكالات نشر البيانات الصحفية)
@@ -94,8 +98,59 @@ SPECULATIVE = re.compile(r"\?$|should you|is it time|could (soar|double|be)|migh
 EXPLAINER = re.compile(r"^why\b|stock (is|was) (soaring|jumping|falling|sinking|up|down)|shares? (are|were) (soaring|jumping|falling|sinking)", re.I)
 
 
+_LM = {"loaded": False, "pos": set(), "neg": set(), "unc": set(), "lit": set(), "file": None, "words": 0}
+
+
+def _lm():
+    """يحمّل قاموس Loughran-McDonald الأصلي إن وُضع ملفه في مجلد data (أي ملف LoughranMcDonald*.csv)."""
+    if _LM["loaded"]:
+        return _LM if _LM["words"] else None
+    _LM["loaded"] = True
+    import csv, glob, os
+    files = sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "LoughranMcDonald*.csv")))
+    if not files:
+        return None
+    try:
+        with open(files[-1], encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                w = (row.get("Word") or "").strip().lower()
+                if not w:
+                    continue
+                _LM["words"] += 1
+                for col, key in (("Positive", "pos"), ("Negative", "neg"), ("Uncertainty", "unc"), ("Litigious", "lit")):
+                    if (row.get(col) or "0").strip() not in ("", "0"):  # القيمة = سنة الإضافة، وصفر = ليست من الفئة
+                        _LM[key].add(w)
+        _LM["file"] = os.path.basename(files[-1])
+        print(f"📚 قاموس Loughran-McDonald: {len(_LM['pos'])} إيجابية · {len(_LM['neg'])} سلبية · {len(_LM['unc'])} غموض · {len(_LM['lit'])} تقاضٍ ({_LM['file']})")
+    except (OSError, ValueError) as e:
+        print(f"⚠️ تعذر قراءة قاموس Loughran-McDonald: {e}")
+        _LM["words"] = 0
+    return _LM if _LM["words"] else None
+
+
+def lm_counts(text):
+    """عدد كلمات كل فئة في النص حسب القاموس الأصلي (مطابقة كلمة كاملة)، أو None إن لم يوجد القاموس."""
+    d = _lm()
+    if not d:
+        return None
+    toks = re.findall(r"[a-z]+(?:'[a-z]+)?", (text or "").lower())
+    out = {"pos": 0, "neg": 0, "unc": 0, "lit": 0}
+    for i, w in enumerate(toks):
+        for k in out:
+            if w in d[k]:
+                # النفي قبل كلمة إيجابية يقلبها (طريقة Loughran-McDonald: no/not/none/neither/never/nobody قبلها بثلاث كلمات)
+                if k == "pos" and any(x in ("no", "not", "none", "neither", "never", "nobody") for x in toks[max(0, i - 3):i]):
+                    out["neg"] += 1
+                else:
+                    out[k] += 1
+    return out
+
+
 def _tone(text):
-    """نبرة الكلمات مع مراعاة النفي: كل كلمة ±5 وبحد ±20."""
+    """نبرة الكلمات مع مراعاة النفي: كل كلمة ±5 وبحد ±20. تستخدم القاموس الأصلي إن وُجد، وإلا القوائم المضمنة."""
+    c = lm_counts(text)
+    if c is not None:
+        return max(-20, min(20, 5 * (c["pos"] - c["neg"])))
     pts = 0
     for rx, sign in ((_POS, 1), (_NEG, -1)):
         for m in rx.finditer(text):
@@ -185,6 +240,12 @@ def score(title, summary="", ctx=None):
             best_pos = (w2, why)
         if w2 < 0 and (best_neg is None or w2 < best_neg[0]):
             best_neg = (w2, why)
+    # سياق التقاضي: إذا كانت الشركة المدعية أو كسبت القضية فلا يُحسب «دعوى قضائية» عليها
+    plaintiff, lit_win = bool(PLAINTIFF.search(title)), bool(LIT_WIN.search(title))
+    if (plaintiff or lit_win) and best_neg and best_neg[1] in ("دعوى قضائية", "تحقيق رسمي"):
+        best_neg = None
+    if lit_win and (best_pos is None or best_pos[0] < 20):
+        best_pos = (20, "كسب قضية / حكم لصالح الشركة")
     event_pts = 0.0
     for b in (best_pos, best_neg):
         if b:
@@ -198,9 +259,12 @@ def score(title, summary="", ctx=None):
     if abs(t) >= 5:
         add("نبرة الكلمات " + ("إيجابية" if t > 0 else "سلبية"), round(t), "dir")
     # كلمات التقاضي: سلبية خفيفة إن لم يكن الحدث نفسه دعوى قضائية
-    lit = len(_LIT.findall(title))
-    if lit and not (event and "دعوى" in event):
+    lmc = lm_counts(title)
+    lit = lmc["lit"] if lmc is not None else len(_LIT.findall(title))
+    if lit and not (event and "دعوى" in event) and not (plaintiff or lit_win):
         t2 = -5 * min(lit, 2); t += t2; add("لغة تقاضٍ ونزاعات", t2, "dir")
+    elif plaintiff and not lit_win:
+        add("الشركة هي المدعية (ليست متهمة)", 0, "dir")
     direction = max(-100, min(100, round(event_pts + t)))
 
     # ===== 2) الثقة (0..1): مصدر الخبر ونوعه =====
@@ -214,7 +278,8 @@ def score(title, summary="", ctx=None):
         conf = min(conf, 0.7); add("مقال يشرح حركة حصلت", "ثقة 0.7", "conf")
     if hedged:
         conf = min(conf, 0.6); add("لغة مستقبلية (الحدث لم يقع بعد)", "ثقة 0.6", "conf")
-    unc = len([m for m in _UNC.finditer(title) if m.group(0).lower() != "may" or _MAY.search(m.group(0))])
+    lmc = lm_counts(title)
+    unc = lmc["unc"] if lmc is not None else len([m for m in _UNC.finditer(title) if m.group(0).lower() != "may" or _MAY.search(m.group(0))])
     if unc and not hedged:  # كلمات غموض في العنوان: "may"، "preliminary"، "uncertain"
         conf = max(0.4, conf - 0.1 * min(unc, 2)); add(f"لغة غموض ({unc})", f"ثقة −{0.1 * min(unc, 2):.1f}", "conf")
 
@@ -251,16 +316,25 @@ def score(title, summary="", ctx=None):
 HALF_LIFE_H = 6  # نصف عمر أثر الخبر في مزاج السهم: بعد 6 ساعات يصبح وزنه النصف
 
 
+MOOD_PRIOR = 0.3  # وزن «محايد» افتراضي: خبر واحد قديم لا يبقى مزاجه قويًا إلى الأبد
+
+
 def mood(items, now=None):
-    """مزاج الأخبار للسهم (−100..+100) = Σ الاتجاه × الثقة × e^(−λΔt) ÷ Σ الثقة × e^(−λΔt)."""
+    """مزاج الأخبار للسهم (−100..+100) = Σ الاتجاه × الثقة × e^(−λΔt) ÷ (Σ الثقة × e^(−λΔt) + 0.3).
+    الحد 0.3 في المقام يسحب المزاج نحو الصفر عندما تكون الأخبار قليلة أو قديمة (المتوسط وحده يلغي أثر التقادم
+    لخبر وحيد لأن e^(−λt) تُختصر بين البسط والمقام). يُرجع أيضًا عمر آخر خبر والوزن المتبقي."""
     now = now or time.time()
     lam = math.log(2) / (HALF_LIFE_H * 3600)
     num = den = 0.0
-    n = 0
+    n, newest = 0, None
     for i in items:
         if i.get("event") == "خبر روتيني":
             continue
-        w = (i.get("confidence") or 0.75) * math.exp(-lam * max(0, now - (i.get("time") or now)))
+        t = i.get("time") or now
+        w = (i.get("confidence") or 0.75) * math.exp(-lam * max(0, now - t))
         num += (i.get("direction", i.get("score")) or 0) * w
         den += w; n += 1
-    return {"mood": round(num / den) if den else None, "n": n, "weight": round(den, 2)}
+        newest = t if newest is None else max(newest, t)
+    age_h = round((now - newest) / 3600, 1) if newest else None
+    return {"mood": round(num / (den + MOOD_PRIOR)) if n else None, "n": n, "weight": round(den, 2),
+            "newest_age_h": age_h, "stale": age_h is None or age_h > 24}
