@@ -17,9 +17,11 @@ import time
 # (النمط، الوزن، الوصف) — الأوزان تقريبية لقوة الأثر المعتاد على السهم
 EVENTS = [
     # ===== إيجابي =====
-    (r"\bfda\b.{0,40}\b(approv|clear)|(approv|clear)\w* by (the )?fda|receives? fda (approval|clearance)|510\(k\)", 45, "موافقة FDA"),
+    (r"\bfda\b.{0,40}\b(approv|clear)(?!\w*[- ](phase|trial|study|ind\b|clinical|protocol))|(approv|clear)\w* by (the )?fda|receives? fda (approval|clearance)|510\(k\)", 45, "موافقة FDA"),
+    (r"(fda|agency) (lifts?|lifted|removes?|removed|releases?) .{0,20}(clinical )?hold|clinical hold (lifted|removed)", 35, "رفع التعليق السريري"),
+    (r"\bnon-?dilutive\b", 10, "تمويل بلا تخفيف"),
     (r"breakthrough (therapy|device)|fast track|orphan drug|priority review|rare pediatric", 25, "تصنيف FDA مميز (مسار سريع/دواء نادر)"),
-    (r"(positive|successful|encouraging|statistically significant)\s.{0,30}(results?|data|topline|trial)|met (its |the )?primary endpoint", 40, "نتائج تجارب إيجابية"),
+    (r"(positive|successful|encouraging|statistically significant)\s.{0,60}(results?|data|topline|trial)|met (its |the )?primary endpoint", 40, "نتائج تجارب إيجابية"),
     (r"to be acquired|agree[sd]? to be acquired|acquired by|(definitive|merger) agreement .{0,40}\$\d|per share in cash|take[- ]private|buyout offer", 40, "عرض استحواذ على الشركة"),
     (r"\b(wins?|awarded|secures?|lands?|receives?)\b.{0,40}\b(contract|order|award|deal|grant)\b|purchase order", 25, "عقد / طلبية جديدة"),
     (r"partnership|collaborat|strategic (agreement|alliance)|joint venture|teams? up with|licens(e|ing) agreement", 15, "شراكة / تعاون"),
@@ -43,9 +45,9 @@ EVENTS = [
     (r"\bdelist|delisting|suspension of trading|form 25\b|(move|transfer)s? to (the )?otc", -45, "شطب من البورصة"),
     (r"(nasdaq|nyse)( american)? (notice|notification|deficiency|letter)|minimum bid|non-?compliance|listing (rule|requirement|standard)", -25, "إنذار من البورصة"),
     (r"reverse (stock |share )?split", -30, "تقسيم عكسي"),
-    (r"(public|registered direct|direct|private placement|at-the-market|\batm\b|underwritten|secondary|follow-on) offering|prices? .{0,40}offering|warrant (inducement|exercise)|shelf registration|\bdilut", -35, "طرح أسهم جديدة (تخفيف)"),
+    (r"(public|registered direct|direct|private placement|at-the-market|\batm\b|underwritten|secondary|follow-on) offering|prices? .{0,40}offering|warrant (inducement|exercise)|shelf registration|(?<!non-)(?<!non)\bdilut", -35, "طرح أسهم جديدة (تخفيف)"),
     (r"going concern|substantial doubt", -35, "شك في استمرار الشركة"),
-    (r"complete response letter|\bcrl\b|fda (rejects|declines|refuses)|clinical hold|fail(s|ed)? to (meet|achieve)|did not meet|missed (the )?primary endpoint|discontinu(es|ed) (the )?(trial|program|development)", -50, "فشل/رفض في FDA أو التجارب"),
+    (r"complete response letter|\bcrl\b|fda (rejects|declines|refuses)|(?<!lifts )(?<!lifted )(?<!removes )(?<!removed )clinical hold(?! (lifted|removed))|fail(s|ed)? to (meet|achieve)|did not meet|missed (the )?primary endpoint|discontinu(es|ed) (the )?(trial|program|development)", -50, "فشل/رفض في FDA أو التجارب"),
     (r"miss(es|ed)?\b.{0,25}(estimates|expectations|consensus)|falls? short of|below (estimates|expectations)", -30, "نتائج أقل من المتوقع"),
     (r"(cuts?|lowers?|slashes?|withdraws?)\b.{0,20}(guidance|outlook|forecast)|warns? (on|of)", -30, "خفض التوقعات / تحذير"),
     (r"(net )?loss (widen|grows|deepen)|revenue (falls|drops|declines|plunges)", -15, "تراجع النتائج"),

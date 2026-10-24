@@ -342,6 +342,11 @@ def classify(title):
     import news_score
     if news_score.is_routine(title):
         return None
+    # أخبار تبدو سلبية بالكلمات لكنها إيجابية فعليًا
+    if news_score.STOP_OFFERING.search(title or ""):
+        return {"kind": "stop_offer", "icon": "✅", "label": "إيقاف طرح أسهم", "prio": 2}
+    if re.search(r"(lifts?|lifted|removes?|removed) .{0,20}clinical hold|clinical hold (lifted|removed)", title or "", re.I):
+        return {"kind": "fda", "icon": "💊", "label": "رفع التعليق السريري", "prio": 2}
     for kind, icon, label, prio, rx in _KINDS:
         if rx.search(title or ""):
             return {"kind": kind, "icon": icon, "label": label, "prio": prio}
