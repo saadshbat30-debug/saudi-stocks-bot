@@ -48,7 +48,8 @@ EVENTS = [
     (r"\bdelist|delisting|suspension of trading|form 25\b|(move|transfer)s? to (the )?otc", -45, "شطب من البورصة"),
     (r"(nasdaq|nyse)( american)? (notice|notification|deficiency|letter)|minimum bid|non-?compliance|listing (rule|requirement|standard)", -25, "إنذار من البورصة"),
     (r"reverse (stock |share )?split", -30, "تقسيم عكسي"),
-    (r"(public|registered direct|direct|private placement|at-the-market|\batm\b|underwritten|secondary|follow-on) offering|prices? .{0,40}offering|warrant (inducement|exercise)|shelf registration|(?<!non-)(?<!non)\bdilut", -35, "طرح أسهم جديدة (تخفيف)"),
+    # «diluted EPS» في بيانات النتائج ليست تخفيفًا، ولذلك كلمة dilution فقط. الطرح الأولي (IPO) يُستثنى في score()
+    (r"(public|registered direct|direct|private placement|at-the-market|\batm\b|underwritten|secondary|follow-on) offering|prices? .{0,40}offering|warrant (inducement|exercise)|shelf registration|(?<!non-)(?<!non)(?<!anti-)\bdilution\b", -35, "طرح أسهم جديدة (تخفيف)"),
     # بند 8-K 3.02: غالبًا تحويل سندات أو تنفيذ خيارات أو طرح أُعلن سابقًا، فأثره أضعف بكثير من إعلان طرح جديد
     (r"unregistered sales? of equity", -10, "إصدار أسهم غير مسجلة (8-K 3.02)"),
     (r"going concern|substantial doubt", -35, "شك في استمرار الشركة"),
@@ -80,7 +81,7 @@ POS_WORDS = (r"surg|soar|jump|rall(y|ies|ied)|skyrocket|spik|record|strong|robus
 NEG_WORDS = (r"plung|tumbl|slump|sink|sank|crash|fall|fell|drop|weak|loss|losses|declin|slid|warn|concern|bearish|cut|underperform|"
              r"trouble|struggl|halt|probe|miss|deteriorat|impair|default|delinquen|downgrad|shortfall|adverse|unfavorabl|"
              r"disappoint|failure|fail|terminat|suspend|delay|penalt|violat|breach|layoff|restructur|writedown|write-down|"
-             r"downturn|slowdown|headwind|downside|plummet|collaps|turmoil|crisis|bankrupt|insolven|dilut|worsen|lower(s|ed)? (guidance|outlook)")
+             r"downturn|slowdown|headwind|downside|plummet|collaps|turmoil|crisis|bankrupt|insolven|dilution|worsen|lower(s|ed)? (guidance|outlook)")
 UNCERTAIN_WORDS = (r"uncertain|might|could|possibl|perhaps|approximat|anticipat|believ|expect|tentativ|preliminar|"
                    r"unclear|unknown|unpredictab|volatil|fluctuat|depend|assum|estimat|speculat|risk|exposure|contingen|pending|potential")
 LITIGIOUS_WORDS = r"lawsuit|litigat|plaintiff|defendant|indict|subpoena|settlement|class action|alleg(e|ed|es|ing|ation|ations|edly)\b|sued\b|sues\b|courts?\b|legal proceeding|arbitrat|injunction"
@@ -167,11 +168,14 @@ def _tone(text):
 # أخبار روتينية لا تحرك السهم: مواعيد النتائج والمؤتمرات، منح الموظفين، المشاركة في مؤتمرات
 ROUTINE = re.compile(r"inducement grants?|announces? .{0,40}(release date|date for|dates for)|schedules? .{0,60}(conference call|earnings (call|release)|webcast)|"
                      r"(to|will) (host|hold|participate|ring)|(to|will) present(?!.{0,50}\b(data|results)\b)|conference call (schedule|and webcast)|earnings release and conference call|"
-                     r"annual (general )?meeting|investor (day|conference)|fireside chat|to report .{0,40}results on|"
+                     r"annual (general )?meeting|separate trading of|investor (day|conference)|fireside chat|to report .{0,40}results on|"
                      r"earnings call transcript|call transcript|said on its .{0,20}(earnings )?call|earnings snapshot|what to expect (from|ahead)|"
                      r"earnings preview|ahead of (its )?(q[1-4]|earnings)|key metrics", re.I)
 # إيقاف أو إلغاء طرح أسهم = خبر إيجابي (لا تخفيف)، ويُلغي قاعدة «طرح أسهم» السلبية
 STOP_OFFERING = re.compile(r"(suspen|terminat|withdr[ae]w|cancel|halt|ends?|discontinu)\w*\s+(of\s+)?(its\s+|the\s+)?.{0,40}offering", re.I)
+
+
+IPO = re.compile(r"initial public offering|\bIPO\b", re.I)
 
 
 def is_routine(title):
@@ -226,8 +230,8 @@ def score(title, summary="", ctx=None):
         best_pos = (25, "إيقاف/إلغاء طرح أسهم (لا تخفيف)")
     hedged = False
     for rx, w, why in EVENTS:
-        if stop_offer and why.startswith("طرح أسهم"):
-            continue
+        if why.startswith("طرح أسهم") and (stop_offer or IPO.search(title)):
+            continue  # الطرح الأولي لشركة جديدة (غالبًا SPAC) لا يخفف حصة مساهمين حاليين
         m_t = rx.search(title)
         m_s = None if m_t else (rx.search(summary) if summary else None)
         m = m_t or m_s

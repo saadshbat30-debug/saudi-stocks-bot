@@ -132,6 +132,17 @@ _ITEM_NAMES = [("entry into a material definitive", "1.01"), ("termination of a 
 _DATELINE = re.compile(r"\((GLOBE NEWSWIRE|BUSINESS WIRE|ACCESSWIRE|ACCESS Newswire|Newsfile)\)|/PRNewswire/|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{1,2}, 20\d\d\b", re.I)
 
 
+# أسطر في رأس البيان ليست عنوانه: عنوان بريدي، هاتف، بريد، اسم ملف، اسم مسؤول ومنصبه، اسم الشركة وحده، حروف متباعدة
+_NOT_HEAD = re.compile(r"\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}|@|\.(docx?|html?|pdf)\b|exhibit 99|, [A-Z]{2} \d{5}|"
+                       r"^\d+ .{0,30}\b(Street|St\.|Avenue|Ave\.?|Road|Blvd|Drive|Plaza|Suite)\b|^One .{0,20}Plaza|"
+                       r",\s*(EVP|SVP|CFO|CEO|President|Chief|Vice President|Treasurer)\b|^([A-Z] ){3,}|inside information|"
+                       r"^[\w.,&'’ -]{2,60}?,? (Inc|Corp|Corporation|Company|Co|Ltd|plc|LLC|Bancorp|Bancshares)\.?(\s*\((NYSE|NASDAQ|Nasdaq)[^)]*\))?$|"
+                       r"^[\w.,&'’ -]{2,60}\((NYSE|NASDAQ|Nasdaq)[^)]*\)$", re.I)
+
+
+_CUT = re.compile(r"(?i)\b(reports?|announces?|and|of|for|the|to|with|in|on|its|a|an|&)$|[-–,]$")
+
+
 def press_headline(url):
     """عنوان البيان الصحفي وأول فقرة منه من ملف Exhibit 99.1."""
     r = sec_get(url)
@@ -145,9 +156,11 @@ def press_headline(url):
         if _DATELINE.search(x):
             body = " ".join(lines[i:i + 3])[:400]
             break
-        if re.match(r"(?i)^(exhibit|ex-?99|press release|for immediate release|news release|contact|investor)", x):
+        if re.match(r"(?i)^(exhibit|ex-?99|press release|for immediate release|news release|contact|investor|media)", x) or _NOT_HEAD.search(x):
             continue
-        if 4 <= len(x.split()) <= 40 and not head:
+        if head and len(x.split()) <= 25 and _CUT.search(head) and len(head.split()) < 12:
+            head = head + " " + x  # عنوان مقسوم على سطرين: «GLOBE LIFE INC. REPORTS» + «THIRD QUARTER RESULTS»
+        elif 4 <= len(x.split()) <= 40 and not head:
             head = x
     return head, body
 
@@ -346,19 +359,32 @@ def main():
 
 
 def rescore():
-    """يعيد تقييم عناوين 8-K المحفوظة بعد تعديل الخوارزمية (الأسعار والعوائد المقاسة لا تتغير).
-    البيانات الصحفية (wire) لا يُعاد تقييمها لأن نص البيان الكامل لم يُحفظ."""
+    """يعيد تقييم الأخبار المحفوظة بعد تعديل الخوارزمية (الأسعار والعوائد المقاسة لا تتغير).
+    البيانات الصحفية (wire) يُعاد جلب عنوانها وفقرتها الأولى من SEC لأن النص لم يُحفظ."""
     import news_score
     from news_track import _state_at_arrival, POS, NEG
     with open(OUT, encoding="utf-8") as fh:
         d = json.load(fh)
-    changed = 0
-    for r in d.get("rows", []):
-        if r.get("source") != "8-K":
-            continue
-        r["title"] = r["title"].replace(" (dilution)", "")
-        sc = news_score.score(r["title"], "بنود: " + ", ".join(r.get("items", [])),
-                              {"publisher": "SEC 8-K", "time": r.get("published"), "market_chg": 0})
+    changed, rows = 0, d.get("rows", [])
+    wire = [r for r in rows if r.get("source") == "wire"]
+    print(f"🔁 إعادة جلب عناوين {len(wire)} بيان صحفي من SEC (دقيقة إلى دقيقتين)…", flush=True)
+    for k, r in enumerate(rows):
+        if r.get("source") == "wire":
+            det = filing_details(r["path"]) if r.get("path") else None
+            head, body = press_headline(det["ex99"]) if det and det.get("ex99") else (None, "")
+            if head:
+                r["title"] = head[:160]
+                sc = news_score.score(head, body, {"publisher": "GlobeNewswire", "time": r.get("published"), "market_chg": 0})
+            else:  # لم يُستخرج عنوان صالح: يُقيَّم كنموذج 8-K عادي
+                from wires import ITEMS_8K
+                r["title"], r["source"] = "8-K: " + "; ".join(ITEMS_8K[i] for i in r.get("items", []) if i in ITEMS_8K), "8-K"
+                sc = news_score.score(r["title"], "بنود: " + ", ".join(r.get("items", [])), {"publisher": "SEC 8-K", "time": r.get("published"), "market_chg": 0})
+            if (k + 1) % 25 == 0:
+                print(f"  … {k + 1}/{len(rows)}", flush=True)
+        else:
+            r["title"] = r["title"].replace(" (dilution)", "")
+            sc = news_score.score(r["title"], "بنود: " + ", ".join(r.get("items", [])),
+                                  {"publisher": "SEC 8-K", "time": r.get("published"), "market_chg": 0})
         if sc["direction"] != r["direction"]:
             changed += 1
         r.update(direction=sc["direction"], importance=sc["importance"], confidence=sc["confidence"], event=sc["event"],
