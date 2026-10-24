@@ -229,6 +229,7 @@ SEC_TICKERS = "https://www.sec.gov/files/company_tickers.json"
 SEC_UA = {"User-Agent": os.environ.get("SEC_UA", "StocksPlatform personal research stocks-platform@example.com"), "Accept-Encoding": "gzip, deflate"}
 _ciks = {"map": {}, "at": 0}
 _EXCHANGE = re.compile(r"stock market llc|stock exchange|\bexchange,? (inc|llc)|nyse|cboe", re.I)
+_FUND = re.compile(r"\bETF\b|\bETN\b|\bFund\b|\bFunds\b|iShares|ProShares|Direxion", re.I)
 _ENTRY = re.compile(r"<entry>(.*?)</entry>", re.S)
 _TITLE = re.compile(r"<title>\s*([\w-]+)\s*-\s*(.*?)\s*\((\d{6,10})\)\s*\((\w[\w ]*)\)\s*</title>", re.S)
 
@@ -265,6 +266,8 @@ def _from_sec():
             # في 25-NSE نأخذ الشركة (Subject) وليس البورصة التي قدّمت النموذج
             if (m.group(1).upper() == "25-NSE" and m.group(4).lower() != "subject") or _EXCHANGE.search(m.group(2)):
                 continue
+            if _FUND.search(m.group(2)):
+                continue  # صناديق متداولة وليست أسهم شركات
             sym = ciks.get(int(m.group(3)))
             if not sym or not _US.fullmatch(sym) or sym in seen:
                 continue
