@@ -39,7 +39,7 @@
   .range-bar { position:relative; height:6px; border-radius:3px; margin:10px 2px 4px; background:linear-gradient(90deg, #ef4444, #facc15, #22c55e); direction:ltr; }
   .range-bar span { position:absolute; top:-4px; width:4px; height:14px; border-radius:2px; background:#fff; box-shadow:0 0 0 2px #0f1419; transform:translateX(-50%); transition:left .4s; left:50%; }
   .range-ends { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); direction:ltr; }
-  .ov { display:inline-flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; padding:4px 6px; border-radius:6px; direction:ltr; }
+  .ov { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; font-size:13px; cursor:pointer; padding:4px 6px; border-radius:6px; direction:ltr; }
   .ov:hover { background:#26303b; }
   .ov input { accent-color:var(--accent); }
   .sig-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin-top:6px; }
@@ -76,6 +76,13 @@
   .bb-pop label { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
   .bb-pop input[type=number], .bb-pop select { width:90px; background:#0f141a; color:var(--text); border:1px solid #334155; border-radius:6px; padding:3px 6px; direction:ltr; }
   .bb-gear { padding:2px 7px !important; font-size:13px; }
+  .bj-pop { width:300px; }
+  .bj-pop input[type=color] { width:44px; height:24px; padding:0; border:1px solid #334155; border-radius:4px; background:none; }
+  .bj-dash { position:absolute; z-index:4; pointer-events:none; direction:rtl; background:rgba(15,20,25,.92); border:1px solid #475569; border-radius:6px; padding:4px; max-width:260px; }
+  .bj-dash table { border-collapse:collapse; width:100%; }
+  .bj-dash th, .bj-dash td { border:1px solid rgba(148,163,184,.25); padding:2px 6px; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .bj-dash th { color:var(--text); font-weight:600; }
+  .bj-dash .bj-note { color:var(--muted); font-size:10px; margin-top:3px; line-height:1.4; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
   .alert-pop #alert-list { max-height:160px; overflow-y:auto; margin-top:6px; }
@@ -262,6 +269,8 @@
     <label class="ov"><input type="checkbox" data-ov="vwap"> <span style="color:#06b6d4">VWAP</span></label>
     <label class="ov" title="Bollinger Bands: متوسط بسيط ± انحراف معياري"><input type="checkbox" data-ov="bb"> <span style="color:#a78bfa" id="bb-name">BB</span></label>
     <button class="chip bb-gear" id="bb-gear" type="button" title="إعدادات Bollinger Bands">⚙</button>
+    <label class="ov" title="عرض وطلب بن جمعان: قمة وقاع آخر موجة ومنطقتاهما والإسقاط وجدول القوة"><input type="checkbox" data-ov="bj"> <span style="color:#15dd7c">عرض وطلب</span></label>
+    <button class="chip bb-gear" id="bj-gear" type="button" title="إعدادات عرض وطلب بن جمعان">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
   </span>
 </div>
@@ -286,6 +295,20 @@
     <label>إظهار خط الوسط <input type="checkbox" id="bb-mid"></label>
     <button type="button" class="chip" id="bb-reset" style="margin-top:4px">الافتراضي (20، 2، الإغلاق)</button>
     <div class="muted" style="margin-top:6px;font-size:11.5px">الوسط = متوسط بسيط لآخر N شمعة، والحدّان = الوسط ± K × الانحراف المعياري لنفس الشموع. يُحسب من شموع الفاصل المعروض.</div>
+  </div>
+  <div class="alert-pop bb-pop bj-pop" id="bj-pop" hidden>
+    <div class="ap-h"><b>⚙ عرض وطلب بن جمعان</b><button type="button" id="bj-close" title="إغلاق">×</button></div>
+    <label title="عدد الشموع المستخدمة لتحديد القمم والقيعان">Swing Detection Length <input type="number" id="bj-len" min="10" step="1"></label>
+    <label title="عدد الشموع التي تمتد إليها المناطق والإسقاط إلى المستقبل">Future Projection Offset <input type="number" id="bj-offset" min="0" step="1"></label>
+    <label title="عدد الموجات المكتملة السابقة المستخدمة لتقدير الإسقاط">Historical Swing Samples <input type="number" id="bj-dataqty" min="3" max="20" step="1"></label>
+    <label title="طريقة تجميع نسب الموجات السابقة">Swing Projection Method <select id="bj-calcType"><option value="Average">Average</option><option value="Median">Median</option><option value="Mode">Mode</option></select></label>
+    <label>موقع الجدول (Dashboard Position) <select id="bj-position"></select></label>
+    <label>حجم النص (Text Size) <select id="bj-size"><option>Tiny</option><option>Small</option><option>Normal</option><option>Large</option></select></label>
+    <label title="مدّ منطقتي القمة والقاع إلى يمين الشارت">Extend Swing Zones Forward <input type="checkbox" id="bj-extendR"></label>
+    <label>لون الشراء <input type="color" id="bj-colorBull"></label>
+    <label>لون البيع <input type="color" id="bj-colorBear"></label>
+    <button type="button" class="chip" id="bj-reset" style="margin-top:4px">القيم الافتراضية</button>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه الافتراضية. الحجم يُقسم داخل/خارج حسب موقع إغلاق كل شمعة (تقدير)، والإسقاط متوسط تاريخي لنسب آخر الموجات وليس هدفًا مضمونًا. Mode مثل Pine: الأكثر تكرارًا، وإن لم تتكرر نسبة فأصغرها.</div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -464,6 +487,7 @@
 </script>
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
+<script src="{{ url_for('static', filename='swing_zones.js') }}"></script>
 <script src="{{ url_for('static', filename='indicators.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
@@ -553,6 +577,7 @@ function applyOverlays() {
   ma20.applyOptions({ visible: overlays.includes("ma20") });
   sma50.applyOptions({ visible: overlays.includes("sma50") });
   sma200.applyOptions({ visible: overlays.includes("sma200") });
+  if (window.swingZones) swingZones.setVisible(overlays.includes("bj"));
   const bb = overlays.includes("bb");
   bbUp.applyOptions({ visible: bb }); bbLo.applyOptions({ visible: bb }); bbMid.applyOptions({ visible: bb && bbCfg.mid });
   document.getElementById("bb-name").textContent = `BB(${bbCfg.n}, ${bbCfg.k})`;
@@ -626,6 +651,9 @@ initDrawings({
   chart, series: candles, container: el, symbol: SYMBOL, getBars: () => bars,
   toolbar: document.getElementById("draw-toolbar"),
 });
+
+// عرض وطلب بن جمعان: مناطق آخر قمة وقاع والإسقاط وجدول القوة
+window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => bars });
 
 // مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
 const indicators = initIndicators({
@@ -1049,9 +1077,29 @@ function readBB() {
 }
 ["bb-n", "bb-k", "bb-src", "bb-mid"].forEach(id => bbIn(id).addEventListener(id === "bb-n" || id === "bb-k" ? "input" : "change", readBB));
 bbIn("bb-reset").onclick = () => { bbCfg = { ...BB_DEF }; fillBB(); readBB(); };
-bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = true; fillBB(); } };
+bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = true; bjPop.hidden = true; fillBB(); } };
 bbIn("bb-close").onclick = () => { bbPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") bbPop.hidden = true; });
+
+// ===== إعدادات عرض وطلب بن جمعان =====
+const bjPop = document.getElementById("bj-pop"), BJ_KEYS = ["len", "offset", "dataqty", "calcType", "position", "size", "extendR", "colorBull", "colorBear"];
+bbIn("bj-position").innerHTML = swingZones.POSITIONS.map(p => `<option>${p}</option>`).join("");
+function fillBJ() {
+  const c = swingZones.config;
+  BJ_KEYS.forEach(k => { const x = bbIn("bj-" + k); x.type === "checkbox" ? x.checked = c[k] : x.value = c[k]; });
+}
+function readBJ() {
+  const v = k => bbIn("bj-" + k), len = Math.round(+v("len").value), offset = Math.round(+v("offset").value), dataqty = Math.round(+v("dataqty").value);
+  if (!(len >= 10) || !(offset >= 0) || !(dataqty >= 3 && dataqty <= 20)) return;  // نفس حدود المدخلات الأصلية
+  swingZones.setConfig({ len, offset, dataqty, calcType: v("calcType").value, position: v("position").value, size: v("size").value,
+                         extendR: v("extendR").checked, colorBull: v("colorBull").value, colorBear: v("colorBear").value });
+  if (!overlays.includes("bj")) { overlays = [...overlays, "bj"]; applyOverlays(); }
+}
+BJ_KEYS.forEach(k => bbIn("bj-" + k).addEventListener(["len", "offset", "dataqty"].includes(k) ? "input" : "change", readBJ));
+bbIn("bj-reset").onclick = () => { swingZones.setConfig({ ...swingZones.DEF }); fillBJ(); };
+bbIn("bj-gear").onclick = () => { bjPop.hidden = !bjPop.hidden; if (!bjPop.hidden) { bbPop.hidden = true; alertPop.hidden = true; fillBJ(); } };
+bbIn("bj-close").onclick = () => { bjPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") bjPop.hidden = true; });
 // Alt + نقرة على الشارت: تنبيه عند السعر تحت المؤشر
 el.addEventListener("click", e => {
   if (!e.altKey) return;
