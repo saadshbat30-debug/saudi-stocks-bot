@@ -276,6 +276,7 @@
     <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
     <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
+    <label class="ov" title="الشمعة الشاذة (قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها) تبقى معروضة كما هي وعليها ⚠، لكن المؤشرات تتجاهل قيمتها الشاذة"><input type="checkbox" data-ov="clean"> <span style="color:#facc15">⚠ تجاهل الشاذة في المؤشرات</span></label>
   </span>
 </div>
 <div class="chart-box">
@@ -329,7 +330,7 @@
     <div class="ap-h"><b>⚙ Opening Candle Indicator Final</b><button type="button" id="oc-close" title="إغلاق">×</button></div>
     <div id="oc-fields"></div>
     <button type="button" class="chip" id="oc-reset" style="margin-top:4px">القيم الافتراضية</button>
-    <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه. الأوقات بتوقيت الرياض (GMT+3) كما في الأصل: السوق الأمريكي 16:30–23:00 والسعودي 10:00–15:00. الإشارات على الشموع المكتملة فقط.</div>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه. الأوقات بتوقيت الرياض (GMT+3) كما في الأصل: السوق الأمريكي 16:30–23:00 والسعودي 10:00–15:00. «الأمريكي (تلقائي)» إضافة تتبع التوقيت الصيفي والشتوي: 16:30–23:00 صيفًا و 17:30–00:00 شتاءً. الإشارات على الشموع المكتملة فقط.</div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -518,6 +519,41 @@ const CURRENCY = {{ market.currency|tojson }};
 const STEP = { "1m": 60, "5m": 300, "15m": 900 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
 let interval = "5m", bars = [], lastQuote = null;
 
+// ===== الشموع الشاذة: قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها (خطأ بيانات أو صفقة شاذة) =====
+// الشارت يعرض البيانات كما وصلت دائمًا. عند تفعيل «تجاهل الشاذة» تحسب المؤشرات بنسخة تُستبعد فيها القيمة
+// الشاذة فقط: الذيل الشاذ يُقص إلى جسم الشمعة، والافتتاح/الإغلاق الشاذ يُستبدل بإغلاق الشمعة السابقة.
+// آخر شمعة لا تُفحص لأنه لا توجد شمعة بعدها تؤكد العودة.
+function findBadTicks(b) {
+  const out = new Map(), far = (v, ref) => v > 0 && ref > 0 && (v < ref * 0.2 || v > ref * 5);
+  for (let i = 1; i < b.length - 1; i++) {
+    const p = b[i - 1], x = b[i], q = b[i + 1], bad = [];
+    const badC = far(x.close, p.close) && far(x.close, q.open) && (x.close < p.close) === (x.close < q.open);
+    const badO = far(x.open, p.close) && far(x.open, x.close) && !badC;
+    const o = badO ? p.close : x.open, c = badC ? p.close : x.close;
+    if (badO) bad.push(["O", x.open]); if (badC) bad.push(["C", x.close]);
+    const badL = x.low > 0 && x.low < 0.2 * Math.min(o, c, p.low, q.low);
+    const badH = x.high > 5 * Math.max(o, c, p.high, q.high);
+    if (badL) bad.push(["L", x.low]); if (badH) bad.push(["H", x.high]);
+    if (bad.length) out.set(i, { bad, fix: { ...x, open: o, close: c, low: badL ? Math.min(o, c) : Math.min(x.low, o, c), high: badH ? Math.max(o, c) : Math.max(x.high, o, c) } });
+  }
+  return out;
+}
+let badCache = { key: "", map: new Map(), clean: [] };
+function badTicks() {
+  const key = bars.length ? `${bars.length}|${bars[0].time}|${interval}` : "";
+  if (badCache.key !== key) {
+    const map = findBadTicks(bars);
+    badCache = { key, map, clean: map.size ? bars.map((x, i) => map.has(i) ? map.get(i).fix : x) : bars };
+  }
+  return badCache;
+}
+// الشموع التي تحسب منها المؤشرات (الأصلية، أو بلا القيم الشاذة عند تفعيل الخيار)
+function indBars() {
+  if (!overlays.includes("clean")) return bars;
+  const c = badTicks();
+  return c.map.size ? c.clean : bars;
+}
+
 const el = document.getElementById("live-chart");
 const chart = LightweightCharts.createChart(el, {
   autoSize: true,
@@ -547,6 +583,7 @@ const bbSrc = b => bbCfg.src === "hlc3" ? (b.high + b.low + b.close) / 3 : bbCfg
   : bbCfg.src === "ohlc4" ? (b.open + b.high + b.low + b.close) / 4 : b.close;
 // قيمة الحدود عند الشمعة i: انحراف معياري للمجتمع (مثل TradingView)
 function bbAt(i) {
+  const bars = indBars();
   const n = bbCfg.n;
   if (i < n - 1) return null;
   let sum = 0;
@@ -558,6 +595,7 @@ function bbAt(i) {
   return { time: bars[i].time, u: m + bbCfg.k * sd, m, l: m - bbCfg.k * sd };
 }
 function setBB() {
+  const bars = indBars();
   const pts = [];
   for (let i = bbCfg.n - 1; i < bars.length; i++) pts.push(bbAt(i));
   bbMap = new Map(pts.map(p => [p.time, p]));
@@ -571,6 +609,7 @@ let vcCfg = { ...VC_DEF }, vcCol = [];
 try { vcCfg = { ...VC_DEF, ...(JSON.parse(localStorage.getItem("vc_cfg")) || {}) }; } catch {}
 // ta.stdev في Pine: انحراف معياري للمجتمع لآخر length قيمة (غير متاح قبل اكتمالها)
 function vcStdev(i) {
+  const bars = indBars();
   const n = vcCfg.length;
   if (i < n - 1) return null;
   let sum = 0; for (let j = i - n + 1; j <= i; j++) sum += bars[j].volume;
@@ -579,11 +618,13 @@ function vcStdev(i) {
   return Math.sqrt(sq / n);
 }
 function vcColorAt(i, prev) {
+  const bars = indBars();
   const b = bars[i], sd = vcStdev(i);
   const hi = i > 0 && sd != null && b.volume - bars[i - 1].volume > sd * vcCfg.mult;
   return b.close > b.open ? (hi ? VC.upHi : VC.up) : b.close < b.open ? (hi ? VC.dnHi : VC.dn) : prev;  // var bg: المتعادلة تبقى على السابق
 }
 function vcAll() {
+  const bars = indBars();
   vcCol = [];
   // مجاميع متحركة بدل إعادة الجمع لكل شمعة
   const n = vcCfg.length; let s1 = 0, s2 = 0, prev = VC.dn;
@@ -602,7 +643,9 @@ const vcBar = (b, i) => {
   const c = window.openingCandle?.barColor(i) || (vcOn() && vcCol[i]);
   return c ? { ...b, color: c, borderColor: c, wickColor: c } : b;
 };
-const allMarkers = () => [...(overlays.includes("signals") ? signalMarkers() : []), ...(window.openingCandle ? openingCandle.markers() : [])]
+const badMarkers = () => [...badTicks().map].map(([i, x]) => ({ time: bars[i].time, position: x.bad.some(([k]) => k === "H") ? "aboveBar" : "belowBar",
+  shape: "circle", color: "#facc15", size: 0.6, text: "⚠ شاذة" }));
+const allMarkers = () => [...(overlays.includes("signals") ? signalMarkers() : []), ...(window.openingCandle ? openingCandle.markers() : []), ...badMarkers()]
   .sort((a, b) => a.time - b.time);
 function setCandles() {
   if (vcOn()) vcAll();
@@ -619,6 +662,7 @@ function updateCandle() {
 }
 
 function updateBB() {  // آخر شمعة فقط أثناء البث
+  const bars = indBars();
   const p = bbAt(bars.length - 1);
   if (!p) return;
   bbMap.set(p.time, p);
@@ -627,6 +671,7 @@ function updateBB() {  // آخر شمعة فقط أثناء البث
 
 // VWAP يبدأ من جديد كل يوم تداول (بتوقيت نيويورك)
 function vwapData() {
+  const bars = indBars();
   if (["1d", "1w", "1mo"].includes(interval)) return [];
   const out = []; let day = null, pv = 0, vol = 0;
   for (const b of bars) {
@@ -654,6 +699,13 @@ function applyOverlays() {
   sma200.applyOptions({ visible: overlays.includes("sma200") });
   if (window.swingZones) swingZones.setVisible(overlays.includes("bj"));
   if (window.openingCandle) openingCandle.setVisible(overlays.includes("oc"));
+  if (bars.length && applyOverlays.clean !== undefined && applyOverlays.clean !== overlays.includes("clean")) {
+    ma20.setData(maData()); sma50.setData(smaData(50)); sma200.setData(smaData(200)); vwapLine.setData(vwapData()); setBB();
+    if (window.openingCandle) openingCandle.recalc(true);
+    if (window.swingZones) swingZones.setConfig({});  // يعيد الحساب بالشموع الجديدة
+    indicators.update(); applyOverlays.vc = null;
+  }
+  applyOverlays.clean = overlays.includes("clean");
   const styleKey = `${vcOn()}|${overlays.includes("oc")}`;
   if (bars.length && applyOverlays.vc !== styleKey) setCandles();
   applyOverlays.vc = styleKey;
@@ -681,6 +733,7 @@ const SIGNALS = {
   drop:   { color: "#ef4444", label: "بداية هبوط: كسر قاع آخر 5 شموع بحجم ضعف المعتاد" },
 };
 function signalMarkers() {
+  const bars = indBars();
   const out = [], last = {};
   for (let i = 20; i < bars.length; i++) {
     const b = bars[i], prev = bars.slice(i - 20, i);
@@ -718,6 +771,7 @@ function showLegend(b, prev) {
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
     <span>Vol <b>${fmtV(b.volume)}</b></span>${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
+    (bad => bad ? `<span style="color:#facc15">⚠ قيمة شاذة: ${bad.bad.map(([k, v]) => `${k} ${fmtP(v)}`).join(" ")}${overlays.includes("clean") ? " (مستبعدة من المؤشرات)" : ""}</span>` : "")(badTicks().map.get(bars.indexOf(b))) +
     (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
 }
 chart.subscribeCrosshairMove(p => {
@@ -732,20 +786,20 @@ initDrawings({
 });
 
 // عرض وطلب بن جمعان: مناطق آخر قمة وقاع والإسقاط وجدول القوة
-window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => bars });
+window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => indBars() });
 
 // Opening Candle Indicator: السوق الافتراضي حسب سوق الصفحة
 const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
 window.openingCandle = initOpeningCandle({
-  chart, series: candles, container: el, getBars: () => bars,
+  chart, series: candles, container: el, getBars: () => indBars(),
   dayOf: t => Math.floor((t - 7 * 3600) / 86400),  // يوم التداول بتوقيت نيويورك مثل VWAP المنصة
   nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => BAR_SEC[interval] || 300,
-  defaults: { market: {{ market_id|tojson }} === "us" ? "السوق الأمريكي" : "السوق السعودي" },
+  defaults: { market: {{ market_id|tojson }} === "us" ? "السوق الأمريكي (تلقائي صيفي/شتوي)" : "السوق السعودي" },
 });
 
 // مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
 const indicators = initIndicators({
-  mainChart: chart, getBars: () => bars, container: document.getElementById("ind-panes"),
+  mainChart: chart, getBars: () => indBars(), container: document.getElementById("ind-panes"),
   buttons: [...document.querySelectorAll("[data-ind]")], storageKey: "indicators",
 });
 
@@ -757,6 +811,7 @@ function precisionFor(price) {
 function volBar(b) { return { time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.4)" }; }
 
 function smaData(n) {
+  const bars = indBars();
   const out = []; let sum = 0;
   for (let i = 0; i < bars.length; i++) {
     sum += bars[i].close;
@@ -1213,7 +1268,8 @@ const OC_FIELDS = [
   ["market", "اختر السوق", "select"],
   ["customStartHour", "ساعة البداية (مخصص)", "int", "c"], ["customStartMinute", "دقيقة البداية (مخصص)", "int", "c"],
   ["customEndHour", "ساعة النهاية (مخصص)", "int", "c"], ["customEndMinute", "دقيقة النهاية (مخصص)", "int", "c"],
-  ["barDuration", "مدة الشمعة (مللي ثانية)", "int", null, 60000],
+  ["autoDuration", "➕ مدة الشمعة = فاصل الشارت (إضافة)", "bool"],
+  ["barDuration", "مدة الشمعة (مللي ثانية)", "int", "d", 60000],
   ["lineHighColor", "لون خط القمة", "color"], ["lineHighWidth", "سمك خط القمة", "int", null, 1],
   ["lineLowColor", "لون خط القاع", "color"], ["lineLowWidth", "سمك خط القاع", "int", null, 1],
   ["targetLineColor", "لون خطوط الأهداف", "color"], ["targetLineWidth", "سمك خطوط الأهداف", "int", null, 1],
@@ -1232,6 +1288,7 @@ function fillOC() {
   const c = openingCandle.config;
   OC_FIELDS.forEach(([k, , type]) => { const x = bbIn("oc-" + k); type === "bool" ? x.checked = c[k] : x.value = c[k]; });
   document.querySelectorAll('#oc-fields [data-grp="c"]').forEach(x => { x.hidden = c.market !== "مخصص"; });
+  document.querySelectorAll('#oc-fields [data-grp="d"]').forEach(x => { x.hidden = c.autoDuration; });
 }
 function readOC() {
   const c = {};

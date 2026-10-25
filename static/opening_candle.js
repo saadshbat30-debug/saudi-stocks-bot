@@ -8,6 +8,7 @@
     market: "السوق السعودي",
     customStartHour: 9, customStartMinute: 0, customEndHour: 16, customEndMinute: 0,
     barDuration: 300000,
+    autoDuration: true,  // إضافة: مدة شمعة الافتتاح = فاصل الشارت (بدل 5 دقائق ثابتة)
     lineHighColor: PINE.red, lineHighWidth: 2, lineLowColor: PINE.green, lineLowWidth: 2,
     targetLineColor: PINE.white, targetLineWidth: 1,
     openCandleColor: PINE.white,
@@ -17,9 +18,29 @@
     showOpeningZone: true, zoneColor: PINE.gray,  // الشفافية 85 كما في الأصل
     breakAlert: false,  // بديل alertcondition في TradingView: إشعار المتصفح
   };
-  const MARKETS = ["السوق السعودي", "السوق الأمريكي", "مخصص"];
+  const US_AUTO = "السوق الأمريكي (تلقائي صيفي/شتوي)";
+  const MARKETS = ["السوق السعودي", "السوق الأمريكي", US_AUTO, "مخصص"];
 
-  function sessionTimes(cfg) {
+  // فرق توقيت نيويورك عن UTC في يوم معيّن (−4 صيفي، −5 شتوي) من قاعدة المناطق الزمنية في المتصفح
+  const nyOffsetCache = new Map();
+  function nyOffset(d) {
+    if (nyOffsetCache.has(d)) return nyOffsetCache.get(d);
+    let off = -4;
+    try {
+      const t = new Date((d * 86400 + 12 * 3600 - 3 * 3600) * 1000);  // ظهر ذلك اليوم (أوقات الشموع مزاحة +3)
+      const part = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "shortOffset" })
+        .formatToParts(t).find(x => x.type === "timeZoneName").value;  // "GMT-4"
+      const m = part.match(/GMT([+-]\d+)/); if (m) off = +m[1];
+    } catch {}
+    nyOffsetCache.set(d, off);
+    return off;
+  }
+
+  function sessionTimes(cfg, d) {
+    if (cfg.market === US_AUTO) {  // 9:30–16:00 نيويورك بتوقيت الرياض: 16:30–23:00 صيفًا و 17:30–00:00 شتاءً
+      const shift = (3 - nyOffset(d)) * 3600;
+      return { start: 9.5 * 3600 + shift, end: 16 * 3600 + shift };
+    }
     const s = cfg.market === "السوق السعودي" ? [10, 0, 15, 0] : cfg.market === "السوق الأمريكي" ? [16, 30, 23, 0]
       : [cfg.customStartHour, cfg.customStartMinute, cfg.customEndHour, cfg.customEndMinute];
     return { start: s[0] * 3600 + s[1] * 60, end: s[2] * 3600 + s[3] * 60 };
@@ -38,14 +59,14 @@
 
   // dayOf: رقم يوم التداول للشمعة (مثل time("D") لبورصة السهم)، nowS: الآن بنفس إزاحة أوقات الشموع
   function compute(bars, cfg, dayOf, nowS, step) {
-    const n = bars.length, { start, end } = sessionTimes(cfg), dur = cfg.barDuration / 1000;
+    const n = bars.length, dur = cfg.autoDuration ? step : cfg.barDuration / 1000;
     const E = ema(bars, cfg.length), V = new Array(n).fill(null), first = new Array(n).fill(false);
     const markers = [], boxes = [];
     let levels = null, tracked = -1, alertAt = null;
     let oh = null, ol = null, rng = null, pv = null, vv = null, vwap = null, state = 0, lastSellHigh = null;
     for (let i = 0; i < n; i++) {
       const b = bars[i], d = dayOf(b.time);
-      const ss = d * 86400 + start, se = d * 86400 + end;
+      const { start, end } = sessionTimes(cfg, d), ss = d * 86400 + start, se = d * 86400 + end;
       const isFirst = b.time >= ss && b.time < ss + dur;
       first[i] = isFirst;
       if (i > 0 && dayOf(bars[i - 1].time) !== d) {  // ta.change(time("D"))
@@ -88,7 +109,12 @@
   window.initOpeningCandle = function ({ chart, series, container, getBars, dayOf, nowS, step, defaults }) {
     let cfg = { ...DEF, ...(defaults || {}) }, visible = false, res = null, sig = "", alerted = null;
     const base = { ...cfg };
-    try { cfg = { ...cfg, ...(JSON.parse(localStorage.getItem("oc_cfg")) || {}) }; } catch {}
+    try {
+      const saved = JSON.parse(localStorage.getItem("oc_cfg")) || {};
+      // إعدادات محفوظة قبل إضافة الخيار التلقائي: «السوق الأمريكي» كان الافتراضي لا اختيارًا، فيصبح التلقائي
+      if (saved.market === "السوق الأمريكي" && !("autoDuration" in saved)) saved.market = US_AUTO;
+      cfg = { ...cfg, ...saved };
+    } catch {}
     const emaLine = chart.addLineSeries({ priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
     const vwapLine = chart.addLineSeries({ priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
 
@@ -114,7 +140,7 @@
 
     function recalc(force) {
       const b = getBars(), last = b[b.length - 1];
-      const s = last ? `${b.length}|${b[0].time}|${last.time}|${last.high}|${last.low}|${last.close}|${last.volume}|${JSON.stringify(cfg)}` : "";
+      const s = last ? `${b.length}|${b[0].time}|${last.time}|${last.high}|${last.low}|${last.close}|${last.volume}|${step()}|${JSON.stringify(cfg)}` : "";
       if (s === sig && !force) return false;
       sig = s;
       res = visible && b.length ? compute(b, cfg, dayOf, nowS(), step()) : null;
@@ -166,7 +192,7 @@
     requestAnimationFrame(render);
 
     return {
-      DEF: base, MARKETS,
+      DEF: base, MARKETS, US_AUTO,
       get config() { return { ...cfg }; },
       get state() { return res; },
       get visible() { return visible; },
