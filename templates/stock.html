@@ -271,6 +271,8 @@
     <button class="chip bb-gear" id="bb-gear" type="button" title="إعدادات Bollinger Bands">⚙</button>
     <label class="ov" title="عرض وطلب بن جمعان: قمة وقاع آخر موجة ومنطقتاهما والإسقاط وجدول القوة"><input type="checkbox" data-ov="bj"> <span style="color:#15dd7c">عرض وطلب</span></label>
     <button class="chip bb-gear" id="bj-gear" type="button" title="إعدادات عرض وطلب بن جمعان">⚙</button>
+    <label class="ov" title="ابن جمعان تلوين شمعة الكميات: أزرق/وردي = قفزة حجم عن الشمعة السابقة أكبر من الانحراف المعياري للحجم"><input type="checkbox" data-ov="vc"> <span style="color:#2196F3">تلوين الكميات</span></label>
+    <button class="chip bb-gear" id="vc-gear" type="button" title="إعدادات تلوين شمعة الكميات">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
   </span>
 </div>
@@ -309,6 +311,16 @@
     <label>لون البيع <input type="color" id="bj-colorBear"></label>
     <button type="button" class="chip" id="bj-reset" style="margin-top:4px">القيم الافتراضية</button>
     <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه الافتراضية. الحجم يُقسم داخل/خارج حسب موقع إغلاق كل شمعة (تقدير)، والإسقاط متوسط تاريخي لنسب آخر الموجات وليس هدفًا مضمونًا. Mode مثل Pine: الأكثر تكرارًا، وإن لم تتكرر نسبة فأصغرها.</div>
+  </div>
+  <div class="alert-pop bb-pop" id="vc-pop" hidden>
+    <div class="ap-h"><b>⚙ ابن جمعان تلوين شمعة الكميات</b><button type="button" id="vc-close" title="إغلاق">×</button></div>
+    <label>Loopback <input type="number" id="vc-length" min="1" step="1"></label>
+    <label>Multiplier <input type="number" id="vc-mult" min="0" step="0.1"></label>
+    <button type="button" class="chip" id="vc-reset" style="margin-top:4px">القيم الافتراضية (200، 1.0)</button>
+    <div class="muted" style="margin-top:6px;font-size:11.5px;line-height:1.7">
+      <span style="color:#2196F3">■</span> صاعدة بحجم مرتفع · <span style="color:#4CAF50">■</span> صاعدة ·
+      <span style="color:#E040FB">■</span> هابطة بحجم مرتفع · <span style="color:#FF5252">■</span> هابطة<br>
+      «حجم مرتفع» = زيادة حجم الشمعة عن السابقة أكبر من Multiplier × الانحراف المعياري لحجم آخر Loopback شمعة. الشمعة المتعادلة تأخذ لون السابقة. مثل الأصل تمامًا.</div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -543,6 +555,48 @@ function setBB() {
   bbMid.setData(pts.map(p => ({ time: p.time, value: p.m })));
   bbLo.setData(pts.map(p => ({ time: p.time, value: p.l })));
 }
+// ===== ابن جمعان تلوين شمعة الكميات (منقول من Pine بنفس المدخلات) =====
+const VC_DEF = { length: 200, mult: 1.0 }, VC = { up: "#4CAF50", dn: "#FF5252", upHi: "#2196F3", dnHi: "#E040FB" };
+let vcCfg = { ...VC_DEF }, vcCol = [];
+try { vcCfg = { ...VC_DEF, ...(JSON.parse(localStorage.getItem("vc_cfg")) || {}) }; } catch {}
+// ta.stdev في Pine: انحراف معياري للمجتمع لآخر length قيمة (غير متاح قبل اكتمالها)
+function vcStdev(i) {
+  const n = vcCfg.length;
+  if (i < n - 1) return null;
+  let sum = 0; for (let j = i - n + 1; j <= i; j++) sum += bars[j].volume;
+  const m = sum / n; let sq = 0;
+  for (let j = i - n + 1; j <= i; j++) sq += (bars[j].volume - m) ** 2;
+  return Math.sqrt(sq / n);
+}
+function vcColorAt(i, prev) {
+  const b = bars[i], sd = vcStdev(i);
+  const hi = i > 0 && sd != null && b.volume - bars[i - 1].volume > sd * vcCfg.mult;
+  return b.close > b.open ? (hi ? VC.upHi : VC.up) : b.close < b.open ? (hi ? VC.dnHi : VC.dn) : prev;  // var bg: المتعادلة تبقى على السابق
+}
+function vcAll() {
+  vcCol = [];
+  // مجاميع متحركة بدل إعادة الجمع لكل شمعة
+  const n = vcCfg.length; let s1 = 0, s2 = 0, prev = VC.dn;
+  for (let i = 0; i < bars.length; i++) {
+    const v = bars[i].volume; s1 += v; s2 += v * v;
+    if (i >= n) { const o = bars[i - n].volume; s1 -= o; s2 -= o * o; }
+    const sd = i >= n - 1 ? Math.sqrt(Math.max(0, s2 / n - (s1 / n) ** 2)) : null, b = bars[i];
+    const hi = i > 0 && sd != null && v - bars[i - 1].volume > sd * vcCfg.mult;
+    prev = b.close > b.open ? (hi ? VC.upHi : VC.up) : b.close < b.open ? (hi ? VC.dnHi : VC.dn) : prev;
+    vcCol.push(prev);
+  }
+}
+const vcOn = () => overlays.includes("vc");
+const vcBar = (b, i) => vcOn() && vcCol[i] ? { ...b, color: vcCol[i], borderColor: vcCol[i], wickColor: vcCol[i] } : b;
+function setCandles() {
+  if (vcOn()) { vcAll(); candles.setData(bars.map(vcBar)); } else candles.setData(bars);
+}
+function updateCandle() {
+  const i = bars.length - 1;
+  if (vcOn()) { vcCol.length = i; vcCol[i] = vcColorAt(i, i ? vcCol[i - 1] : VC.dn); }
+  candles.update(vcBar(bars[i], i));
+}
+
 function updateBB() {  // آخر شمعة فقط أثناء البث
   const p = bbAt(bars.length - 1);
   if (!p) return;
@@ -578,6 +632,8 @@ function applyOverlays() {
   sma50.applyOptions({ visible: overlays.includes("sma50") });
   sma200.applyOptions({ visible: overlays.includes("sma200") });
   if (window.swingZones) swingZones.setVisible(overlays.includes("bj"));
+  if (bars.length && applyOverlays.vc !== vcOn()) setCandles();
+  applyOverlays.vc = vcOn();
   const bb = overlays.includes("bb");
   bbUp.applyOptions({ visible: bb }); bbLo.applyOptions({ visible: bb }); bbMid.applyOptions({ visible: bb && bbCfg.mid });
   document.getElementById("bb-name").textContent = `BB(${bbCfg.n}, ${bbCfg.k})`;
@@ -686,7 +742,7 @@ async function loadChart(fit) {
     if (!data.length) return;
     bars = data;
     precisionFor(bars[bars.length - 1].close);
-    candles.setData(bars);
+    setCandles();
     volume.setData(bars.map(volBar));
     ma20.setData(maData());
     sma50.setData(smaData(50));
@@ -735,7 +791,7 @@ function applyLive(q) {
     last.low = Math.min(last.low, q.price);
   }
   const b = bars[bars.length - 1];
-  candles.update(b);
+  updateCandle();
   volume.update(volBar(b));
   const vw = vwapData(); if (vw.length) vwapLine.update(vw[vw.length - 1]);
   updateBB();
@@ -1077,7 +1133,7 @@ function readBB() {
 }
 ["bb-n", "bb-k", "bb-src", "bb-mid"].forEach(id => bbIn(id).addEventListener(id === "bb-n" || id === "bb-k" ? "input" : "change", readBB));
 bbIn("bb-reset").onclick = () => { bbCfg = { ...BB_DEF }; fillBB(); readBB(); };
-bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = true; bjPop.hidden = true; fillBB(); } };
+bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = bjPop.hidden = vcPop.hidden = true; fillBB(); } };
 bbIn("bb-close").onclick = () => { bbPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") bbPop.hidden = true; });
 
@@ -1097,9 +1153,27 @@ function readBJ() {
 }
 BJ_KEYS.forEach(k => bbIn("bj-" + k).addEventListener(["len", "offset", "dataqty"].includes(k) ? "input" : "change", readBJ));
 bbIn("bj-reset").onclick = () => { swingZones.setConfig({ ...swingZones.DEF }); fillBJ(); };
-bbIn("bj-gear").onclick = () => { bjPop.hidden = !bjPop.hidden; if (!bjPop.hidden) { bbPop.hidden = true; alertPop.hidden = true; fillBJ(); } };
+bbIn("bj-gear").onclick = () => { bjPop.hidden = !bjPop.hidden; if (!bjPop.hidden) { bbPop.hidden = alertPop.hidden = vcPop.hidden = true; fillBJ(); } };
 bbIn("bj-close").onclick = () => { bjPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") bjPop.hidden = true; });
+
+// ===== إعدادات تلوين شمعة الكميات =====
+const vcPop = document.getElementById("vc-pop");
+const fillVC = () => { bbIn("vc-length").value = vcCfg.length; bbIn("vc-mult").value = vcCfg.mult; };
+function readVC() {
+  const length = Math.round(+bbIn("vc-length").value), mult = +bbIn("vc-mult").value;
+  if (!(length >= 1) || !(mult >= 0) || bbIn("vc-mult").value === "") return;
+  vcCfg = { length, mult };
+  try { localStorage.setItem("vc_cfg", JSON.stringify(vcCfg)); } catch {}
+  if (!vcOn()) overlays = [...overlays, "vc"];
+  applyOverlays();
+  if (bars.length) setCandles();
+}
+["vc-length", "vc-mult"].forEach(id => bbIn(id).addEventListener("input", readVC));
+bbIn("vc-reset").onclick = () => { vcCfg = { ...VC_DEF }; fillVC(); readVC(); };
+bbIn("vc-gear").onclick = () => { vcPop.hidden = !vcPop.hidden; if (!vcPop.hidden) { bbPop.hidden = bjPop.hidden = alertPop.hidden = true; fillVC(); } };
+bbIn("vc-close").onclick = () => { vcPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") vcPop.hidden = true; });
 // Alt + نقرة على الشارت: تنبيه عند السعر تحت المؤشر
 el.addEventListener("click", e => {
   if (!e.altKey) return;
