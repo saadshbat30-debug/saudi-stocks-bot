@@ -183,15 +183,7 @@
     }
     requestAnimationFrame(render);
 
-    // نطاق السعر التلقائي يشمل المناطق والإسقاط حتى لا تخرج عن الشاشة
-    series.applyOptions({
-      autoscaleInfoProvider: orig => {
-        const o = orig();
-        if (!visible || !res || !o || !o.priceRange) return o;
-        const vals = [res.upper?.top, res.lower?.bottom, res.proj?.y2].filter(v => v != null);
-        return { ...o, priceRange: { minValue: Math.min(o.priceRange.minValue, ...vals), maxValue: Math.max(o.priceRange.maxValue, ...vals) } };
-      },
-    });
+    // مثل TradingView: المناطق والإسقاط رسومات لا تدخل في النطاق التلقائي للسعر (كانت تمدّه لأسعار سالبة مع قاع شاذ)
 
     const applyOffset = () => chart.timeScale().applyOptions({ rightOffset: visible ? cfg.offset + 6 : 0 });
     return {
