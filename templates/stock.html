@@ -72,6 +72,10 @@
   .news-list p { direction:ltr; text-align:left; margin:4px 0 0; font-size:12px; color:var(--muted); }
   .alert-pop { position:absolute; top:34px; right:70px; z-index:6; width:320px; max-width:calc(100% - 90px); background:#151c24; border:1px solid #334155; border-radius:10px; padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.45); }
   .alert-pop[hidden] { display:none; }
+  .bb-pop { width:260px; max-height:calc(100% - 44px); overflow-y:auto; }
+  .bb-pop label { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
+  .bb-pop input[type=number], .bb-pop select { width:90px; background:#0f141a; color:var(--text); border:1px solid #334155; border-radius:6px; padding:3px 6px; direction:ltr; }
+  .bb-gear { padding:2px 7px !important; font-size:13px; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
   .alert-pop #alert-list { max-height:160px; overflow-y:auto; margin-top:6px; }
@@ -256,6 +260,8 @@
     <label class="ov"><input type="checkbox" data-ov="sma50"> <span style="color:#3b82f6">SMA50</span></label>
     <label class="ov"><input type="checkbox" data-ov="sma200"> <span style="color:#ec4899">SMA200</span></label>
     <label class="ov"><input type="checkbox" data-ov="vwap"> <span style="color:#06b6d4">VWAP</span></label>
+    <label class="ov" title="Bollinger Bands: متوسط بسيط ± انحراف معياري"><input type="checkbox" data-ov="bb"> <span style="color:#a78bfa" id="bb-name">BB</span></label>
+    <button class="chip bb-gear" id="bb-gear" type="button" title="إعدادات Bollinger Bands">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
   </span>
 </div>
@@ -271,6 +277,15 @@
     <div class="quick" id="alert-quick"></div>
     <div id="alert-list"></div>
     <div class="muted" style="margin-top:6px;font-size:11.5px">صوت وإشعار عند الاختراق أو الكسر، وخط متقطع أصفر على الشارت · <b>Alt + نقرة</b> على الشارت تضع تنبيهًا عند ذلك السعر</div>
+  </div>
+  <div class="alert-pop bb-pop" id="bb-pop" hidden>
+    <div class="ap-h"><b>⚙ Bollinger Bands</b><button type="button" id="bb-close" title="إغلاق">×</button></div>
+    <label>الفترة (عدد الشموع) <input type="number" id="bb-n" min="2" max="500" step="1"></label>
+    <label>الانحراف المعياري × <input type="number" id="bb-k" min="0.1" max="10" step="0.1"></label>
+    <label>المصدر <select id="bb-src"><option value="close">الإغلاق</option><option value="hlc3">(H+L+C)/3</option><option value="hl2">(H+L)/2</option><option value="ohlc4">(O+H+L+C)/4</option></select></label>
+    <label>إظهار خط الوسط <input type="checkbox" id="bb-mid"></label>
+    <button type="button" class="chip" id="bb-reset" style="margin-top:4px">الافتراضي (20، 2، الإغلاق)</button>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">الوسط = متوسط بسيط لآخر N شمعة، والحدّان = الوسط ± K × الانحراف المعياري لنفس الشموع. يُحسب من شموع الفاصل المعروض.</div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -475,6 +490,41 @@ const ma20 = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisi
 const sma50 = chart.addLineSeries({ color: "#3b82f6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const sma200 = chart.addLineSeries({ color: "#ec4899", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const vwapLine = chart.addLineSeries({ color: "#06b6d4", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, title: "VWAP" });
+const bbLine = o => chart.addLineSeries({ color: "#a78bfa", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, ...o });
+const bbUp = bbLine({}), bbLo = bbLine({}), bbMid = bbLine({ lineStyle: 2, color: "rgba(167,139,250,.7)" });
+
+// ===== Bollinger Bands: الإعدادات تُحفظ في المتصفح =====
+const BB_DEF = { n: 20, k: 2, src: "close", mid: true };
+let bbCfg = { ...BB_DEF }, bbMap = new Map();
+try { bbCfg = { ...BB_DEF, ...(JSON.parse(localStorage.getItem("bb_cfg")) || {}) }; } catch {}
+const bbSrc = b => bbCfg.src === "hlc3" ? (b.high + b.low + b.close) / 3 : bbCfg.src === "hl2" ? (b.high + b.low) / 2
+  : bbCfg.src === "ohlc4" ? (b.open + b.high + b.low + b.close) / 4 : b.close;
+// قيمة الحدود عند الشمعة i: انحراف معياري للمجتمع (مثل TradingView)
+function bbAt(i) {
+  const n = bbCfg.n;
+  if (i < n - 1) return null;
+  let sum = 0;
+  for (let j = i - n + 1; j <= i; j++) sum += bbSrc(bars[j]);
+  const m = sum / n;
+  let sq = 0;
+  for (let j = i - n + 1; j <= i; j++) { const d = bbSrc(bars[j]) - m; sq += d * d; }
+  const sd = Math.sqrt(sq / n);
+  return { time: bars[i].time, u: m + bbCfg.k * sd, m, l: m - bbCfg.k * sd };
+}
+function setBB() {
+  const pts = [];
+  for (let i = bbCfg.n - 1; i < bars.length; i++) pts.push(bbAt(i));
+  bbMap = new Map(pts.map(p => [p.time, p]));
+  bbUp.setData(pts.map(p => ({ time: p.time, value: p.u })));
+  bbMid.setData(pts.map(p => ({ time: p.time, value: p.m })));
+  bbLo.setData(pts.map(p => ({ time: p.time, value: p.l })));
+}
+function updateBB() {  // آخر شمعة فقط أثناء البث
+  const p = bbAt(bars.length - 1);
+  if (!p) return;
+  bbMap.set(p.time, p);
+  bbUp.update({ time: p.time, value: p.u }); bbMid.update({ time: p.time, value: p.m }); bbLo.update({ time: p.time, value: p.l });
+}
 
 // VWAP يبدأ من جديد كل يوم تداول (بتوقيت نيويورك)
 function vwapData() {
@@ -503,6 +553,9 @@ function applyOverlays() {
   ma20.applyOptions({ visible: overlays.includes("ma20") });
   sma50.applyOptions({ visible: overlays.includes("sma50") });
   sma200.applyOptions({ visible: overlays.includes("sma200") });
+  const bb = overlays.includes("bb");
+  bbUp.applyOptions({ visible: bb }); bbLo.applyOptions({ visible: bb }); bbMid.applyOptions({ visible: bb && bbCfg.mid });
+  document.getElementById("bb-name").textContent = `BB(${bbCfg.n}, ${bbCfg.k})`;
   document.querySelectorAll("[data-ov]").forEach(b => { b.checked = overlays.includes(b.dataset.ov); });
   document.getElementById("sig-legend").hidden = !overlays.includes("signals");
   if (typeof bars !== "undefined" && bars.length) candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
@@ -512,6 +565,7 @@ document.querySelectorAll("[data-ov]").forEach(b => b.onchange = () => {
   const k = b.dataset.ov;
   overlays = b.checked ? [...new Set([...overlays, k])] : overlays.filter(x => x !== k);
   applyOverlays();
+  if (bars.length) showLegend(bars[bars.length - 1], bars[bars.length - 2]);
 });
 
 // ===== إشارات على الشموع (تُحسب من السعر والحجم) =====
@@ -559,7 +613,8 @@ function showLegend(b, prev) {
     <span>O <b>${fmtP(b.open)}</b></span><span>H <b style="color:#22c55e">${fmtP(b.high)}</b></span>
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
-    <span>Vol <b>${fmtV(b.volume)}</b></span>${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}`;
+    <span>Vol <b>${fmtV(b.volume)}</b></span>${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
+    (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
 }
 chart.subscribeCrosshairMove(p => {
   const i = p.time ? bars.findIndex(b => b.time === p.time) : -1;
@@ -609,6 +664,7 @@ async function loadChart(fit) {
     sma50.setData(smaData(50));
     sma200.setData(smaData(200));
     vwapLine.setData(vwapData());
+    setBB();
     candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
     showLegend(bars[bars.length - 1], bars[bars.length - 2]);
     indicators.update();
@@ -654,6 +710,7 @@ function applyLive(q) {
   candles.update(b);
   volume.update(volBar(b));
   const vw = vwapData(); if (vw.length) vwapLine.update(vw[vw.length - 1]);
+  updateBB();
   showLegend(b, bars[bars.length - 2]);
   indicators.update();
 }
@@ -976,6 +1033,25 @@ document.getElementById("alert-btn").onclick = () => {
 };
 document.getElementById("alert-close").onclick = () => { alertPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !alertPop.hidden) alertPop.hidden = true; });
+
+// ===== إعدادات Bollinger Bands =====
+const bbPop = document.getElementById("bb-pop"), bbIn = id => document.getElementById(id);
+function fillBB() { bbIn("bb-n").value = bbCfg.n; bbIn("bb-k").value = bbCfg.k; bbIn("bb-src").value = bbCfg.src; bbIn("bb-mid").checked = bbCfg.mid; }
+function readBB() {
+  const n = Math.round(+bbIn("bb-n").value), k = +bbIn("bb-k").value;
+  if (!(n >= 2 && n <= 500) || !(k > 0 && k <= 10)) return;  // قيمة غير صالحة أثناء الكتابة: تُترك حتى تكتمل
+  bbCfg = { n, k, src: bbIn("bb-src").value, mid: bbIn("bb-mid").checked };
+  try { localStorage.setItem("bb_cfg", JSON.stringify(bbCfg)); } catch {}
+  if (!overlays.includes("bb")) overlays = [...overlays, "bb"];  // تعديل الإعدادات يُظهر المؤشر
+  if (bars.length) setBB();
+  applyOverlays();
+  showLegend(bars[bars.length - 1], bars[bars.length - 2]);
+}
+["bb-n", "bb-k", "bb-src", "bb-mid"].forEach(id => bbIn(id).addEventListener(id === "bb-n" || id === "bb-k" ? "input" : "change", readBB));
+bbIn("bb-reset").onclick = () => { bbCfg = { ...BB_DEF }; fillBB(); readBB(); };
+bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = true; fillBB(); } };
+bbIn("bb-close").onclick = () => { bbPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") bbPop.hidden = true; });
 // Alt + نقرة على الشارت: تنبيه عند السعر تحت المؤشر
 el.addEventListener("click", e => {
   if (!e.altKey) return;
