@@ -8,6 +8,7 @@
     len: 10, offset: 10, dataqty: 5, calcType: "Average",
     position: "Bottom Right", size: "Small", extendR: false,
     colorBull: "#15dd7c", colorBear: "#eb7514",
+    follow: false,  // إضافة ليست في الأصل: المنطقتان عند آخر قمة وقاع دائمًا (متوقفة افتراضيًا)
   };
   const POSITIONS = ["Middle Right", "Top Center", "Top Right", "Middle Left", "Middle Center", "Bottom Left", "Bottom Center", "Bottom Right"];
   const SIZES = { Tiny: 10, Small: 11.5, Normal: 13, Large: 15 };
@@ -66,6 +67,12 @@
       prevDirec = direc;
     }
     if (h.val == null || l.val == null) return null;
+    // في الأصل تبقى المنطقة حيث رُسمت عند تغيّر الاتجاه بينما نصها يتحدث بآخر قمة/قاع؛ هذا الخيار يحرّكها معه
+    if (cfg.follow && A[n - 1] != null) {
+      const a = A[n - 1] * 0.5;
+      upper = { left: h.indx, top: h.val + a, bottom: h.val };
+      lower = { left: l.indx, top: l.val, bottom: l.val - a };
+    }
 
     // الحجم من بداية الموجة الأخيرة حتى آخر شمعة
     let buy = 0, sell = 0;
@@ -140,7 +147,7 @@
       return r;
     }
 
-    function box(z, color, text, right, W) {
+    function box(z, color, text, right, W, side) {
       const ts = chart.timeScale(), x1 = ts.logicalToCoordinate(z.left), y1 = series.priceToCoordinate(z.top), y2 = series.priceToCoordinate(z.bottom);
       const x2 = cfg.extendR ? W : ts.logicalToCoordinate(right);
       if (x1 == null || x2 == null || y1 == null || y2 == null) return;
@@ -148,8 +155,10 @@
       ctx.fillStyle = alpha(color, 0.2); ctx.fillRect(x1, top, x2 - x1, h);
       ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.strokeRect(x1, top, x2 - x1, h);
       ctx.font = `${SIZES[cfg.size] || 11.5}px system-ui, sans-serif`; ctx.fillStyle = "#e5e7eb"; ctx.textAlign = "right"; ctx.direction = "ltr";
-      const lines = text.split("\n"), lh = (SIZES[cfg.size] || 11.5) + 2, mid = top + h / 2 - (lines.length - 1) * lh / 2 + 4;
-      lines.forEach((t, k) => ctx.fillText(t, Math.min(x2, W) - 4, mid + k * lh));
+      const lines = text.split("\n"), lh = (SIZES[cfg.size] || 11.5) + 2, block = lines.length * lh;
+      // منطقة أرفع من النص: النص فوق منطقة القمة وتحت منطقة القاع حتى لا يتداخل النصان
+      const y0 = block + 4 <= h ? top + h / 2 - block / 2 + lh - 3 : side === "up" ? top - block - 2 + lh - 3 : top + h + 2 + lh - 3;
+      lines.forEach((t, k) => ctx.fillText(t, Math.min(x2, W) - 4, y0 + k * lh));
     }
 
     function render() {
@@ -160,8 +169,8 @@
         if (res) {
           const ts = chart.timeScale(), X = i => ts.logicalToCoordinate(i), Y = p => series.priceToCoordinate(p), right = res.last + cfg.offset;
           ctx.setLineDash([]);
-          if (res.upper) box(res.upper, cfg.colorBear, `${fmtP(res.h.val)}🔺\n-${fmtV(res.sell)}🔻`, right, r.width);
-          if (res.lower) box(res.lower, cfg.colorBull, `${fmtP(res.l.val)}🔻\n+${fmtV(res.buy)}🔺`, right, r.width);
+          if (res.upper) box(res.upper, cfg.colorBear, `${fmtP(res.h.val)}🔺\n-${fmtV(res.sell)}🔻`, right, r.width, "up");
+          if (res.lower) box(res.lower, cfg.colorBull, `${fmtP(res.l.val)}🔻\n+${fmtV(res.buy)}🔺`, right, r.width, "down");
           if (res.leg) {
             const [a, b, c, d] = [X(res.leg.x1), Y(res.leg.y1), X(res.leg.x2), Y(res.leg.y2)];
             if ([a, b, c, d].every(v => v != null)) { ctx.strokeStyle = res.leg.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
