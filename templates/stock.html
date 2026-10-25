@@ -255,7 +255,7 @@
     <button class="chip" data-interval="1mo">شهر</button>
   </span>
   <button class="chip" id="alert-btn" type="button" title="تنبيهات السعر — أو Alt + نقرة على الشارت لوضع تنبيه عند ذلك السعر">🔔 تنبيه سعر <b id="alert-count"></b></button>
-  <span id="ind-buttons" style="display:flex;gap:6px;align-items:center">
+  <span id="ind-buttons" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0">
     <span class="sep"></span>
     <span class="muted">مؤشرات:</span>
     <button class="chip" data-ind="liq">السيولة</button>
@@ -273,6 +273,8 @@
     <button class="chip bb-gear" id="bj-gear" type="button" title="إعدادات عرض وطلب بن جمعان">⚙</button>
     <label class="ov" title="ابن جمعان تلوين شمعة الكميات: أزرق/وردي = قفزة حجم عن الشمعة السابقة أكبر من الانحراف المعياري للحجم"><input type="checkbox" data-ov="vc"> <span style="color:#2196F3">تلوين الكميات</span></label>
     <button class="chip bb-gear" id="vc-gear" type="button" title="إعدادات تلوين شمعة الكميات">⚙</button>
+    <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
+    <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
   </span>
 </div>
@@ -321,6 +323,12 @@
       <span style="color:#2196F3">■</span> صاعدة بحجم مرتفع · <span style="color:#4CAF50">■</span> صاعدة ·
       <span style="color:#E040FB">■</span> هابطة بحجم مرتفع · <span style="color:#FF5252">■</span> هابطة<br>
       «حجم مرتفع» = زيادة حجم الشمعة عن السابقة أكبر من Multiplier × الانحراف المعياري لحجم آخر Loopback شمعة. الشمعة المتعادلة تأخذ لون السابقة. مثل الأصل تمامًا.</div>
+  </div>
+  <div class="alert-pop bb-pop bj-pop" id="oc-pop" hidden>
+    <div class="ap-h"><b>⚙ Opening Candle Indicator Final</b><button type="button" id="oc-close" title="إغلاق">×</button></div>
+    <div id="oc-fields"></div>
+    <button type="button" class="chip" id="oc-reset" style="margin-top:4px">القيم الافتراضية</button>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه. الأوقات بتوقيت الرياض (GMT+3) كما في الأصل: السوق الأمريكي 16:30–23:00 والسعودي 10:00–15:00. الإشارات على الشموع المكتملة فقط.</div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -500,6 +508,7 @@
 <script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
 <script src="{{ url_for('static', filename='swing_zones.js') }}"></script>
+<script src="{{ url_for('static', filename='opening_candle.js') }}"></script>
 <script src="{{ url_for('static', filename='indicators.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
@@ -587,14 +596,25 @@ function vcAll() {
   }
 }
 const vcOn = () => overlays.includes("vc");
-const vcBar = (b, i) => vcOn() && vcCol[i] ? { ...b, color: vcCol[i], borderColor: vcCol[i], wickColor: vcCol[i] } : b;
+// barcolor: لون شمعة الافتتاح يتقدم على تلوين الكميات
+const vcBar = (b, i) => {
+  const c = window.openingCandle?.barColor(i) || (vcOn() && vcCol[i]);
+  return c ? { ...b, color: c, borderColor: c, wickColor: c } : b;
+};
+const allMarkers = () => [...(overlays.includes("signals") ? signalMarkers() : []), ...(window.openingCandle ? openingCandle.markers() : [])]
+  .sort((a, b) => a.time - b.time);
 function setCandles() {
-  if (vcOn()) { vcAll(); candles.setData(bars.map(vcBar)); } else candles.setData(bars);
+  if (vcOn()) vcAll();
+  window.openingCandle?.recalc();
+  candles.setData(bars.map(vcBar));
 }
+let lastBarCount = 0;
 function updateCandle() {
   const i = bars.length - 1;
   if (vcOn()) { vcCol.length = i; vcCol[i] = vcColorAt(i, i ? vcCol[i - 1] : VC.dn); }
+  window.openingCandle?.recalc();
   candles.update(vcBar(bars[i], i));
+  if (bars.length !== lastBarCount) { lastBarCount = bars.length; candles.setMarkers(allMarkers()); }
 }
 
 function updateBB() {  // آخر شمعة فقط أثناء البث
@@ -632,14 +652,16 @@ function applyOverlays() {
   sma50.applyOptions({ visible: overlays.includes("sma50") });
   sma200.applyOptions({ visible: overlays.includes("sma200") });
   if (window.swingZones) swingZones.setVisible(overlays.includes("bj"));
-  if (bars.length && applyOverlays.vc !== vcOn()) setCandles();
-  applyOverlays.vc = vcOn();
+  if (window.openingCandle) openingCandle.setVisible(overlays.includes("oc"));
+  const styleKey = `${vcOn()}|${overlays.includes("oc")}`;
+  if (bars.length && applyOverlays.vc !== styleKey) setCandles();
+  applyOverlays.vc = styleKey;
   const bb = overlays.includes("bb");
   bbUp.applyOptions({ visible: bb }); bbLo.applyOptions({ visible: bb }); bbMid.applyOptions({ visible: bb && bbCfg.mid });
   document.getElementById("bb-name").textContent = `BB(${bbCfg.n}, ${bbCfg.k})`;
   document.querySelectorAll("[data-ov]").forEach(b => { b.checked = overlays.includes(b.dataset.ov); });
   document.getElementById("sig-legend").hidden = !overlays.includes("signals");
-  if (typeof bars !== "undefined" && bars.length) candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
+  if (typeof bars !== "undefined" && bars.length) candles.setMarkers(allMarkers());
   try { localStorage.setItem("overlays", JSON.stringify(overlays)); } catch {}
 }
 document.querySelectorAll("[data-ov]").forEach(b => b.onchange = () => {
@@ -711,6 +733,15 @@ initDrawings({
 // عرض وطلب بن جمعان: مناطق آخر قمة وقاع والإسقاط وجدول القوة
 window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => bars });
 
+// Opening Candle Indicator: السوق الافتراضي حسب سوق الصفحة
+const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
+window.openingCandle = initOpeningCandle({
+  chart, series: candles, container: el, getBars: () => bars,
+  dayOf: t => Math.floor((t - 7 * 3600) / 86400),  // يوم التداول بتوقيت نيويورك مثل VWAP المنصة
+  nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => BAR_SEC[interval] || 300,
+  defaults: { market: {{ market_id|tojson }} === "us" ? "السوق الأمريكي" : "السوق السعودي" },
+});
+
 // مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
 const indicators = initIndicators({
   mainChart: chart, getBars: () => bars, container: document.getElementById("ind-panes"),
@@ -749,7 +780,7 @@ async function loadChart(fit) {
     sma200.setData(smaData(200));
     vwapLine.setData(vwapData());
     setBB();
-    candles.setMarkers(overlays.includes("signals") ? signalMarkers() : []);
+    candles.setMarkers(allMarkers()); lastBarCount = bars.length;
     showLegend(bars[bars.length - 1], bars[bars.length - 2]);
     indicators.update();
     if (fit) chart.timeScale().fitContent();
@@ -1133,7 +1164,7 @@ function readBB() {
 }
 ["bb-n", "bb-k", "bb-src", "bb-mid"].forEach(id => bbIn(id).addEventListener(id === "bb-n" || id === "bb-k" ? "input" : "change", readBB));
 bbIn("bb-reset").onclick = () => { bbCfg = { ...BB_DEF }; fillBB(); readBB(); };
-bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = bjPop.hidden = vcPop.hidden = true; fillBB(); } };
+bbIn("bb-gear").onclick = () => { bbPop.hidden = !bbPop.hidden; if (!bbPop.hidden) { alertPop.hidden = bjPop.hidden = vcPop.hidden = ocPop.hidden = true; fillBB(); } };
 bbIn("bb-close").onclick = () => { bbPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") bbPop.hidden = true; });
 
@@ -1153,7 +1184,7 @@ function readBJ() {
 }
 BJ_KEYS.forEach(k => bbIn("bj-" + k).addEventListener(["len", "offset", "dataqty"].includes(k) ? "input" : "change", readBJ));
 bbIn("bj-reset").onclick = () => { swingZones.setConfig({ ...swingZones.DEF }); fillBJ(); };
-bbIn("bj-gear").onclick = () => { bjPop.hidden = !bjPop.hidden; if (!bjPop.hidden) { bbPop.hidden = alertPop.hidden = vcPop.hidden = true; fillBJ(); } };
+bbIn("bj-gear").onclick = () => { bjPop.hidden = !bjPop.hidden; if (!bjPop.hidden) { bbPop.hidden = alertPop.hidden = vcPop.hidden = ocPop.hidden = true; fillBJ(); } };
 bbIn("bj-close").onclick = () => { bjPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") bjPop.hidden = true; });
 
@@ -1171,9 +1202,54 @@ function readVC() {
 }
 ["vc-length", "vc-mult"].forEach(id => bbIn(id).addEventListener("input", readVC));
 bbIn("vc-reset").onclick = () => { vcCfg = { ...VC_DEF }; fillVC(); readVC(); };
-bbIn("vc-gear").onclick = () => { vcPop.hidden = !vcPop.hidden; if (!vcPop.hidden) { bbPop.hidden = bjPop.hidden = alertPop.hidden = true; fillVC(); } };
+bbIn("vc-gear").onclick = () => { vcPop.hidden = !vcPop.hidden; if (!vcPop.hidden) { bbPop.hidden = bjPop.hidden = alertPop.hidden = ocPop.hidden = true; fillVC(); } };
 bbIn("vc-close").onclick = () => { vcPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") vcPop.hidden = true; });
+
+// ===== إعدادات Opening Candle Indicator (نفس مدخلات الأصل ومجموعاته) =====
+const ocPop = document.getElementById("oc-pop");
+const OC_FIELDS = [
+  ["market", "اختر السوق", "select"],
+  ["customStartHour", "ساعة البداية (مخصص)", "int", "c"], ["customStartMinute", "دقيقة البداية (مخصص)", "int", "c"],
+  ["customEndHour", "ساعة النهاية (مخصص)", "int", "c"], ["customEndMinute", "دقيقة النهاية (مخصص)", "int", "c"],
+  ["barDuration", "مدة الشمعة (مللي ثانية)", "int", null, 60000],
+  ["lineHighColor", "لون خط القمة", "color"], ["lineHighWidth", "سمك خط القمة", "int", null, 1],
+  ["lineLowColor", "لون خط القاع", "color"], ["lineLowWidth", "سمك خط القاع", "int", null, 1],
+  ["targetLineColor", "لون خطوط الأهداف", "color"], ["targetLineWidth", "سمك خطوط الأهداف", "int", null, 1],
+  ["openCandleColor", "لون شمعة الافتتاح", "color"],
+  ["showVWAP", "إظهار خط VWAP", "bool"], ["vwapColor", "لون VWAP", "color"], ["vwapWidth", "سمك VWAP", "int", null, 1],
+  ["showSignals", "إظهار الإشارات", "bool"], ["buyColor", "لون Buy/CO", "color"], ["exitColor", "لون Exit/Sell", "color"],
+  ["length", "طول EMA", "int", null, 1], ["emaColor", "لون EMA 200", "color"],
+  ["showOpeningZone", "إظهار تظليل افتتاح الجلسة", "bool"], ["zoneColor", "لون التظليل", "color"],
+  ["breakAlert", "إشعار اختراق قمة شمعة الافتتاح (MESNED ALEART)", "bool"],
+];
+bbIn("oc-fields").innerHTML = OC_FIELDS.map(([k, label, type, grp, min]) => `<label data-grp="${grp || ""}">${label} ${
+  type === "select" ? `<select id="oc-${k}">${openingCandle.MARKETS.map(m => `<option>${m}</option>`).join("")}</select>`
+  : type === "bool" ? `<input type="checkbox" id="oc-${k}">` : type === "color" ? `<input type="color" id="oc-${k}">`
+  : `<input type="number" id="oc-${k}" step="1"${min != null ? ` min="${min}"` : ""}>`}</label>`).join("");
+function fillOC() {
+  const c = openingCandle.config;
+  OC_FIELDS.forEach(([k, , type]) => { const x = bbIn("oc-" + k); type === "bool" ? x.checked = c[k] : x.value = c[k]; });
+  document.querySelectorAll('#oc-fields [data-grp="c"]').forEach(x => { x.hidden = c.market !== "مخصص"; });
+}
+function readOC() {
+  const c = {};
+  for (const [k, , type, , min] of OC_FIELDS) {
+    const x = bbIn("oc-" + k);
+    if (type === "int") { const v = Math.round(+x.value); if (x.value === "" || !isFinite(v) || (min != null && v < min)) return; c[k] = v; }
+    else c[k] = type === "bool" ? x.checked : x.value;
+  }
+  if (c.breakAlert && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  openingCandle.setConfig(c);
+  if (!overlays.includes("oc")) overlays = [...overlays, "oc"];
+  applyOverlays.vc = null; applyOverlays();
+  fillOC();
+}
+OC_FIELDS.forEach(([k, , type]) => bbIn("oc-" + k).addEventListener(type === "int" ? "input" : "change", readOC));
+bbIn("oc-reset").onclick = () => { openingCandle.setConfig({ ...openingCandle.DEF }); fillOC(); applyOverlays.vc = null; applyOverlays(); };
+bbIn("oc-gear").onclick = () => { ocPop.hidden = !ocPop.hidden; if (!ocPop.hidden) { bbPop.hidden = bjPop.hidden = vcPop.hidden = alertPop.hidden = true; fillOC(); } };
+bbIn("oc-close").onclick = () => { ocPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") ocPop.hidden = true; });
 // Alt + نقرة على الشارت: تنبيه عند السعر تحت المؤشر
 el.addEventListener("click", e => {
   if (!e.altKey) return;
