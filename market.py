@@ -294,7 +294,9 @@ def _row(q):
     ext = "preMarket" if state.startswith("PRE") else "postMarket" if state.startswith("POST") else None
     return {
         "symbol": q["symbol"],
-        "name": q.get("shortName") or q.get("longName") or q["symbol"],
+        # بعد تغيير اسم الشركة يبقى shortName على الاسم القديم (= prevName) بينما longName محدَّث
+        "name": (q.get("longName") if q.get("prevName") and q.get("shortName") == q.get("prevName") else None)
+                or q.get("shortName") or q.get("longName") or q["symbol"],
         "price": price,
         "change": q.get("regularMarketChange") or 0,
         "change_pct": q.get("regularMarketChangePercent") or 0,
