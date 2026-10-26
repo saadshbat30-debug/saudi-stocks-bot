@@ -135,14 +135,21 @@
       ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
       ctx.moveTo(x1, w.up ? yB : yT); ctx.lineTo(x2, w.up ? yT : yB); ctx.stroke();
       ctx.setLineDash([]);
-      if (cfg.labels && x2 - x1 > 18) {
-        // عزل الأرقام باتجاه يسار-يمين (LRI…PDI) حتى لا تنقلب «‎-21.03%» إلى «%21.03-» داخل النص العربي
-        const iso = t => "\u2066" + t + "\u2069";
-        const txt = `${title} ${w.up ? "↑" : "↓"} ${iso(pct(w.pct))} · ${iso(w.bars)} شمعة`;
-        ctx.font = "11px system-ui, sans-serif"; ctx.direction = "rtl"; ctx.textAlign = "center";
-        const y = w.up ? yT - 6 : yB + 14;
-        ctx.fillStyle = color; ctx.fillText(txt, (x1 + x2) / 2, y);
+      if (!cfg.labels) return null;
+      // عزل الأرقام باتجاه يسار-يمين (LRI…PDI) حتى لا تنقلب «‎-21.03%» إلى «%21.03-» داخل النص العربي
+      const iso = t => "\u2066" + t + "\u2069";
+      return { txt: `${title} ${w.up ? "↑" : "↓"} ${iso(pct(w.pct))} · ${iso(w.bars)} شمعة`, x: (x1 + x2) / 2, y: w.up ? yT - 6 : yB + 14, color, size: Math.abs(w.pct) };
+    }
+
+    // النصوص لا تتراكب: الجارية أولًا ثم الأكبر نسبة، وأي نص يتقاطع مع نص سبقه لا يُكتب (كبّر الشارت لتظهر)
+    function placeTexts(items, font, dir, placed = []) {
+      ctx.font = font; ctx.direction = dir; ctx.textAlign = "center";
+      for (const t of items) {
+        const w = ctx.measureText(t.txt).width + 6, box = { l: t.x - w / 2, r: t.x + w / 2, t: t.y - 11, b: t.y + 3 };
+        if (placed.some(p => box.l < p.r && box.r > p.l && box.t < p.b && box.b > p.t)) continue;
+        placed.push(box); ctx.fillStyle = t.color; ctx.fillText(t.txt, t.x, t.y);
       }
+      return placed;
     }
 
     function render() {
@@ -151,19 +158,20 @@
       if (visible) {
         recalc();
         if (res) {
-          res.waves.forEach(w => drawWave(w, false, `موجة ${w.n}`));
-          if (res.current) drawWave(res.current, true, "جارية");
+          const labels = res.waves.map(w => drawWave(w, false, `موجة ${w.n}`)).filter(Boolean).sort((a, b) => b.size - a.size);
+          const cur = res.current ? drawWave(res.current, true, "جارية") : null;
+          const placed = placeTexts(cur ? [cur, ...labels] : labels, "11px system-ui, sans-serif", "rtl");
           if (cfg.structure) {
-            ctx.font = "bold 10.5px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.direction = "ltr";
-            const ts = chart.timeScale();
+            const ts = chart.timeScale(), tags = [];
             for (const v of res.z) {
               if (!v.tag) continue;
               const x = ts.logicalToCoordinate(v.i), y = series.priceToCoordinate(v.p);
               if (x == null || y == null) continue;
               const good = v.tag === "HH" || v.tag === "HL";
-              ctx.fillStyle = v.tag[0] === "E" ? "#facc15" : good ? cfg.colorUp : cfg.colorDn;
-              ctx.fillText(v.tag[0] === "E" ? "=" : v.tag, x, v.type === "H" ? y - (cfg.labels ? 20 : 8) : y + (cfg.labels ? 28 : 16));
+              tags.push({ txt: v.tag[0] === "E" ? "=" : v.tag, x, y: v.type === "H" ? y - (cfg.labels ? 20 : 8) : y + (cfg.labels ? 28 : 16),
+                          color: v.tag[0] === "E" ? "#facc15" : good ? cfg.colorUp : cfg.colorDn, size: v.i });
             }
+            placeTexts(tags.sort((a, b) => b.size - a.size), "bold 10.5px system-ui, sans-serif", "ltr", placed);  // الأحدث أولًا
           }
         }
       }
