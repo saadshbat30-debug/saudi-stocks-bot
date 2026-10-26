@@ -24,10 +24,18 @@
   .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--line); }
   main { max-width:none !important; }
   /* اللوحة الجانبية على اليمين والجدول يملأ باقي الشاشة */
-  .layout { display:grid; grid-template-columns:300px 1fr; gap:14px; align-items:start; }
+  /* الجدول بعرض الشاشة كله، والتنبيهات/الإيقافات/الأخبار نافذة تفتح من أزرار شريط الأدوات.
+     «📌 تثبيت» يعيدها عمودًا جانبيًا */
+  .layout { display:grid; grid-template-columns:1fr; gap:14px; align-items:start; position:relative; }
   .layout > * { min-width:0; }
-  .layout > aside { order:-1; position:sticky; top:8px; max-height:calc(100vh - 16px); overflow-y:auto; }
-  @media (max-width:1000px) { .layout { grid-template-columns:1fr; } .layout > aside { order:0; position:static; max-height:none; } }
+  .layout > aside { position:absolute; top:0; left:0; z-index:20; width:340px; max-width:calc(100vw - 32px); max-height:calc(100vh - 16px); overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,.5); }
+  .layout > aside[hidden] { display:none; }
+  .layout.pinned { grid-template-columns:300px 1fr; }
+  .layout.pinned > aside { order:-1; position:sticky; top:8px; box-shadow:none; width:auto; }
+  @media (max-width:1000px) { .layout.pinned { grid-template-columns:1fr; } .layout.pinned > aside { order:0; position:static; max-height:none; } }
+  .side-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .side-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .side-head button { background:none; border:0; color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
   /* الجدول بارتفاع الشاشة: شريط التمرير الأفقي والعناوين ظاهرة دائمًا */
   .table-wrap { overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; height:calc(100vh - 16px); min-height:420px; position:sticky; top:8px; }
   .table-wrap::-webkit-scrollbar { height:12px; width:10px; }
@@ -149,6 +157,11 @@
     <button class="chip sig" data-sig="uptrend">اتجاه صاعد</button>
     <button class="chip sig" data-sig="downtrend">اتجاه هابط</button>
   </span>
+  <span id="side-tabs" style="display:inline-flex;gap:6px;margin-inline-start:8px">
+    <button class="chip side-btn" data-side="alerts" type="button">🔔 التنبيهات <span id="alert-unread" class="badge" hidden></span></button>
+    <button class="chip side-btn" data-side="halts" type="button">⏸️ الإيقافات <span id="halt-count" class="badge" hidden></span></button>
+    <button class="chip side-btn" data-side="news" type="button">📰 الأخبار</button>
+  </span>
   <input class="field" id="search" placeholder="🔍 رمز أو اسم (Enter لفتح أي سهم)" autocomplete="off" style="margin-inline-start:auto;width:150px">
   <button class="btn ghost" id="col-btn" type="button" title="إظهار/إخفاء الأعمدة وترتيبها">⚙️ الأعمدة</button>
   <form id="add-form" style="display:flex;gap:6px">
@@ -205,12 +218,9 @@
     </table>
     <div class="table-foot" id="table-foot"></div>
   </div>
-  <aside class="card">
-    <div class="side-tabs" id="side-tabs">
-      <button class="active" data-side="alerts">🔔 التنبيهات</button>
-      <button data-side="halts">⏸️ الإيقافات <span id="halt-count" class="badge" hidden></span></button>
-      <button data-side="news">📰 الأخبار</button>
-    </div>
+  <aside class="card" id="side" hidden>
+    <div class="side-head"><b id="side-title"></b>
+      <span><button type="button" id="side-pin" title="تثبيت كعمود جانبي">📌 تثبيت</button> <button type="button" id="side-close" title="إغلاق (Esc)">✕</button></span></div>
     <div data-panel="halts" hidden>
       <div class="muted" style="margin-bottom:6px">إيقافات التداول اليوم من Nasdaq (كل البورصات الأمريكية) · تتحدث كل 30 ثانية</div>
       <ul class="alerts" id="halts"><li class="muted">جارٍ التحميل…</li></ul>
@@ -220,7 +230,7 @@
       <ul class="alerts" id="news"><li class="muted">جارٍ التحميل…</li></ul>
     </div>
     <div data-panel="alerts">
-    <h4 style="display:flex;justify-content:space-between;align-items:center">🔔 التنبيهات <button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></h4>
+    <div style="margin-bottom:6px"><button class="btn ghost" id="notify-btn">تفعيل الإشعارات</button></div>
     <div class="muted" style="margin-bottom:6px">تغير ±{{ alert_pct }}% · زخم ±{{ alert_speed }}% في 5 دقائق · سيولة {{ alert_vol }}×</div>
     <label class="muted" style="display:block;margin-bottom:6px"><input type="checkbox" id="fav-only"> للمفضلة فقط</label>
     <button class="btn ghost" id="clear-alerts" style="font-size:12px;padding:3px 8px">مسح</button>
@@ -885,13 +895,51 @@ setInterval(refresh, 5000);
 renderPriceAlerts();
 loadHalts(); setInterval(loadHalts, 30000);
 setTimeout(loadNews, 3000); setInterval(loadNews, 180000);
+// ===== التنبيهات / الإيقافات / الأخبار: نافذة من شريط الأدوات (أو عمود جانبي عند التثبيت) =====
+const side = document.getElementById("side"), layoutEl = side.parentElement;
+const SIDE_TITLES = { alerts: "🔔 التنبيهات", halts: "⏸️ الإيقافات", news: "📰 الأخبار" };
+let sideTab = store.get("side_tab", "alerts");
+// التنبيهات الجديدة منذ آخر فتح: ما قبل آخر تنبيه شوهد في القائمة (الأحدث أولًا)
+const alertKey = a => a ? `${a.symbol}|${a.time}|${a.text}` : "";
+let seenAlert = store.get("seen_alert_" + MARKET, alertKey(alerts[0]));
+function updateUnread() {
+  const i = alerts.findIndex(a => alertKey(a) === seenAlert), n = i < 0 ? alerts.length : i;
+  const bdg = document.getElementById("alert-unread"); bdg.textContent = n; bdg.hidden = !n;
+}
+function showSide(tab, open = true) {
+  sideTab = tab; store.set("side_tab", tab);
+  side.hidden = !open;
+  document.getElementById("side-title").textContent = SIDE_TITLES[tab];
+  document.querySelectorAll("#side-tabs [data-side]").forEach(x => x.classList.toggle("active", open && x.dataset.side === tab));
+  document.querySelectorAll("aside [data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
+  if (open && tab === "news") loadNews();
+  if (open && tab === "alerts") { seenAlert = alertKey(alerts[0]); store.set("seen_alert_" + MARKET, seenAlert); updateUnread(); }
+}
+function setPinned(on) {
+  store.set("side_pinned", on); layoutEl.classList.toggle("pinned", on);
+  document.getElementById("side-pin").textContent = on ? "📌 إلغاء التثبيت" : "📌 تثبيت";
+  showSide(sideTab, on || !side.hidden);
+}
 document.getElementById("side-tabs").onclick = e => {
   const b = e.target.closest("[data-side]");
   if (!b) return;
-  document.querySelectorAll("#side-tabs [data-side]").forEach(x => x.classList.toggle("active", x === b));
-  document.querySelectorAll("aside [data-panel]").forEach(p => p.hidden = p.dataset.panel !== b.dataset.side);
-  if (b.dataset.side === "news") loadNews();
+  // الزر نفسه مرة ثانية يغلق النافذة (إلا إذا كانت مثبتة)
+  showSide(b.dataset.side, layoutEl.classList.contains("pinned") || side.hidden || sideTab !== b.dataset.side);
 };
+document.getElementById("side-close").onclick = () => { if (layoutEl.classList.contains("pinned")) setPinned(false); showSide(sideTab, false); };
+document.getElementById("side-pin").onclick = () => setPinned(!layoutEl.classList.contains("pinned"));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !side.hidden && !layoutEl.classList.contains("pinned")) showSide(sideTab, false); });
+document.addEventListener("click", e => {
+  if (side.hidden || layoutEl.classList.contains("pinned") || side.contains(e.target) || e.target.closest("#side-tabs")) return;
+  showSide(sideTab, false);
+});
+// عدّاد التنبيهات الجديدة: يتحدث كلما أعيد رسم القائمة، ويُصفَّر إذا كانت النافذة مفتوحة عليها
+new MutationObserver(() => {
+  if (!side.hidden && sideTab === "alerts") { seenAlert = alertKey(alerts[0]); store.set("seen_alert_" + MARKET, seenAlert); }
+  updateUnread();
+}).observe(document.getElementById("alerts"), { childList: true });
+setPinned(store.get("side_pinned", false));
+updateUnread();
 document.getElementById("price-alerts-box").onclick = e => {
   const b = e.target.closest("[data-del-alert]");
   if (b) { PriceAlerts.remove(b.dataset.delAlert); renderPriceAlerts(); }
