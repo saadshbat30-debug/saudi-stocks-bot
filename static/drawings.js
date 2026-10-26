@@ -504,5 +504,15 @@
       if (drawings.length && confirm("مسح كل الرسومات على هذا السهم؟")) { commit(); drawings = []; selected = -1; save(); showProps(); }
     };
     setTool("cursor");
+    // لقائمة الزر الأيمن في الشارت
+    return {
+      addHLine(price, time) {
+        commit(); drawings.push({ type: "hline", color, width: 1.5, dash: "solid", points: [{ time, price }] }); save();
+      },
+      count: () => drawings.length,
+      isHidden: () => hidden,
+      toggleHidden: () => toolbar.querySelector('[data-act="hide"]').click(),
+      clearAll: () => toolbar.querySelector('[data-act="clear"]').click(),
+    };
   };
 })();

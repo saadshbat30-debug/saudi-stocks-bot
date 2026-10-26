@@ -93,6 +93,15 @@
   .day-box .dl { }
   .day-box .dl + .dl { border-top:1px solid rgba(148,163,184,.45); margin-top:2px; padding-top:2px; }
   .day-box .t { color:var(--text); font-weight:600; }
+  /* قائمة الزر الأيمن على الشارت (مثل TradingView) */
+  .ctx-menu { position:fixed; z-index:1000; min-width:240px; background:#1e252e; border:1px solid #334155; border-radius:8px; padding:4px 0; box-shadow:0 10px 30px rgba(0,0,0,.55); font-size:13px; }
+  .ctx-menu[hidden] { display:none; }
+  .ctx-menu button { display:flex; width:100%; align-items:center; gap:10px; padding:6px 14px; background:none; border:0; color:var(--text); font:inherit; cursor:pointer; text-align:start; }
+  .ctx-menu button:hover { background:#2b3542; }
+  .ctx-menu button .ic { width:18px; text-align:center; }
+  .ctx-menu button .k { margin-inline-start:auto; color:var(--muted); font-size:11.5px; direction:ltr; }
+  .ctx-menu button:disabled { color:#5b6673; cursor:default; background:none; }
+  .ctx-menu hr { border:0; border-top:1px solid #334155; margin:4px 0; }
   .bj-dash .bj-note { color:var(--muted); font-size:10px; margin-top:3px; line-height:1.4; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
@@ -853,7 +862,7 @@ chart.subscribeCrosshairMove(p => {
 });
 
 // أدوات الرسم (خطوط، فيبوناتشي، مستطيلات، قياس...) — تُحفظ لكل سهم
-initDrawings({
+window.drawingsApi = initDrawings({
   chart, series: candles, container: el, symbol: SYMBOL, getBars: () => bars,
   toolbar: document.getElementById("draw-toolbar"),
 });
@@ -1418,6 +1427,83 @@ el.addEventListener("click", e => {
   if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
   renderAlerts();
 });
+
+// ===== قائمة الزر الأيمن على الشارت =====
+const ctxMenu = document.createElement("div");
+ctxMenu.className = "ctx-menu"; ctxMenu.hidden = true;
+document.body.appendChild(ctxMenu);
+let logScale = false;
+try { logScale = localStorage.getItem("chart_log") === "1"; } catch {}
+const applyLog = () => candles.priceScale().applyOptions({ mode: logScale ? 1 : 0 });
+applyLog();
+function resetChart() {
+  // الوضع الطبيعي: كل الشموع ظاهرة والمقياس تلقائي (يُلغي أي سحب أو تكبير يدوي للمحورين)
+  candles.priceScale().applyOptions({ autoScale: true });
+  chart.timeScale().fitContent();
+}
+function chartImage() {
+  // صورة الشارت مع طبقات المؤشرات والرسومات المرسومة فوقه
+  const shot = chart.takeScreenshot(), out = document.createElement("canvas");
+  out.width = shot.width; out.height = shot.height;
+  const g = out.getContext("2d");
+  g.fillStyle = "#151b22"; g.fillRect(0, 0, out.width, out.height);
+  g.drawImage(shot, 0, 0);
+  el.querySelectorAll(":scope > canvas").forEach(c => { try { g.drawImage(c, 0, 0, out.width, out.height); } catch {} });
+  const a = document.createElement("a");
+  a.download = `${SYMBOL}-${interval}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.png`;
+  a.href = out.toDataURL("image/png"); a.click();
+}
+el.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  const r0 = el.getBoundingClientRect(), y = e.clientY - r0.top, x = e.clientX - r0.left;
+  const price = candles.coordinateToPrice(y), ok = price != null && price > 0;
+  const p = ok ? +price.toFixed(price < 1 ? 4 : 2) : null;
+  const l = chart.timeScale().coordinateToLogical(x), bar = l != null ? bars[Math.min(Math.max(Math.round(l), 0), bars.length - 1)] : null;
+  const pTxt = ok ? `<bdi dir="ltr">${CURRENCY}${p.toFixed(p < 1 ? 4 : 2)}</bdi>` : "";
+  const d = window.drawingsApi, nd = d ? d.count() : 0;
+  const maxed = document.querySelector('.pn[data-panel="chart"]')?.classList.contains("max");
+  ctxMenu.innerHTML = `
+    <button data-c="reset"><span class="ic">⟲</span>إعادة الشارت لوضعه الطبيعي<span class="k">Alt+R</span></button>
+    <button data-c="scale"><span class="ic">↕</span>إعادة ضبط مقياس السعر فقط</button>
+    <button data-c="log"><span class="ic">${logScale ? "✓" : ""}</span>مقياس لوغاريتمي</button>
+    <hr>
+    <button data-c="alert" ${ok ? "" : "disabled"}><span class="ic">🔔</span>إضافة تنبيه عند ${pTxt}</button>
+    <button data-c="hline" ${ok && d ? "" : "disabled"}><span class="ic">―</span>رسم خط أفقي عند ${pTxt}</button>
+    <button data-c="copy" ${ok ? "" : "disabled"}><span class="ic">⧉</span>نسخ السعر ${pTxt}</button>
+    <hr>
+    <button data-c="hide" ${nd ? "" : "disabled"}><span class="ic">👁</span>${d && d.isHidden() ? "إظهار" : "إخفاء"} الرسومات (${nd})</button>
+    <button data-c="clear" ${nd ? "" : "disabled"}><span class="ic">🗑</span>مسح كل الرسومات</button>
+    <hr>
+    <button data-c="shot"><span class="ic">📷</span>حفظ صورة الشارت</button>
+    <button data-c="max"><span class="ic">⛶</span>${maxed ? "استعادة حجم الشارت" : "تكبير الشارت"}<span class="k">Esc</span></button>`;
+  ctxMenu.onclick = ev => {
+    const b = ev.target.closest("[data-c]");
+    if (!b || b.disabled) return;
+    ctxMenu.hidden = true;
+    const c = b.dataset.c;
+    if (c === "reset") resetChart();
+    if (c === "scale") candles.priceScale().applyOptions({ autoScale: true });
+    if (c === "log") { logScale = !logScale; try { localStorage.setItem("chart_log", logScale ? "1" : "0"); } catch {} applyLog(); }
+    if (c === "alert") { PriceAlerts.add(SYMBOL, p, window.sessionPx ?? lastQuote?.price); if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); renderAlerts(); }
+    if (c === "hline") d.addHLine(p, bar ? bar.time : null);
+    if (c === "copy") navigator.clipboard?.writeText(String(p));
+    if (c === "hide") d.toggleHidden();
+    if (c === "clear") d.clearAll();
+    if (c === "shot") chartImage();
+    if (c === "max") document.querySelector('.pn[data-panel="chart"] [data-act="max"]')?.click();
+  };
+  ctxMenu.hidden = false;
+  // داخل حدود الشاشة
+  const w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
+  ctxMenu.style.left = Math.min(e.clientX, innerWidth - w - 6) + "px";
+  ctxMenu.style.top = Math.min(e.clientY, innerHeight - h - 6) + "px";
+});
+document.addEventListener("mousedown", e => { if (!ctxMenu.hidden && !ctxMenu.contains(e.target)) ctxMenu.hidden = true; });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") ctxMenu.hidden = true;
+  if (e.altKey && (e.key === "r" || e.key === "R" || e.code === "KeyR")) { e.preventDefault(); resetChart(); }
+});
+window.addEventListener("blur", () => { ctxMenu.hidden = true; });
 
 // ===== وسيلة إيضاح الإشارات =====
 document.getElementById("sig-legend").innerHTML = Object.values(SIGNALS).map(s => `<span><b style="color:${s.color}">${s === SIGNALS.drop ? "⬇" : "⬆"}</b> ${s.label}</span>`).join("");
