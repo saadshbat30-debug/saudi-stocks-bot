@@ -117,7 +117,11 @@
   .strip > div { padding:0 12px; display:flex; align-items:center; }
   .strip > div + div:not(.st-tools) { border-inline-start:1px solid var(--line); }
   .strip > div:first-child { padding-inline-start:2px; }
-  .st-name { display:flex; align-items:baseline; gap:6px; max-width:240px; overflow:hidden; white-space:nowrap; }
+  .st-id { display:flex; flex-direction:column; gap:4px; max-width:260px; min-width:0; }
+  .st-name { display:flex; align-items:center; gap:6px; overflow:hidden; white-space:nowrap; }
+  .fav-star { background:none; border:0; cursor:pointer; font-size:19px; line-height:1; color:#475569; padding:0; }
+  .fav-star.on { color:#facc15; }
+  .st-search { width:100%; padding:4px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; font-size:12.5px; }
   .st-name b { font-size:16px; }
   .st-price { display:flex; align-items:baseline; gap:6px; direction:ltr; }
   .st-price #k-price { font-size:22px; } .st-price #k-change { font-size:14px; }
@@ -192,7 +196,11 @@
 </style>
 <div id="split-note" hidden style="margin-bottom:8px;padding:8px 12px;border-radius:10px;background:#2a1616;border:1px solid #7f1d1d;color:#fecaca;font-size:14px"></div>
 <div class="strip">
-  <div class="st-name"><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
+  <div class="st-id">
+    <div class="st-name"><button class="fav-star" id="fav-star" type="button" title="إضافة إلى المفضلة">★</button><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
+    <input class="st-search" id="st-search" list="st-sym-list" placeholder="🔍 ابحث عن أي سهم: رمز أو اسم ثم Enter" autocomplete="off">
+    <datalist id="st-sym-list"></datalist>
+  </div>
   <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span></div>
   <div class="st-cell" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span><b id="k-ext">—</b></div>
   <div class="st-cell"><span class="muted">افتتاح</span><b id="d-open">—</b></div>
@@ -1463,7 +1471,39 @@ let watchTab = localStorage.getItem("watch_tab") || "gainers", watchRows = [];
 async function loadWatch() {
   try { watchRows = await (await fetch("/api/market/{{ market_id }}")).json(); } catch { return; }
   renderWatch();
+  if (!fillSymbolList.done) { fillSymbolList(); fillSymbolList.done = true; }
 }
+// ===== المفضلة (نفس قائمة النجمة في الصفحة الرئيسية) والبحث عن أي سهم =====
+const FAV_KEY = "favs_{{ market_id }}";
+const getFavs = () => { try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch { return []; } };
+function renderFavStar() {
+  const on = getFavs().includes(SYMBOL), b = document.getElementById("fav-star");
+  b.classList.toggle("on", on); b.title = on ? "إزالة من المفضلة" : "إضافة إلى المفضلة";
+}
+document.getElementById("fav-star").onclick = () => {
+  const f = getFavs(), on = f.includes(SYMBOL);
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(on ? f.filter(x => x !== SYMBOL) : [...f, SYMBOL])); } catch {}
+  renderFavStar(); renderWatch();
+};
+window.addEventListener("storage", e => { if (e.key === FAV_KEY) { renderFavStar(); renderWatch(); } });  // تغيّرت من تبويب آخر
+renderFavStar();
+function openSymbol(v) {
+  v = (v || "").trim();
+  if (!v) return;
+  // اختيار من القائمة المقترحة «رمز — اسم» أو اسم شركة: الرمز من أسهم السوق، وإلا يُفتح المكتوب كرمز
+  const sym = v.split(" — ")[0].trim().toUpperCase();
+  const byName = watchRows.find(q => q.symbol === sym) || watchRows.find(q => (q.name || "").toLowerCase() === v.toLowerCase())
+    || watchRows.find(q => (q.name || "").toLowerCase().includes(v.toLowerCase()) && v.length >= 3);
+  location.href = "/stock/" + encodeURIComponent(byName ? byName.symbol : sym);
+}
+const stSearch = document.getElementById("st-search");
+stSearch.onkeydown = e => { if (e.key === "Enter") openSymbol(stSearch.value); };
+// اختيار اقتراح بالفأرة يملأ الخانة بالنص كاملًا
+stSearch.oninput = e => { if (!e.inputType || e.inputType === "insertReplacementText") { if (stSearch.value.includes(" — ")) openSymbol(stSearch.value); } };
+function fillSymbolList() {
+  document.getElementById("st-sym-list").innerHTML = watchRows.slice(0, 3000).map(q => `<option value="${escH(q.symbol)} — ${escH(q.name || "")}"></option>`).join("");
+}
+
 function renderWatch() {
   let favs = [];
   try { favs = JSON.parse(localStorage.getItem("favs_{{ market_id }}")) || []; } catch {}
@@ -1476,7 +1516,7 @@ function renderWatch() {
     <li data-go="${escH(q.symbol)}" class="${q.symbol === SYMBOL ? "cur" : ""}">
       <span class="w-sym">${escH(q.symbol)}</span><span class="w-price">${CURRENCY}${fmtP(q.price)}</span>
       <span class="w-name">${escH(q.name)}</span><span class="w-pct ${q.change_pct >= 0 ? "up" : "down"}">${q.change_pct >= 0 ? "+" : ""}${q.change_pct.toFixed(2)}%</span>
-    </li>`).join("") : `<li class="muted">${watchTab === "fav" ? "أضف أسهمًا للمفضلة بالنجمة ★ في الصفحة الرئيسية" : "جارٍ التحميل…"}</li>`;
+    </li>`).join("") : `<li class="muted">${watchTab === "fav" ? "أضف أسهمًا للمفضلة بالنجمة ★ بجانب اسم السهم أعلى الصفحة أو في الصفحة الرئيسية" : "جارٍ التحميل…"}</li>`;
 }
 document.getElementById("watch-tabs").onclick = e => {
   const b = e.target.closest("[data-w]");
