@@ -345,6 +345,8 @@
     <label>نسبة الموجة وعدد شموعها <input type="checkbox" id="wv-labels"></label>
     <label>قمة أعلى / قاع أدنى (HH HL LH LL) <input type="checkbox" id="wv-structure"></label>
     <label>لوحة الملخص على الشارت <input type="checkbox" id="wv-panel"></label>
+    <label title="نقطة مفرغة عند إغلاق الشمعة التي تأكدت عندها القمة/القاع، مع ما فات من السعر قبل التأكيد">✓ لحظة التأكيد وسعره <input type="checkbox" id="wv-confirm"></label>
+    <label title="قمة أو قاع تأكد وظهر ثم نقله المؤشر إلى نقطة أبعد (إعادة رسم)">✕ نقاط تأكدت ثم نُقلت <input type="checkbox" id="wv-dropped"></label>
     <label>لون الصاعدة <input type="color" id="wv-colorUp"></label>
     <label>لون الهابطة <input type="color" id="wv-colorDn"></label>
     <button type="button" class="chip" id="wv-reset" style="margin-top:4px">الافتراضي</button>
@@ -357,6 +359,7 @@
       • <b style="color:#ef4444">LH</b> قمة أدنى و <b style="color:#ef4444">LL</b> قاع أدنى = البائعون أقوى، <b>الاتجاه هابط</b>.<br>
       • خليط (مثل قمة أعلى مع قاع أدنى) = تذبذب، أو بداية تغيّر في الاتجاه.<br>
       أول إشارة على ضعف الاتجاه الصاعد عادةً <b>قمة أدنى LH</b>، وتأكيده يكون بكسر آخر قاع (<b>LL</b>). والعكس في الهابط.<br>
+      <b>⚠ التأخير:</b> العلامة توضع على القمة بأثر رجعي، والمؤشر لم يعرفها إلا عند <b>النقطة المفرغة ✓</b>: إغلاق الشمعة رقم «الحساسية» بعدها. الرقم بجانبها ما فات من السعر قبل التأكيد. و<b>✕</b> قمة أو قاع تأكد ثم نقله المؤشر إلى نقطة أبعد (إعادة رسم). لا تحكم على المؤشر من مواضع العلامات القديمة.<br>
       <span class="muted">الأرقام فوق المربع: نسبة الموجة وعدد شموعها. «حساسية» أقل = موجات صغيرة كثيرة، وأكبر = الموجات الرئيسية فقط. هذه أداة لفهم الحركة وليست إشارة شراء أو بيع.</span>
     </div>
   </div>
@@ -820,7 +823,8 @@ initDrawings({
 window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => indBars() });
 
 // الموجات (تعليمي): كل موجة في مربع مع القمم والقيعان والاتجاه
-window.waves = initWaves({ chart, series: candles, container: el, getBars: () => indBars() });
+window.waves = initWaves({ chart, series: candles, container: el, getBars: () => indBars(),
+  nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => ({ "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 })[interval] || 300 });
 
 // Opening Candle Indicator: السوق الافتراضي حسب سوق الصفحة
 const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
@@ -1298,12 +1302,13 @@ bbIn("vc-close").onclick = () => { vcPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") vcPop.hidden = true; });
 
 // ===== إعدادات الموجات =====
-const wvPop = document.getElementById("wv-pop"), WV_KEYS = ["len", "minPct", "boxes", "labels", "structure", "panel", "colorUp", "colorDn"];
+const wvPop = document.getElementById("wv-pop"), WV_KEYS = ["len", "minPct", "boxes", "labels", "structure", "panel", "confirm", "dropped", "colorUp", "colorDn"];
 function fillWV() { const c = waves.config; WV_KEYS.forEach(k => { const x = bbIn("wv-" + k); x.type === "checkbox" ? x.checked = c[k] : x.value = c[k]; }); }
 function readWV() {
   const len = Math.round(+bbIn("wv-len").value), minPct = +bbIn("wv-minPct").value;
   if (!(len >= 2 && len <= 50) || !(minPct >= 0) || bbIn("wv-minPct").value === "") return;
   waves.setConfig({ len, minPct, boxes: bbIn("wv-boxes").checked, labels: bbIn("wv-labels").checked, structure: bbIn("wv-structure").checked, panel: bbIn("wv-panel").checked,
+                    confirm: bbIn("wv-confirm").checked, dropped: bbIn("wv-dropped").checked,
                     colorUp: bbIn("wv-colorUp").value, colorDn: bbIn("wv-colorDn").value });
   if (!overlays.includes("wv")) { overlays = [...overlays, "wv"]; applyOverlays(); }
 }

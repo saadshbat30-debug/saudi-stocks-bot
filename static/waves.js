@@ -2,11 +2,12 @@
 // ويسمّي القمم والقيعان (قمة أعلى/أدنى، قاع أعلى/أدنى) ويستنتج الاتجاه منها.
 // القمة = أعلى سعر بين N شمعة قبلها و N شمعة بعدها (مثل ta.pivothigh)، فلا تتأكد إلا بعد N شمعة.
 (function () {
-  const DEF = { len: 5, minPct: 0, boxes: true, labels: true, structure: true, panel: true, colorUp: "#22c55e", colorDn: "#ef4444" };
+  const DEF = { len: 5, minPct: 0, boxes: true, labels: true, structure: true, panel: true, confirm: true, dropped: true, colorUp: "#22c55e", colorDn: "#ef4444" };
 
-  function pivots(b, len) {
+  // closedN: عدد الشموع المغلقة — الشمعة الجارية لا تؤكد قمة (قد يتجاوزها السعر قبل إغلاقها)
+  function pivots(b, len, closedN = b.length) {
     const out = [];
-    for (let i = len; i < b.length - len; i++) {
+    for (let i = len; i < closedN - len; i++) {
       let hi = true, lo = true;
       for (let j = i - len; j <= i + len && (hi || lo); j++) {
         if (j === i) continue;
@@ -24,13 +25,14 @@
   }
 
   // تتابع قمة ثم قاع ثم قمة...: قمتان متتاليتان تبقى الأعلى، وقاعان متتاليان يبقى الأدنى
-  function zigzag(piv, minPct) {
+  // dropped: نقاط تأكدت وظهرت ثم استُبدلت بنقطة أبعد منها (إعادة رسم) — تُحفظ ولا تُحذف
+  function zigzag(piv, minPct, dropped = []) {
     const z = [];
     for (const v of piv) {
       const last = z[z.length - 1];
       if (!last) { z.push({ ...v }); continue; }
       if (last.type === v.type) {
-        if (v.type === "H" ? v.p > last.p : v.p < last.p) z[z.length - 1] = { ...v };
+        if (v.type === "H" ? v.p > last.p : v.p < last.p) { dropped.push({ ...last, by: v.i }); z[z.length - 1] = { ...v }; }
         continue;
       }
       // موجة أصغر من الحد الأدنى تُتجاهل (تبقى جزءًا من الموجة الأكبر)
@@ -40,9 +42,16 @@
     return z;
   }
 
-  function compute(b, cfg) {
+  function compute(b, cfg, closedN, stepSec) {
     if (b.length < cfg.len * 2 + 2) return null;
-    const z = zigzag(pivots(b, cfg.len), cfg.minPct);
+    const dropped = [], z = zigzag(pivots(b, cfg.len, closedN), cfg.minPct, dropped);
+    // نقطة التأكيد: إغلاق الشمعة رقم len بعد القمة/القاع، وما فات من السعر حتى تلك اللحظة
+    // القمة: (القمة − سعر التأكيد) ÷ القمة × 100 · القاع: (سعر التأكيد − القاع) ÷ القاع × 100
+    const conf = v => {
+      const ci = v.i + cfg.len, cp = b[ci].close;
+      v.ci = ci; v.cp = cp; v.delay = (v.type === "H" ? v.p - cp : cp - v.p) / v.p * 100;
+    };
+    z.forEach(conf); dropped.forEach(conf);
     // تسمية البنية: كل قمة مقارنة بالقمة التي قبلها، وكل قاع بالقاع الذي قبله
     let lastH = null, lastL = null;
     for (const v of z) {
@@ -69,7 +78,9 @@
     const tH = lastH?.tag, tL = lastL?.tag;
     const trend = tH === "HH" && tL === "HL" ? "up" : tH === "LH" && tL === "LL" ? "down" : (tH && tL) ? "range" : null;
     const avg = a => a.length ? a.reduce((s, x) => s + Math.abs(x.pct), 0) / a.length : null;
-    return { z, waves, current, trend, tH, tL, avgUp: avg(waves.filter(w => w.up)), avgDn: avg(waves.filter(w => !w.up)), len: cfg.len };
+    const avgDelay = t => { const a = z.filter(v => v.type === t); return a.length ? a.reduce((s, v) => s + v.delay, 0) / a.length : null; };
+    return { z, waves, current, trend, tH, tL, avgUp: avg(waves.filter(w => w.up)), avgDn: avg(waves.filter(w => !w.up)), len: cfg.len,
+             dropped, lastH, lastL, delayH: avgDelay("H"), delayL: avgDelay("L"), stepSec };
   }
 
   const TAGS = { HH: "قمة أعلى HH", LH: "قمة أدنى LH", EH: "قمة مساوية", HL: "قاع أعلى HL", LL: "قاع أدنى LL", EL: "قاع مساوٍ" };
@@ -79,7 +90,12 @@
     range: ["↔ اتجاه غير واضح", "القمم والقيعان لا تتفقان (مثلًا قمة أعلى مع قاع أدنى): تذبذب أو تحوّل محتمل"],
   };
 
-  window.initWaves = function ({ chart, series, container, getBars }) {
+  // مدة التأكيد: عدد الشموع × مدة الشمعة، من إغلاق شمعة القمة إلى إغلاق شمعة التأكيد
+  const waitTxt = (len, stepSec) => stepSec && stepSec < 86400
+    ? `${len} شموع (${len * stepSec >= 3600 ? (len * stepSec / 3600).toFixed(len * stepSec % 3600 ? 1 : 0) + " ساعة" : len * stepSec / 60 + " دقيقة"})`
+    : `${len} شموع`;
+
+  window.initWaves = function ({ chart, series, container, getBars, nowS, step }) {
     let cfg = { ...DEF }, visible = false, res = null, sig = "";
     try { cfg = { ...DEF, ...(JSON.parse(localStorage.getItem("wv_cfg")) || {}) }; } catch {}
     const canvas = document.createElement("canvas");
@@ -91,12 +107,15 @@
     container.appendChild(panel);
     const alpha = (hex, a) => { const v = parseInt(hex.slice(1), 16); return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`; };
     const pct = v => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+    const fp = p => p.toFixed(Math.abs(p) < 1 ? 4 : 2);
 
     function recalc() {
-      const b = getBars(), last = b[b.length - 1];
-      const s = last ? `${b.length}|${b[0].time}|${last.time}|${last.high}|${last.low}|${last.close}|${JSON.stringify(cfg)}` : "";
+      const b = getBars(), last = b[b.length - 1], st = step ? step() : 0;
+      // الشمعة الأخيرة جارية إذا لم ينتهِ وقتها بعد، فلا تُستخدم لتأكيد قمة أو قاع
+      const closedN = last && st && nowS && last.time + st > nowS() ? b.length - 1 : b.length;
+      const s = last ? `${b.length}|${closedN}|${b[0].time}|${last.time}|${last.high}|${last.low}|${last.close}|${st}|${JSON.stringify(cfg)}` : "";
       if (s === sig) return;
-      sig = s; res = visible && b.length ? compute(b, cfg) : null;
+      sig = s; res = visible && b.length ? compute(b, cfg, closedN, st) : null;
       renderPanel();
     }
 
@@ -108,7 +127,9 @@
       const col = up => up ? cfg.colorUp : cfg.colorDn;
       panel.innerHTML = `${t ? `<b style="color:${res.trend === "up" ? cfg.colorUp : res.trend === "down" ? cfg.colorDn : "#facc15"}">${t[0]}</b> <span class="muted">${t[1]}</span>` : "<b>📘 الموجات</b>"}
         <div>آخر قمة <b>${TAGS[res.tH] || "—"}</b> · آخر قاع <b>${TAGS[res.tL] || "—"}</b> · متوسط الصاعدة ${res.avgUp != null ? res.avgUp.toFixed(1) + "%" : "—"} والهابطة ${res.avgDn != null ? res.avgDn.toFixed(1) + "%" : "—"}</div>
-        <div>آخر موجة (${w.n}) <b style="color:${col(w.up)}">${w.up ? "صاعدة" : "هابطة"} ${pct(w.pct)}</b> في ${w.bars} شمعة${c ? ` · الجارية <b style="color:${col(c.up)}">${c.up ? "صاعدة" : "هابطة"} ${pct(c.pct)}</b> (لم تكتمل)` : ""}</div>`;
+        <div>آخر موجة (${w.n}) <b style="color:${col(w.up)}">${w.up ? "صاعدة" : "هابطة"} ${pct(w.pct)}</b> في ${w.bars} شمعة${c ? ` · الجارية <b style="color:${col(c.up)}">${c.up ? "صاعدة" : "هابطة"} ${pct(c.pct)}</b> (لم تكتمل)` : ""}</div>
+        ${cfg.confirm ? [res.lastH, res.lastL].filter(Boolean).map(v => `<div>${v.type === "H" ? "آخر قمة" : "آخر قاع"} ${fp(v.p)} تأكد بعد ${waitTxt(res.len, res.stepSec)} عند ${fp(v.cp)}: فات <b>${v.delay.toFixed(2)}%</b></div>`).join("") +
+          `<div class="muted">متوسط ما يفوت قبل التأكيد: القمم ${res.delayH != null ? res.delayH.toFixed(2) + "%" : "—"} · القيعان ${res.delayL != null ? res.delayL.toFixed(2) + "%" : "—"}${res.dropped.length ? ` · ${res.dropped.length} نقطة تأكدت ثم نُقلت (✕)` : ""}</div>` : ""}`;
     }
 
     function resize() {
@@ -161,6 +182,23 @@
           const labels = res.waves.map(w => drawWave(w, false, `موجة ${w.n}`)).filter(Boolean).sort((a, b) => b.size - a.size);
           const cur = res.current ? drawWave(res.current, true, "جارية") : null;
           const placed = placeTexts(cur ? [cur, ...labels] : labels, "11px system-ui, sans-serif", "rtl");
+          const ts0 = chart.timeScale(), late = [];
+          if (cfg.confirm) for (const v of res.z) {
+            // خط منقط من القمة/القاع إلى شمعة التأكيد، ونقطة مفرغة عند سعر الإغلاق وقتها
+            const x1 = ts0.logicalToCoordinate(v.i), y1 = series.priceToCoordinate(v.p), x2 = ts0.logicalToCoordinate(v.ci), y2 = series.priceToCoordinate(v.cp);
+            if ([x1, y1, x2, y2].some(t => t == null)) continue;
+            const color = v.type === "H" ? cfg.colorDn : cfg.colorUp;
+            ctx.setLineDash([2, 3]); ctx.strokeStyle = color; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(x2, y2, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#0f1419"; ctx.fill(); ctx.stroke();
+            late.push({ txt: `✓ ${v.type === "H" ? "-" : "+"}${v.delay.toFixed(2)}%`, x: x2 + 22, y: v.type === "H" ? y2 + 14 : y2 - 6, color, size: v.i });
+          }
+          if (cfg.dropped) for (const v of res.dropped) {
+            const x = ts0.logicalToCoordinate(v.i), y = series.priceToCoordinate(v.p);
+            if (x == null || y == null) continue;
+            ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.2; ctx.beginPath();
+            ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke();
+          }
           if (cfg.structure) {
             const ts = chart.timeScale(), tags = [];
             for (const v of res.z) {
@@ -173,6 +211,7 @@
             }
             placeTexts(tags.sort((a, b) => b.size - a.size), "bold 10.5px system-ui, sans-serif", "ltr", placed);  // الأحدث أولًا
           }
+          placeTexts(late.sort((a, b) => b.size - a.size), "10px system-ui, sans-serif", "ltr", placed);
         }
       }
       requestAnimationFrame(render);
