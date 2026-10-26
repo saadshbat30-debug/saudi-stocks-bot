@@ -109,9 +109,10 @@
   .bs-pad > div { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2px 10px; min-width:64px; font-variant-numeric:tabular-nums; }
   .bs-pad small { font-size:11px; opacity:.9; }
   .bs-pad b { font-size:15px; line-height:1.25; }
-  .bs-pad .sell { background:#5b1a1a; color:#fecaca; border:1px solid #b91c1c; border-radius:6px 0 0 6px; }
-  .bs-pad .buy { background:#14532d; color:#bbf7d0; border:1px solid #16a34a; border-radius:0 6px 6px 0; }
-  .bs-pad .mid { background:#1e252e; color:var(--text); border:1px solid #334155; min-width:58px; }
+  .bs-pad .px { background:#1e252e; color:var(--text); border:1px solid #334155; border-radius:6px 0 0 6px; min-width:76px; }
+  .bs-pad .px.up { background:#14532d; color:#bbf7d0; border-color:#16a34a; }
+  .bs-pad .px.down { background:#5b1a1a; color:#fecaca; border-color:#b91c1c; }
+  .bs-pad .mid { background:#1e252e; color:var(--text); border:1px solid #334155; border-radius:0 6px 6px 0; min-width:58px; }
   .bs-pad .na { opacity:.55; }
   .bj-dash .bj-note { color:var(--muted); font-size:10px; margin-top:3px; line-height:1.4; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -317,7 +318,7 @@
     <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
     <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
-    <label class="ov" title="لوحة شراء/بيع متحركة على الشارت: أفضل عرض وطلب من ياهو وعداد إغلاق الشمعة"><input type="checkbox" data-ov="bs"> <span style="color:#4ade80">شراء</span>/<span style="color:#f87171">بيع</span></label>
+    <label class="ov" title="لوحة متحركة على الشارت: السعر الآن والوقت المتبقي لإغلاق الشمعة"><input type="checkbox" data-ov="bs"> ⏱ السعر والوقت</label>
     <button class="chip" id="dd-btn" type="button" title="اختر ما يظهر من بيانات اليوم أعلى الشارت">📋 بيانات اليوم ▾</button>
     <label class="ov" title="الشمعة الشاذة (قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها) تبقى معروضة كما هي وعليها ⚠، لكن المؤشرات تتجاهل قيمتها الشاذة"><input type="checkbox" data-ov="clean"> <span style="color:#facc15">⚠ تجاهل الشاذة في المؤشرات</span></label>
   </span>
@@ -411,9 +412,8 @@
   </div>
   <div class="day-box" id="day-box"></div>
   <div class="bs-pad" id="bs-pad" hidden>
-    <div class="sell" title="أفضل عرض: أعلى سعر يشتري به أحدهم الآن (تبيع عنده)"><small>بيع</small><b id="bs-bid">—</b></div>
-    <div class="mid" title="الوقت المتبقي لإغلاق الشمعة الحالية — اسحب اللوحة لأي مكان"><small id="bs-tf">الشمعة</small><b id="bs-left">—</b></div>
-    <div class="buy" title="أفضل طلب: أدنى سعر يبيع به أحدهم الآن (تشتري عنده)"><small>شراء</small><b id="bs-ask">—</b></div>
+    <div class="px" id="bs-pxbox" title="السعر الآن (نفس السعر أعلى الصفحة) — اسحب اللوحة لأي مكان"><small>السعر الآن</small><b id="bs-px">—</b></div>
+    <div class="mid" title="الوقت المتبقي لإغلاق الشمعة الحالية"><small id="bs-tf">الشمعة</small><b id="bs-left">—</b></div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -1020,13 +1020,12 @@ const TF_NAME = { "1m": "دقيقة", "5m": "5 دقائق", "15m": "15 دقيق�
 function bsPadTick(left) {
   bsPad.hidden = !overlays.includes("bs") || !document.getElementById("tv_chart").hidden;
   if (bsPad.hidden) return;
-  const q = lastQuote || {}, pf = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2);
-  const set = (id, v, size) => {
-    const x = document.getElementById(id);
-    x.textContent = pf(v); x.classList.toggle("na", v == null);
-    x.parentElement.title = x.parentElement.title.split(" · ")[0] + (v == null ? " · ياهو لا يرسل عرضًا/طلبًا لهذا السهم الآن" : size ? ` · الكمية ${size}` : "");
-  };
-  set("bs-bid", q.bid, q.bid_size); set("bs-ask", q.ask, q.ask_size);
+  // السعر الآن = نفس السعر الكبير أعلى الصفحة (سعر الجلسة الحالية)، أخضر فوق إغلاق أمس وأحمر تحته
+  const q = lastQuote || {}, last = bars[bars.length - 1], px = window.sessionPx ?? q.price ?? (last ? last.close : null);
+  document.getElementById("bs-px").textContent = px == null ? "—" : CURRENCY + px.toFixed(px < 1 ? 4 : 2);
+  const box = document.getElementById("bs-pxbox");
+  box.classList.toggle("up", px != null && q.prev_close != null && px > q.prev_close);
+  box.classList.toggle("down", px != null && q.prev_close != null && px < q.prev_close);
   document.getElementById("bs-tf").textContent = TF_NAME[interval] || "الشمعة";
   document.getElementById("bs-left").textContent = left == null ? "—" : fmtLeft(left);
   placeBsPad();
