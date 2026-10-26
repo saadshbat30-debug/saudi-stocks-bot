@@ -82,6 +82,9 @@
   .bj-dash table { border-collapse:collapse; width:100%; }
   .bj-dash th, .bj-dash td { border:1px solid rgba(148,163,184,.25); padding:2px 6px; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .bj-dash th { color:var(--text); font-weight:600; }
+  .wv-panel { position:absolute; top:36px; left:52px; z-index:4; pointer-events:none; direction:rtl; background:rgba(15,20,25,.9); border:1px solid #475569; border-radius:6px; padding:5px 8px; font-size:11.5px; line-height:1.6; max-width:420px; }
+  .wv-panel .muted { font-size:10.5px; }
+  .wv-lesson { font-size:12px; line-height:1.8; margin-top:6px; padding-top:6px; border-top:1px solid #334155; }
   .bj-dash .bj-note { color:var(--muted); font-size:10px; margin-top:3px; line-height:1.4; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
@@ -273,6 +276,8 @@
     <button class="chip bb-gear" id="bj-gear" type="button" title="إعدادات عرض وطلب بن جمعان">⚙</button>
     <label class="ov" title="ابن جمعان تلوين شمعة الكميات: أزرق/وردي = قفزة حجم عن الشمعة السابقة أكبر من الانحراف المعياري للحجم"><input type="checkbox" data-ov="vc"> <span style="color:#2196F3">تلوين الكميات</span></label>
     <button class="chip bb-gear" id="vc-gear" type="button" title="إعدادات تلوين شمعة الكميات">⚙</button>
+    <label class="ov" title="الموجات: كل موجة صاعدة أو هابطة في مربع، مع القمم والقيعان والاتجاه — للتعلّم"><input type="checkbox" data-ov="wv"> <span style="color:#a5b4fc">📘 الموجات</span></label>
+    <button class="chip bb-gear" id="wv-gear" type="button" title="إعدادات الموجات وشرحها">⚙</button>
     <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
     <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
@@ -331,6 +336,29 @@
     <div id="oc-fields"></div>
     <button type="button" class="chip" id="oc-reset" style="margin-top:4px">القيم الافتراضية</button>
     <div class="muted" style="margin-top:6px;font-size:11.5px">نفس مدخلات المؤشر الأصلي وقيمه. الأوقات بتوقيت الرياض (GMT+3) كما في الأصل: السوق الأمريكي 16:30–23:00 والسعودي 10:00–15:00. «الأمريكي (تلقائي)» إضافة تتبع التوقيت الصيفي والشتوي: 16:30–23:00 صيفًا و 17:30–00:00 شتاءً. الإشارات على الشموع المكتملة فقط.</div>
+  </div>
+  <div class="alert-pop bb-pop bj-pop" id="wv-pop" hidden>
+    <div class="ap-h"><b>📘 الموجات</b><button type="button" id="wv-close" title="إغلاق">×</button></div>
+    <label title="القمة أعلى سعر بين هذا العدد من الشموع قبلها وبعدها. رقم أكبر = موجات أكبر وأقل">حساسية الموجة (شموع كل جانب) <input type="number" id="wv-len" min="2" max="50" step="1"></label>
+    <label title="تجاهل الموجات الأصغر من هذه النسبة (0 = بلا حد)">أصغر موجة % <input type="number" id="wv-minPct" min="0" step="0.5"></label>
+    <label>مربع لكل موجة <input type="checkbox" id="wv-boxes"></label>
+    <label>نسبة الموجة وعدد شموعها <input type="checkbox" id="wv-labels"></label>
+    <label>قمة أعلى / قاع أدنى (HH HL LH LL) <input type="checkbox" id="wv-structure"></label>
+    <label>لوحة الملخص على الشارت <input type="checkbox" id="wv-panel"></label>
+    <label>لون الصاعدة <input type="color" id="wv-colorUp"></label>
+    <label>لون الهابطة <input type="color" id="wv-colorDn"></label>
+    <button type="button" class="chip" id="wv-reset" style="margin-top:4px">الافتراضي</button>
+    <div class="wv-lesson">
+      <b>كيف أقرأ الموجات؟</b><br>
+      السعر لا يتحرك في خط مستقيم: يصعد ثم يتراجع ثم يصعد. كل حركة من قاع إلى قمة <b style="color:#22c55e">موجة صاعدة</b>، ومن قمة إلى قاع <b style="color:#ef4444">موجة هابطة</b>.<br>
+      <b>القمة</b> أعلى سعر بين عدد من الشموع قبلها وبعدها، و<b>القاع</b> أدنى سعر كذلك. لذلك لا تتأكد القمة إلا بعد مرور تلك الشموع، والموجة الأخيرة تظهر <b>بمربع متقطع</b> لأنها لم تكتمل بعد.<br>
+      قارن كل قمة بالتي قبلها، وكل قاع بالذي قبله:<br>
+      • <b style="color:#22c55e">HH</b> قمة أعلى و <b style="color:#22c55e">HL</b> قاع أعلى = المشترون أقوى، <b>الاتجاه صاعد</b>.<br>
+      • <b style="color:#ef4444">LH</b> قمة أدنى و <b style="color:#ef4444">LL</b> قاع أدنى = البائعون أقوى، <b>الاتجاه هابط</b>.<br>
+      • خليط (مثل قمة أعلى مع قاع أدنى) = تذبذب، أو بداية تغيّر في الاتجاه.<br>
+      أول إشارة على ضعف الاتجاه الصاعد عادةً <b>قمة أدنى LH</b>، وتأكيده يكون بكسر آخر قاع (<b>LL</b>). والعكس في الهابط.<br>
+      <span class="muted">الأرقام فوق المربع: نسبة الموجة وعدد شموعها. «حساسية» أقل = موجات صغيرة كثيرة، وأكبر = الموجات الرئيسية فقط. هذه أداة لفهم الحركة وليست إشارة شراء أو بيع.</span>
+    </div>
   </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
@@ -511,6 +539,7 @@
 <script src="{{ url_for('static', filename='drawings.js') }}"></script>
 <script src="{{ url_for('static', filename='swing_zones.js') }}"></script>
 <script src="{{ url_for('static', filename='opening_candle.js') }}"></script>
+<script src="{{ url_for('static', filename='waves.js') }}"></script>
 <script src="{{ url_for('static', filename='indicators.js') }}"></script>
 <script>
 const SYMBOL = {{ symbol|tojson }};
@@ -698,11 +727,13 @@ function applyOverlays() {
   sma50.applyOptions({ visible: overlays.includes("sma50") });
   sma200.applyOptions({ visible: overlays.includes("sma200") });
   if (window.swingZones) swingZones.setVisible(overlays.includes("bj"));
+  if (window.waves) waves.setVisible(overlays.includes("wv"));
   if (window.openingCandle) openingCandle.setVisible(overlays.includes("oc"));
   if (bars.length && applyOverlays.clean !== undefined && applyOverlays.clean !== overlays.includes("clean")) {
     ma20.setData(maData()); sma50.setData(smaData(50)); sma200.setData(smaData(200)); vwapLine.setData(vwapData()); setBB();
     if (window.openingCandle) openingCandle.recalc(true);
     if (window.swingZones) swingZones.setConfig({});  // يعيد الحساب بالشموع الجديدة
+    if (window.waves) waves.refresh();
     indicators.update(); applyOverlays.vc = null;
   }
   applyOverlays.clean = overlays.includes("clean");
@@ -787,6 +818,9 @@ initDrawings({
 
 // عرض وطلب بن جمعان: مناطق آخر قمة وقاع والإسقاط وجدول القوة
 window.swingZones = initSwingZones({ chart, series: candles, container: el, getBars: () => indBars() });
+
+// الموجات (تعليمي): كل موجة في مربع مع القمم والقيعان والاتجاه
+window.waves = initWaves({ chart, series: candles, container: el, getBars: () => indBars() });
 
 // Opening Candle Indicator: السوق الافتراضي حسب سوق الصفحة
 const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
@@ -1262,6 +1296,22 @@ bbIn("vc-reset").onclick = () => { vcCfg = { ...VC_DEF }; fillVC(); readVC(); };
 bbIn("vc-gear").onclick = () => { vcPop.hidden = !vcPop.hidden; if (!vcPop.hidden) { bbPop.hidden = bjPop.hidden = alertPop.hidden = ocPop.hidden = true; fillVC(); } };
 bbIn("vc-close").onclick = () => { vcPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") vcPop.hidden = true; });
+
+// ===== إعدادات الموجات =====
+const wvPop = document.getElementById("wv-pop"), WV_KEYS = ["len", "minPct", "boxes", "labels", "structure", "panel", "colorUp", "colorDn"];
+function fillWV() { const c = waves.config; WV_KEYS.forEach(k => { const x = bbIn("wv-" + k); x.type === "checkbox" ? x.checked = c[k] : x.value = c[k]; }); }
+function readWV() {
+  const len = Math.round(+bbIn("wv-len").value), minPct = +bbIn("wv-minPct").value;
+  if (!(len >= 2 && len <= 50) || !(minPct >= 0) || bbIn("wv-minPct").value === "") return;
+  waves.setConfig({ len, minPct, boxes: bbIn("wv-boxes").checked, labels: bbIn("wv-labels").checked, structure: bbIn("wv-structure").checked, panel: bbIn("wv-panel").checked,
+                    colorUp: bbIn("wv-colorUp").value, colorDn: bbIn("wv-colorDn").value });
+  if (!overlays.includes("wv")) { overlays = [...overlays, "wv"]; applyOverlays(); }
+}
+WV_KEYS.forEach(k => bbIn("wv-" + k).addEventListener(["len", "minPct"].includes(k) ? "input" : "change", readWV));
+bbIn("wv-reset").onclick = () => { waves.setConfig({ ...waves.DEF }); fillWV(); };
+bbIn("wv-gear").onclick = () => { wvPop.hidden = !wvPop.hidden; if (!wvPop.hidden) { bbPop.hidden = bjPop.hidden = vcPop.hidden = alertPop.hidden = true; document.getElementById("oc-pop").hidden = true; fillWV(); } };
+bbIn("wv-close").onclick = () => { wvPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") wvPop.hidden = true; });
 
 // ===== إعدادات Opening Candle Indicator (نفس مدخلات الأصل ومجموعاته) =====
 const ocPop = document.getElementById("oc-pop");
