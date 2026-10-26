@@ -144,7 +144,19 @@
       if (s === sig && !force) return false;
       sig = s;
       res = visible && b.length ? compute(b, cfg, dayOf, nowS(), step()) : null;
-      const pts = (arr) => res ? b.map((x, i) => arr[i] == null ? { time: x.time } : { time: x.time, value: arr[i] }) : [];
+      // مثل plot مع na في Pine: فجوة في الخط. الشارت يصل الخط عبر النقاط الفارغة، فنملأ الفجوة بنقاط شفافة
+      const pts = (arr) => {
+        if (!res) return [];
+        const first = arr.findIndex(v => v != null);
+        if (first < 0) return b.map(x => ({ time: x.time }));
+        let last = arr[first];
+        return b.map((x, i) => {
+          if (i < first) return { time: x.time };
+          if (arr[i] == null) return { time: x.time, value: last, color: "rgba(0,0,0,0)" };
+          last = arr[i];
+          return i > first && arr[i - 1] == null ? { time: x.time, value: arr[i], color: "rgba(0,0,0,0)" } : { time: x.time, value: arr[i] };
+        });
+      };
       emaLine.applyOptions({ visible: visible, color: cfg.emaColor, lineWidth: 2 });
       vwapLine.applyOptions({ visible: visible && cfg.showVWAP, color: cfg.vwapColor, lineWidth: cfg.vwapWidth });
       emaLine.setData(pts(res?.ema || [])); vwapLine.setData(pts(res?.vwap || []));

@@ -128,11 +128,12 @@
         (p.endsWith("left") ? "left:52px;" : p.endsWith("right") ? "right:80px;" : "left:50%;translate:-50% 0;");
       if (p.startsWith("middle") && p.endsWith("center")) dash.style.transform = "translate(-50%,-50%)", dash.style.translate = "";
       const tot = res.buy + res.sell, bp = tot ? res.buy / tot * 100 : 0, sp = tot ? res.sell / tot * 100 : 0;
-      const [txt, col] = bp > 55 ? ["سيطرة شرائية", cfg.colorBull] : sp > 55 ? ["سيطرة بيعية", cfg.colorBear] : ["متقارب", "#94a3b8"];
+      // لا حجم مسجل (شائع في شموع الدقيقة خارج الجلسة في بيانات ياهو): لا يُحكم بالتقارب
+      const [txt, col] = !tot ? ["لا يوجد حجم مسجل في هذه الموجة", "#94a3b8"] : bp > 55 ? ["سيطرة شرائية", cfg.colorBull] : sp > 55 ? ["سيطرة بيعية", cfg.colorBear] : ["متقارب", "#94a3b8"];
       dash.innerHTML = `<table>
         <tr><th>النوع</th><th>الفوليوم</th><th>القوة %</th></tr>
-        <tr><td style="background:${cfg.colorBear};color:#fff">قوة البيع</td><td style="color:${cfg.colorBear}">${fmtV(res.sell)}</td><td style="color:${cfg.colorBear}">${sp.toFixed(2)}%</td></tr>
-        <tr><td style="background:${cfg.colorBull};color:#fff">قوة الشراء</td><td style="color:${cfg.colorBull}">${fmtV(res.buy)}</td><td style="color:${cfg.colorBull}">${bp.toFixed(2)}%</td></tr>
+        <tr><td style="background:${cfg.colorBear};color:#fff">قوة البيع</td><td style="color:${cfg.colorBear}">${fmtV(res.sell)}</td><td style="color:${cfg.colorBear}">${tot ? sp.toFixed(2) + "%" : "—"}</td></tr>
+        <tr><td style="background:${cfg.colorBull};color:#fff">قوة الشراء</td><td style="color:${cfg.colorBull}">${fmtV(res.buy)}</td><td style="color:${cfg.colorBull}">${tot ? bp.toFixed(2) + "%" : "—"}</td></tr>
         <tr><td>التحليل:</td><td colspan="2" style="color:${col};background:${alpha(col.startsWith("#") && col.length === 7 ? col : "#94a3b8", 0.12)}">${txt}</td></tr>
       </table><div class="bj-note">تقدير من موقع الإغلاق داخل كل شمعة منذ بداية الموجة الأخيرة${res.needAtr ? " · المناطق تظهر بعد 200 شمعة (ATR 200)" : ""} · الإسقاط متوسط تاريخي لآخر ${res.samples} موجات وليس هدفًا مضمونًا</div>`;
     }
