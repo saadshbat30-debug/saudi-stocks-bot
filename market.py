@@ -97,6 +97,7 @@ def get_quotes(symbols):
     """
     stream.watch(symbols)
     result = {}
+    single = symbols[0] if len(symbols) == 1 else None  # صفحة سهم: عرض وطلب أحدث من نقطة الأسعار
     for s in symbols:
         row = row_for(s)
         if row:
@@ -113,6 +114,11 @@ def get_quotes(symbols):
                 r, s20 = rsi(closes), sma(closes, 20)
                 result[s]["rsi"] = round(r, 1) if r is not None else None
                 result[s]["sma20"] = round(s20, 2) if s20 else None
+    if single and single in result:
+        rq = _raw_for([single], max_age=10).get(single)
+        if rq:
+            result[single] = {**result[single], "bid": rq.get("bid") or None, "ask": rq.get("ask") or None,
+                              "bid_size": rq.get("bidSize"), "ask_size": rq.get("askSize")}
     symbols = [s for s in symbols if s not in result]
     if not symbols:
         return result
@@ -155,7 +161,8 @@ def get_quotes(symbols):
             if rq:
                 try:
                     rr = _row(rq)
-                    item.update({k: rr[k] for k in ("open", "day_high", "day_low", "prev_close", "high52", "low52", "market_cap", "exchange")
+                    item.update({k: rr[k] for k in ("open", "day_high", "day_low", "prev_close", "high52", "low52", "market_cap", "exchange",
+                                                "bid", "ask", "bid_size", "ask_size")
                                  if rr.get(k) is not None})
                 except Exception:
                     pass
@@ -349,6 +356,9 @@ def _row(q):
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
         "night_price": _overnight_fields(q)[0],
         "night_change_pct": _overnight_fields(q)[1],
+        # أفضل عرض وطلب من ياهو (0 = لا يوجد عرض/طلب الآن)
+        "bid": q.get("bid") or None, "ask": q.get("ask") or None,
+        "bid_size": q.get("bidSize"), "ask_size": q.get("askSize"),
     }
 
 

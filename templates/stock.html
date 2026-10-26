@@ -102,6 +102,17 @@
   .ctx-menu button .k { margin-inline-start:auto; color:var(--muted); font-size:11.5px; direction:ltr; }
   .ctx-menu button:disabled { color:#5b6673; cursor:default; background:none; }
   .ctx-menu hr { border:0; border-top:1px solid #334155; margin:4px 0; }
+  /* لوحة شراء/بيع متحركة على الشارت: أفضل عرض (بيع) وطلب (شراء) وعداد إغلاق الشمعة */
+  .bs-pad { position:absolute; z-index:5; display:flex; direction:ltr; gap:2px; cursor:grab; user-select:none; touch-action:none; border-radius:6px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.45); }
+  .bs-pad[hidden] { display:none; }
+  .bs-pad.drag { cursor:grabbing; opacity:.85; }
+  .bs-pad > div { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2px 10px; min-width:64px; font-variant-numeric:tabular-nums; }
+  .bs-pad small { font-size:11px; opacity:.9; }
+  .bs-pad b { font-size:15px; line-height:1.25; }
+  .bs-pad .sell { background:#5b1a1a; color:#fecaca; border:1px solid #b91c1c; border-radius:6px 0 0 6px; }
+  .bs-pad .buy { background:#14532d; color:#bbf7d0; border:1px solid #16a34a; border-radius:0 6px 6px 0; }
+  .bs-pad .mid { background:#1e252e; color:var(--text); border:1px solid #334155; min-width:58px; }
+  .bs-pad .na { opacity:.55; }
   .bj-dash .bj-note { color:var(--muted); font-size:10px; margin-top:3px; line-height:1.4; }
   .alert-pop .ap-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .alert-pop .ap-h button { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; }
@@ -306,6 +317,7 @@
     <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
     <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
+    <label class="ov" title="لوحة شراء/بيع متحركة على الشارت: أفضل عرض وطلب من ياهو وعداد إغلاق الشمعة"><input type="checkbox" data-ov="bs"> <span style="color:#4ade80">شراء</span>/<span style="color:#f87171">بيع</span></label>
     <button class="chip" id="dd-btn" type="button" title="اختر ما يظهر من بيانات اليوم أعلى الشارت">📋 بيانات اليوم ▾</button>
     <label class="ov" title="الشمعة الشاذة (قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها) تبقى معروضة كما هي وعليها ⚠، لكن المؤشرات تتجاهل قيمتها الشاذة"><input type="checkbox" data-ov="clean"> <span style="color:#facc15">⚠ تجاهل الشاذة في المؤشرات</span></label>
   </span>
@@ -398,6 +410,11 @@
     <div class="muted" style="margin-top:6px;font-size:11.5px">الجلسة الرسمية من بيانات ياهو الرسمية، وما قبل/بعد الجلسة من شموع الدقيقة، والقيمة تقدير (≈). الليلي: سعره فقط لأن ياهو لا يرسل حجمه.</div>
   </div>
   <div class="day-box" id="day-box"></div>
+  <div class="bs-pad" id="bs-pad" hidden>
+    <div class="sell" title="أفضل عرض: أعلى سعر يشتري به أحدهم الآن (تبيع عنده)"><small>بيع</small><b id="bs-bid">—</b></div>
+    <div class="mid" title="الوقت المتبقي لإغلاق الشمعة الحالية — اسحب اللوحة لأي مكان"><small id="bs-tf">الشمعة</small><b id="bs-left">—</b></div>
+    <div class="buy" title="أفضل طلب: أدنى سعر يبيع به أحدهم الآن (تشتري عنده)"><small>شراء</small><b id="bs-ask">—</b></div>
+  </div>
   <div id="live-chart"></div>
   <div class="bar-timer" id="bar-timer" hidden title="الوقت المتبقي لإغلاق الشمعة"></div>
   <div id="tv_chart" hidden></div>
@@ -976,8 +993,48 @@ function applyLive(q) {
 
 // عداد إغلاق الشمعة: الوقت المتبقي حتى تُغلق الشمعة الحالية حسب الفاصل، تحت ملصق السعر على المحور
 const SPAN = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600 };
-function barTimer() {
-  const box = document.getElementById("bar-timer");
+// الثواني المتبقية لإغلاق الشمعة الحالية حسب الفاصل (null إذا لا يُعرف)
+// ===== لوحة شراء/بيع: تُسحب لأي مكان داخل الشارت ويُحفظ مكانها =====
+const bsPad = document.getElementById("bs-pad"), chartBox = bsPad.parentElement;
+let bsPos = { x: 0.5, y: 0.08 };
+try { bsPos = { ...bsPos, ...(JSON.parse(localStorage.getItem("bs_pos")) || {}) }; } catch {}
+function placeBsPad() {
+  const W = chartBox.clientWidth, H = chartBox.clientHeight, w = bsPad.offsetWidth, h = bsPad.offsetHeight;
+  bsPad.style.left = Math.max(0, Math.min(W - w, bsPos.x * W - w / 2)) + "px";
+  bsPad.style.top = Math.max(0, Math.min(H - h, bsPos.y * H)) + "px";
+}
+bsPad.addEventListener("pointerdown", e => {
+  e.preventDefault(); e.stopPropagation();
+  bsPad.setPointerCapture(e.pointerId); bsPad.classList.add("drag");
+  const r0 = chartBox.getBoundingClientRect(), ox = e.clientX - bsPad.getBoundingClientRect().left - bsPad.offsetWidth / 2, oy = e.clientY - bsPad.getBoundingClientRect().top;
+  const move = ev => { bsPos = { x: (ev.clientX - r0.left - ox) / r0.width, y: (ev.clientY - r0.top - oy) / r0.height }; placeBsPad(); };
+  const up = () => {
+    bsPad.classList.remove("drag"); bsPad.removeEventListener("pointermove", move); bsPad.removeEventListener("pointerup", up);
+    bsPos = { x: Math.max(0, Math.min(1, bsPos.x)), y: Math.max(0, Math.min(1, bsPos.y)) };
+    try { localStorage.setItem("bs_pos", JSON.stringify(bsPos)); } catch {}
+  };
+  bsPad.addEventListener("pointermove", move); bsPad.addEventListener("pointerup", up);
+});
+new ResizeObserver(() => placeBsPad()).observe(chartBox);
+const TF_NAME = { "1m": "دقيقة", "5m": "5 دقائق", "15m": "15 دقيقة", "1h": "ساعة", "1d": "يوم", "1w": "أسبوع", "1mo": "شهر" };
+function bsPadTick(left) {
+  bsPad.hidden = !overlays.includes("bs") || !document.getElementById("tv_chart").hidden;
+  if (bsPad.hidden) return;
+  const q = lastQuote || {}, pf = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2);
+  const set = (id, v, size) => {
+    const x = document.getElementById(id);
+    x.textContent = pf(v); x.classList.toggle("na", v == null);
+    x.parentElement.title = x.parentElement.title.split(" · ")[0] + (v == null ? " · ياهو لا يرسل عرضًا/طلبًا لهذا السهم الآن" : size ? ` · الكمية ${size}` : "");
+  };
+  set("bs-bid", q.bid, q.bid_size); set("bs-ask", q.ask, q.ask_size);
+  document.getElementById("bs-tf").textContent = TF_NAME[interval] || "الشمعة";
+  document.getElementById("bs-left").textContent = left == null ? "—" : fmtLeft(left);
+  placeBsPad();
+}
+// يظهر افتراضيًا لمن حفظ إعداداته قبل إضافته
+try { if (!localStorage.getItem("ov_bs_init")) { if (!overlays.includes("bs")) overlays.push("bs"); localStorage.setItem("ov_bs_init", "1"); } } catch {}
+
+function barLeft() {
   const last = bars[bars.length - 1];
   let left = null;
   if (last && document.getElementById("tv_chart").hidden) {  // الشارت اللحظي فقط
@@ -992,12 +1049,19 @@ function barTimer() {
       if (interval === "1w" || (interval === "1d" && marketSession()[1] === "open")) left = Math.round((end - ny) / 1000);
     }
   }
-  if (left == null || left <= 0 || left > 7 * 86400) { box.hidden = true; return; }
+  return left == null || left <= 0 || left > 7 * 86400 ? null : left;
+}
+const fmtLeft = left => {
+  const d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), sec = left % 60, p2 = n => String(n).padStart(2, "0");
+  return d ? `${d}ي ${p2(h)}:${p2(m)}` : h ? `${h}:${p2(m)}:${p2(sec)}` : `${p2(m)}:${p2(sec)}`;
+};
+function barTimer() {
+  const box = document.getElementById("bar-timer"), last = bars[bars.length - 1], left = barLeft();
+  bsPadTick(left);
+  if (left == null) { box.hidden = true; return; }
   const y = candles.priceToCoordinate(last.close), w = chart.priceScale("right").width();
   if (y == null || !w) { box.hidden = true; return; }
-  const d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), sec = left % 60;
-  const p2 = n => String(n).padStart(2, "0");
-  box.textContent = d ? `${d}ي ${p2(h)}:${p2(m)}` : h ? `${h}:${p2(m)}:${p2(sec)}` : `${p2(m)}:${p2(sec)}`;
+  box.textContent = fmtLeft(left);
   box.style.background = candles.options().priceLineColor || "#22c55e";  // نفس لون ملصق السعر فوقه
   box.style.top = (el.offsetTop + y + 10) + "px";
   box.style.left = (el.offsetLeft + el.clientWidth - w) + "px";
