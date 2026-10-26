@@ -86,7 +86,7 @@
   .wv-panel .muted { font-size:10.5px; }
   .wv-lesson { font-size:12px; line-height:1.8; margin-top:6px; padding-top:6px; border-top:1px solid #334155; }
   /* بيانات اليوم أعلى الشارت: بلا خلفية */
-  .day-box { position:absolute; top:32px; right:84px; left:52px; z-index:4; pointer-events:none; direction:rtl; font-size:12px; line-height:1.6; text-align:right;
+  .day-box { position:absolute; top:32px; right:84px; width:max-content; max-width:calc(100% - 150px); z-index:4; pointer-events:none; direction:rtl; font-size:12px; line-height:1.6; text-align:right;
              color:var(--muted); text-shadow:0 0 3px #000, 0 0 2px #000; }
   .day-box b { color:var(--text); font-weight:600; direction:ltr; unicode-bidi:isolate; }
   .day-box .dl { }
@@ -296,6 +296,7 @@
     <label class="ov" title="Opening Candle Indicator: شمعة الافتتاح وخطوطها وأهدافها و VWAP و EMA وإشارات Buy/Sell"><input type="checkbox" data-ov="oc"> <span style="color:#e5e7eb">شمعة الافتتاح</span></label>
     <button class="chip bb-gear" id="oc-gear" type="button" title="إعدادات Opening Candle Indicator">⚙</button>
     <label class="ov"><input type="checkbox" data-ov="signals"> ⬆ الإشارات</label>
+    <button class="chip" id="dd-btn" type="button" title="اختر ما يظهر من بيانات اليوم أعلى الشارت">📋 بيانات اليوم ▾</button>
     <label class="ov" title="الشمعة الشاذة (قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها) تبقى معروضة كما هي وعليها ⚠، لكن المؤشرات تتجاهل قيمتها الشاذة"><input type="checkbox" data-ov="clean"> <span style="color:#facc15">⚠ تجاهل الشاذة في المؤشرات</span></label>
   </span>
 </div>
@@ -377,6 +378,14 @@
       <b>⚠ التأخير:</b> العلامة توضع على القمة بأثر رجعي، والمؤشر لم يعرفها إلا عند <b>النقطة المفرغة ✓</b>: إغلاق الشمعة رقم «الحساسية» بعدها. الرقم بجانبها ما فات من السعر قبل التأكيد. و<b>✕</b> قمة أو قاع تأكد ثم نقله المؤشر إلى نقطة أبعد (إعادة رسم). لا تحكم على المؤشر من مواضع العلامات القديمة.<br>
       <span class="muted">الأرقام فوق المربع: نسبة الموجة وعدد شموعها. «حساسية» أقل = موجات صغيرة كثيرة، وأكبر = الموجات الرئيسية فقط. هذه أداة لفهم الحركة وليست إشارة شراء أو بيع.</span>
     </div>
+  </div>
+  <div class="alert-pop bb-pop" id="dd-pop" hidden>
+    <div class="ap-h"><b>📋 بيانات اليوم</b><button type="button" id="dd-close" title="إغلاق">×</button></div>
+    <label>الجلسة الرسمية <input type="checkbox" data-dd="reg"></label>
+    <label>قبل الافتتاح <input type="checkbox" data-dd="pre"></label>
+    <label>بعد الإغلاق <input type="checkbox" data-dd="post"></label>
+    <label>🌙 التداول الليلي (وقت الجلسة الليلية) <input type="checkbox" data-dd="night"></label>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">الجلسة الرسمية من بيانات ياهو الرسمية، وما قبل/بعد الجلسة من شموع الدقيقة، والقيمة تقدير (≈). الليلي: سعره فقط لأن ياهو لا يرسل حجمه.</div>
   </div>
   <div class="day-box" id="day-box"></div>
   <div id="live-chart"></div>
@@ -1077,7 +1086,7 @@ document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => {
   el.hidden = tv;
   document.getElementById("draw-toolbar").hidden = tv;
   document.getElementById("ind-buttons").style.visibility = tv ? "hidden" : "visible";
-  document.getElementById("day-box").hidden = tv;
+  document.getElementById("day-box").hidden = tv; if (!tv) renderDayBox();
   indicators.setVisible(!tv);
   document.getElementById("intervals").style.visibility = tv ? "hidden" : "visible";
   if (tv) loadTradingView();
@@ -1419,6 +1428,9 @@ function sessionStats(day, from, to) {
   }
   return n ? { o, h, l, c, v, val } : null;
 }
+// ما يظهر من بيانات اليوم (يُحفظ في المتصفح)
+let ddCfg = { reg: true, pre: true, post: true, night: true };
+try { ddCfg = { ...ddCfg, ...(JSON.parse(localStorage.getItem("daybox_cfg")) || {}) }; } catch {}
 function renderDayBox() {
   const box = document.getElementById("day-box"), q = lastQuote;
   if (!q || !box) return;
@@ -1426,13 +1438,12 @@ function renderDayBox() {
   const chg = (v, ref) => v != null && ref ? `<span class="${v >= ref ? "up" : "down"}">${v >= ref ? "+" : ""}${((v / ref - 1) * 100).toFixed(2)}%</span>` : "";
   const sess = marketSession()[1], lastDay = minuteBars.length ? nyOf(minuteBars[minuteBars.length - 1].time).day : null;
   const reg = lastDay ? sessionStats(lastDay, 570, 960) : null;
-  const lines = [];
-  // السطر الأول: الجلسة الرسمية (ثابتة بعد الإغلاق)
-  lines.push(`<div class="dl"><span class="t">${sess === "open" ? "الجلسة الرسمية (مفتوحة)" : "الجلسة الرسمية"}${lastDay ? ` ${lastDay}` : ""}:</span>
-    افتتاح <b>${pf(q.open)}</b> · أعلى <b>${pf(q.day_high)}</b> · أدنى <b>${pf(q.day_low)}</b> · ${sess === "open" ? "الآن" : "إغلاق"} <b>${pf(q.price)}</b> ${chg(q.price, q.prev_close)}
+  const lines = [], on = ddCfg;
+  // السطر الأول: الجلسة الرسمية (ثابتة بعد الإغلاق، و«الآن» بدل «إغلاق» أثناءها)
+  if (on.reg) lines.push(`<div class="dl">افتتاح <b>${pf(q.open)}</b> · أعلى <b>${pf(q.day_high)}</b> · أدنى <b>${pf(q.day_low)}</b> · ${sess === "open" ? "الآن" : "إغلاق"} <b>${pf(q.price)}</b> ${chg(q.price, q.prev_close)}
     · الحجم <b>${qty(q.volume)}</b> · القيمة <b title="تقدير: مجموع (متوسط سعر الشمعة × حجمها) لشموع الدقيقة في الجلسة">${reg ? "≈" + money(reg.val) : "—"}</b></div>`);
   // السطر الثاني: الجلسة الإضافية الحالية أو الأخيرة
-  if (sess === "night") {
+  if (sess === "night" && on.night) {
     lines.push(`<div class="dl"><span class="t">🌙 التداول الليلي:</span> ${q.night_price != null ? `السعر <b>${pf(q.night_price)}</b> ${q.night_change_pct != null ? `<span class="${q.night_change_pct >= 0 ? "up" : "down"}">${q.night_change_pct >= 0 ? "+" : ""}${q.night_change_pct.toFixed(2)}%</span>` : ""}` : "لا يوجد سعر ليلي لهذا السهم الآن"} · الحجم والقيمة غير متوفرين من ياهو</div>`);
   }
   if (lastDay) {
@@ -1441,16 +1452,25 @@ function renderDayBox() {
     // قبل الافتتاح اليوم يظهر ما قبل الافتتاح، وبعد الجلسة يظهر ما بعد الإغلاق (ومعه ما قبل الافتتاح إن وُجد)
     const show = sess === "ext" && ny.min < 570 && ny.day === lastDay ? [["قبل الافتتاح", pre]] : [["بعد الإغلاق", post], ["قبل الافتتاح", pre]];
     for (const [name, x] of show) {
-      if (!x) continue;
+      if (!x || !on[name === "قبل الافتتاح" ? "pre" : "post"]) continue;
       lines.push(`<div class="dl"><span class="t">${name}:</span> افتتاح <b>${pf(x.o)}</b> · أعلى <b>${pf(x.h)}</b> · أدنى <b>${pf(x.l)}</b> · ${(name === "قبل الافتتاح" && sess === "ext" && ny.min < 570) || (name === "بعد الإغلاق" && sess === "ext" && ny.min >= 960) ? "الآن" : "إغلاق"} <b>${pf(x.c)}</b> ${chg(x.c, name === "بعد الإغلاق" ? q.price : q.prev_close)}
         · الحجم <b>${x.v ? qty(x.v) : "غير مسجل"}</b> · القيمة <b>${x.v ? "≈" + money(x.val) : "—"}</b></div>`);
     }
   }
   box.innerHTML = lines.join("");
+  box.hidden = !lines.length || document.getElementById("tv_chart")?.hidden === false;
   // لوحة الموجات تنزل تحت بيانات اليوم حتى لا تتداخل
   const wv = document.querySelector(".wv-panel");
   if (wv) wv.style.top = (32 + box.offsetHeight + 4) + "px";
 }
+const ddPop = document.getElementById("dd-pop");
+document.querySelectorAll("[data-dd]").forEach(x => {
+  x.checked = ddCfg[x.dataset.dd];
+  x.onchange = () => { ddCfg[x.dataset.dd] = x.checked; try { localStorage.setItem("daybox_cfg", JSON.stringify(ddCfg)); } catch {} renderDayBox(); };
+});
+document.getElementById("dd-btn").onclick = () => { ddPop.hidden = !ddPop.hidden; };
+document.getElementById("dd-close").onclick = () => { ddPop.hidden = true; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") ddPop.hidden = true; });
 async function loadLadder() {
   try { minuteBars = await (await fetch(`/api/chart/${encodeURIComponent(SYMBOL)}?interval=1m`)).json(); } catch { return; }
   renderLadder(); renderDayBox();
