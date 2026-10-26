@@ -86,9 +86,10 @@
   .wv-panel .muted { font-size:10.5px; }
   .wv-lesson { font-size:12px; line-height:1.8; margin-top:6px; padding-top:6px; border-top:1px solid #334155; }
   /* بيانات اليوم أعلى الشارت: بلا خلفية */
-  .day-box { position:absolute; top:32px; right:84px; width:max-content; max-width:calc(100% - 150px); z-index:4; pointer-events:none; direction:rtl; font-size:12px; line-height:1.6; text-align:right;
+  .day-box { position:absolute; top:6px; right:84px; width:max-content; max-width:calc(100% - 150px); z-index:4; pointer-events:none; direction:rtl; font-size:12px; line-height:1.6; text-align:right;
              color:var(--muted); text-shadow:0 0 3px #000, 0 0 2px #000; }
   .day-box b { color:var(--text); font-weight:600; direction:ltr; unicode-bidi:isolate; }
+  .day-box b.up { color:var(--up); } .day-box b.down { color:var(--down); }
   .day-box .dl { }
   .day-box .dl + .dl { border-top:1px solid rgba(148,163,184,.45); margin-top:2px; padding-top:2px; }
   .day-box .t { color:var(--text); font-weight:600; }
@@ -1440,11 +1441,13 @@ function renderDayBox() {
   const reg = lastDay ? sessionStats(lastDay, 570, 960) : null;
   const lines = [], on = ddCfg;
   // السطر الأول: الجلسة الرسمية (ثابتة بعد الإغلاق، و«الآن» بدل «إغلاق» أثناءها)
-  if (on.reg) lines.push(`<div class="dl">افتتاح <b>${pf(q.open)}</b> · أعلى <b>${pf(q.day_high)}</b> · أدنى <b>${pf(q.day_low)}</b> · ${sess === "open" ? "الآن" : "إغلاق"} <b>${pf(q.price)}</b> ${chg(q.price, q.prev_close)}
+  // اللون مقارنة بالمرجع: الافتتاح والإغلاق فوقه أخضر وتحته أحمر، والأعلى أخضر والأدنى أحمر
+  const cv = (v, ref) => `<b class="${v == null || !ref || v === ref ? "" : v > ref ? "up" : "down"}">${pf(v)}</b>`;
+  if (on.reg) lines.push(`<div class="dl">افتتاح ${cv(q.open, q.prev_close)} · أعلى <b class="up">${pf(q.day_high)}</b> · أدنى <b class="down">${pf(q.day_low)}</b> · ${sess === "open" ? "الآن" : "إغلاق"} ${cv(q.price, q.prev_close)} ${chg(q.price, q.prev_close)}
     · الحجم <b>${qty(q.volume)}</b> · القيمة <b title="تقدير: مجموع (متوسط سعر الشمعة × حجمها) لشموع الدقيقة في الجلسة">${reg ? "≈" + money(reg.val) : "—"}</b></div>`);
   // السطر الثاني: الجلسة الإضافية الحالية أو الأخيرة
   if (sess === "night" && on.night) {
-    lines.push(`<div class="dl"><span class="t">🌙 التداول الليلي:</span> ${q.night_price != null ? `السعر <b>${pf(q.night_price)}</b> ${q.night_change_pct != null ? `<span class="${q.night_change_pct >= 0 ? "up" : "down"}">${q.night_change_pct >= 0 ? "+" : ""}${q.night_change_pct.toFixed(2)}%</span>` : ""}` : "لا يوجد سعر ليلي لهذا السهم الآن"} · الحجم والقيمة غير متوفرين من ياهو</div>`);
+    lines.push(`<div class="dl"><span class="t">🌙 التداول الليلي:</span> ${q.night_price != null ? `السعر <b class="${q.night_change_pct > 0 ? "up" : q.night_change_pct < 0 ? "down" : ""}">${pf(q.night_price)}</b> ${q.night_change_pct != null ? `<span class="${q.night_change_pct >= 0 ? "up" : "down"}">${q.night_change_pct >= 0 ? "+" : ""}${q.night_change_pct.toFixed(2)}%</span>` : ""}` : "لا يوجد سعر ليلي لهذا السهم الآن"} · الحجم والقيمة غير متوفرين من ياهو</div>`);
   }
   if (lastDay) {
     const ny = nyOf(Math.floor(Date.now() / 1000) + 3 * 3600);
@@ -1453,15 +1456,20 @@ function renderDayBox() {
     const show = sess === "ext" && ny.min < 570 && ny.day === lastDay ? [["قبل الافتتاح", pre]] : [["بعد الإغلاق", post], ["قبل الافتتاح", pre]];
     for (const [name, x] of show) {
       if (!x || !on[name === "قبل الافتتاح" ? "pre" : "post"]) continue;
-      lines.push(`<div class="dl"><span class="t">${name}:</span> افتتاح <b>${pf(x.o)}</b> · أعلى <b>${pf(x.h)}</b> · أدنى <b>${pf(x.l)}</b> · ${(name === "قبل الافتتاح" && sess === "ext" && ny.min < 570) || (name === "بعد الإغلاق" && sess === "ext" && ny.min >= 960) ? "الآن" : "إغلاق"} <b>${pf(x.c)}</b> ${chg(x.c, name === "بعد الإغلاق" ? q.price : q.prev_close)}
+      const ref = name === "بعد الإغلاق" ? q.price : q.prev_close;  // بعد الإغلاق مقارنة بإغلاق الجلسة، وقبل الافتتاح بإغلاق أمس
+      lines.push(`<div class="dl"><span class="t">${name}:</span> افتتاح ${cv(x.o, ref)} · أعلى <b class="up">${pf(x.h)}</b> · أدنى <b class="down">${pf(x.l)}</b> · ${(name === "قبل الافتتاح" && sess === "ext" && ny.min < 570) || (name === "بعد الإغلاق" && sess === "ext" && ny.min >= 960) ? "الآن" : "إغلاق"} ${cv(x.c, ref)} ${chg(x.c, ref)}
         · الحجم <b>${x.v ? qty(x.v) : "غير مسجل"}</b> · القيمة <b>${x.v ? "≈" + money(x.val) : "—"}</b></div>`);
     }
   }
   box.innerHTML = lines.join("");
   box.hidden = !lines.length || document.getElementById("tv_chart")?.hidden === false;
-  // لوحة الموجات تنزل تحت بيانات اليوم حتى لا تتداخل
+  // بمحاذاة سطر الشمعة على اليسار، وإن لم تتسع المساحة ينزل تحته
+  box.style.top = "6px";
+  const lg = document.getElementById("legend").getBoundingClientRect(), bx = box.getBoundingClientRect();
+  if (!box.hidden && lg.width && bx.left < lg.right + 12) box.style.top = (6 + lg.height + 4) + "px";
+  // لوحة الموجات تنزل تحت الاثنين حتى لا تتداخل
   const wv = document.querySelector(".wv-panel");
-  if (wv) wv.style.top = (32 + box.offsetHeight + 4) + "px";
+  if (wv) wv.style.top = Math.max(36, box.hidden ? 0 : box.offsetTop + box.offsetHeight + 4, 6 + lg.height + 4) + "px";
 }
 const ddPop = document.getElementById("dd-pop");
 document.querySelectorAll("[data-dd]").forEach(x => {
