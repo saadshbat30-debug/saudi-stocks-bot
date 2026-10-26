@@ -136,7 +136,9 @@
       ctx.moveTo(x1, w.up ? yB : yT); ctx.lineTo(x2, w.up ? yT : yB); ctx.stroke();
       ctx.setLineDash([]);
       if (cfg.labels && x2 - x1 > 18) {
-        const txt = `${title} ${w.up ? "↑" : "↓"} ${pct(w.pct)} · ${w.bars} شمعة`;
+        // عزل الأرقام باتجاه يسار-يمين (LRI…PDI) حتى لا تنقلب «‎-21.03%» إلى «%21.03-» داخل النص العربي
+        const iso = t => "\u2066" + t + "\u2069";
+        const txt = `${title} ${w.up ? "↑" : "↓"} ${iso(pct(w.pct))} · ${iso(w.bars)} شمعة`;
         ctx.font = "11px system-ui, sans-serif"; ctx.direction = "rtl"; ctx.textAlign = "center";
         const y = w.up ? yT - 6 : yB + 14;
         ctx.fillStyle = color; ctx.fillText(txt, (x1 + x2) / 2, y);
