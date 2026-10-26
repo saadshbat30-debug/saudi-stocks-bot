@@ -116,6 +116,7 @@ def get_quotes(symbols):
     symbols = [s for s in symbols if s not in result]
     if not symbols:
         return result
+    raw = _raw_for(symbols)  # الافتتاح والأعلى والأدنى ومدة تأخير البيانات من نقطة الأسعار (قبل القفل)
     with _lock:
         _refresh(_quotes, symbols, "5d", CACHE_SECONDS, _snapshot)
         _refresh(_history, symbols, "6mo", HISTORY_CACHE_SECONDS, _closes)
@@ -150,8 +151,36 @@ def get_quotes(symbols):
                     sma50=round(s50, 2) if s50 else None,
                     vol_ratio=round(q["volume"] / avg_vol, 2) if avg_vol else None,
                 )
+            rq = raw.get(s)
+            if rq:
+                try:
+                    rr = _row(rq)
+                    item.update({k: rr[k] for k in ("open", "day_high", "day_low", "prev_close", "high52", "low52", "market_cap", "exchange")
+                                 if rr.get(k) is not None})
+                except Exception:
+                    pass
+                item["delay_min"] = rq.get("exchangeDataDelayedBy")  # ياهو: كم دقيقة تتأخر بيانات هذه البورصة
+                item["currency_code"] = rq.get("currency")
             result[s] = item
         return result
+
+
+_raw_cache = {}  # الرمز ← {"at": وقت الجلب، "q": رد ياهو الخام}
+
+
+def _raw_for(symbols, max_age=30):
+    """رد نقطة الأسعار للرموز خارج الماسح (مثل الأسهم السعودية)، بحد طلب كل 30 ثانية لكل رمز."""
+    now = time.time()
+    need = [s for s in symbols if now - _raw_cache.get(s, {}).get("at", 0) > max_age]
+    if need:
+        for s in need:
+            _raw_cache[s] = {"at": now, "q": (_raw_cache.get(s) or {}).get("q")}
+        try:
+            for q in raw_quotes(need):
+                _raw_cache[q.get("symbol")] = {"at": now, "q": q}
+        except Exception as e:
+            print(f"⚠️ فشل جلب بيانات الأسعار {','.join(need)[:60]}: {str(e)[:80]}")
+    return {s: (_raw_cache.get(s) or {}).get("q") for s in symbols}
 
 
 # ===== السوق كاملًا عبر ماسح ياهو (طلب واحد لكل 250 سهم) =====

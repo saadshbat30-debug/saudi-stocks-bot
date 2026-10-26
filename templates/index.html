@@ -765,7 +765,8 @@ document.getElementById("search").oninput = e => { search = e.target.value.trim(
 // Enter: إن لم يكن السهم في القائمة افتح صفحته مباشرة
 document.getElementById("search").onkeydown = e => {
   if (e.key !== "Enter") return;
-  const v = e.target.value.trim().toUpperCase();
+  let v = e.target.value.trim().toUpperCase();
+  if (/^\d{4}$/.test(v)) v += ".SR";  // رمز سعودي من 4 أرقام يفتح شارته المتقدمة
   if (v && !rows.some(q => q.symbol === v)) location.href = "/stock/" + encodeURIComponent(v);
 };
 const headRow = document.getElementById("head-row"), wrap = document.querySelector(".table-wrap");

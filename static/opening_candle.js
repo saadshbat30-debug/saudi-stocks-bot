@@ -106,11 +106,11 @@
     return { ema: E, vwap: V, first, markers, boxes, levels, alertAt };
   }
 
-  window.initOpeningCandle = function ({ chart, series, container, getBars, dayOf, nowS, step, defaults }) {
+  window.initOpeningCandle = function ({ chart, series, container, getBars, dayOf, nowS, step, defaults, storageKey = "oc_cfg" }) {
     let cfg = { ...DEF, ...(defaults || {}) }, visible = false, res = null, sig = "", alerted = null;
     const base = { ...cfg };
     try {
-      const saved = JSON.parse(localStorage.getItem("oc_cfg")) || {};
+      const saved = JSON.parse(localStorage.getItem(storageKey)) || {};
       // إعدادات محفوظة قبل إضافة الخيار التلقائي: «السوق الأمريكي» كان الافتراضي لا اختيارًا، فيصبح التلقائي
       if (saved.market === "السوق الأمريكي" && !("autoDuration" in saved)) saved.market = US_AUTO;
       cfg = { ...cfg, ...saved };
@@ -209,7 +209,7 @@
       get state() { return res; },
       get visible() { return visible; },
       recalc,
-      setConfig(c) { cfg = { ...cfg, ...c }; try { localStorage.setItem("oc_cfg", JSON.stringify(cfg)); } catch {} recalc(true); },
+      setConfig(c) { cfg = { ...cfg, ...c }; try { localStorage.setItem(storageKey, JSON.stringify(cfg)); } catch {} recalc(true); },
       setVisible(v) { if (v === visible) return; visible = v; recalc(true); },
       barColor: i => visible && res && res.first[i] ? cfg.openCandleColor : null,
       markers: () => visible && res ? res.markers : [],

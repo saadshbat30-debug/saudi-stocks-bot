@@ -22,6 +22,8 @@
 
 <div class="sa-wrap">
   <div class="sa-bar">
+    <form id="sa-chart" title="يفتح الشارت اللحظي بكل مؤشرات المنصة (الموجات، عرض وطلب، شمعة الافتتاح...) لسهم سعودي"><input id="sa-sym" placeholder="📈 شارت متقدم: رمز مثل 2222" inputmode="numeric" autocomplete="off"
+      style="background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:4px 10px;font:inherit;font-size:12px;width:170px"></form>
     <button type="button" id="sa-reload" title="إعادة تحميل منصة السوق السعودي">↻ تحديث</button>
     <a href="{{ saudi_url }}" target="_blank" rel="noopener" title="فتح منصة السوق السعودي في تبويب مستقل">↗ تبويب مستقل</a>
   </div>
@@ -55,5 +57,13 @@ async function check() {
 document.getElementById("sa-reload").onclick = () => { up = null; check(); };
 check();
 setInterval(check, 5000);
+</script>
+<script>
+document.getElementById("sa-chart").onsubmit = e => {
+  e.preventDefault();
+  let v = document.getElementById("sa-sym").value.trim().toUpperCase();
+  if (/^\d{4}$/.test(v)) v += ".SR";
+  if (v) location.href = "/stock/" + encodeURIComponent(v);
+};
 </script>
 {% endblock %}

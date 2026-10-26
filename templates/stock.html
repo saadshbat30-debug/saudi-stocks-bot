@@ -205,7 +205,7 @@
 <div id="split-note" hidden style="margin-bottom:8px;padding:8px 12px;border-radius:10px;background:#2a1616;border:1px solid #7f1d1d;color:#fecaca;font-size:14px"></div>
 <div class="strip">
   <div class="st-id">
-    <div class="st-name"><button class="fav-star" id="fav-star" type="button" title="إضافة إلى المفضلة">★</button><b class="ltr">{{ symbol }}</b><span class="muted">{{ name }}</span></div>
+    <div class="st-name"><button class="fav-star" id="fav-star" type="button" title="إضافة إلى المفضلة">★</button><b class="ltr">{{ symbol }}</b><span class="muted" dir="auto">{{ name }}</span></div>
     <input class="st-search" id="st-search" list="st-sym-list" placeholder="🔍 ابحث عن أي سهم: رمز أو اسم ثم Enter" autocomplete="off">
     <datalist id="st-sym-list"></datalist>
   </div>
@@ -574,6 +574,18 @@
 const SYMBOL = {{ symbol|tojson }};
 window.PAGE_SYMBOL = SYMBOL;
 const CURRENCY = {{ market.currency|tojson }};
+// ===== سهم سعودي: أوقات تداول السوق السعودي بتوقيت الرياض (الأحد–الخميس) =====
+const IS_SA = {{ (is_sa or false)|tojson }};
+if (IS_SA) window.marketSession = function () {
+  const ry = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
+  const m = ry.getHours() * 60 + ry.getMinutes(), day = ry.getDay();
+  if (day === 5 || day === 6) return ["السوق مغلق", ""];
+  if (m >= 570 && m < 600) return ["مزاد الافتتاح", "auction"];
+  if (m >= 600 && m < 900) return ["السوق مفتوح", "open"];
+  if (m >= 900 && m < 910) return ["مزاد الإغلاق", "auction"];
+  if (m >= 910 && m < 920) return ["التداول على سعر الإغلاق", "auction"];
+  return ["السوق مغلق", ""];
+};
 const STEP = { "1m": 60, "5m": 300, "15m": 900 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
 let interval = "5m", bars = [], lastQuote = null;
 
@@ -832,6 +844,7 @@ function showLegend(b, prev) {
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
     <span>Vol <b>${fmtV(b.volume)}</b></span>${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
     (bad => bad ? `<span style="color:#facc15">⚠ قيمة شاذة: ${bad.bad.map(([k, v]) => `${k} ${fmtP(v)}`).join(" ")}${overlays.includes("clean") ? " (مستبعدة من المؤشرات)" : ""}</span>` : "")(badTicks().map.get(bars.indexOf(b))) +
+    (setTimeout(() => window.positionDayBox && positionDayBox(), 0), "") +
     (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
 }
 chart.subscribeCrosshairMove(p => {
@@ -858,7 +871,8 @@ window.openingCandle = initOpeningCandle({
   chart, series: candles, container: el, getBars: () => indBars(),
   dayOf: t => Math.floor((t - 7 * 3600) / 86400),  // يوم التداول بتوقيت نيويورك مثل VWAP المنصة
   nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => BAR_SEC[interval] || 300,
-  defaults: { market: {{ market_id|tojson }} === "us" ? "السوق الأمريكي (تلقائي صيفي/شتوي)" : "السوق السعودي" },
+  defaults: { market: IS_SA ? "السوق السعودي" : "السوق الأمريكي (تلقائي صيفي/شتوي)" },
+  storageKey: IS_SA ? "oc_cfg_sa" : "oc_cfg",  // إعدادات الشارت السعودي مستقلة عن الأمريكي
 });
 
 // مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
@@ -924,7 +938,7 @@ function applyLive(q) {
   // حتى لا يختلف سعر الشارت عن السعر المعروض عندما لا يصل البث المباشر للسهم
   const session = marketSession()[1];
   // نفس قاعدة السعر الكبير أعلى الصفحة وخانة صفقتي: سعر الجلسة الحالية
-  const price = session === "open" ? q.price
+  const price = session === "open" || session === "auction" ? q.price
     : session === "night" ? q.night_price ?? null
     : session === "ext" ? q.ext_price ?? null
     : null;
@@ -1039,6 +1053,8 @@ async function loadKpis() {
     ch.textContent = `${mainPct >= 0 ? "+" : ""}${f(mainPct)}%`; ch.className = mainPct >= 0 ? "up" : "down";
     ch.title = inExt ? `${extLabel}: التغير عن إغلاق الجلسة الرسمية` : "التغير عن إغلاق أمس";
     document.getElementById("k-session").textContent = inExt ? extLabel : "";
+    // بيانات السوق السعودي من ياهو متأخرة (عادةً 15 دقيقة): يُكتب ذلك صراحة
+    if (IS_SA && q.delay_min) document.getElementById("k-session").textContent = `⏱ متأخر ${q.delay_min} دقيقة (ياهو)`;
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
     const sh = document.getElementById("k-sharia");
     sh.innerHTML = { ok: '<span class="up">✅ متوافق</span>', no: '<span class="down">❌ غير متوافق</span>', review: '<span style="color:#facc15">⚠️ يحتاج مراجعة</span>' }[q.sharia] || '<span class="muted">⏳ جارٍ الفحص</span>';
@@ -1429,6 +1445,33 @@ function sessionStats(day, from, to) {
   }
   return n ? { o, h, l, c, v, val } : null;
 }
+// السوق السعودي: الجلسة الرسمية، ومزاد الافتتاح (9:30–10:00) ومزاد الإغلاق (15:00–15:10) من شموع الدقيقة إن وُجدت
+function renderDayBoxSA(box, q, pf, chg) {
+  const cv = (v, ref) => `<b class="${v == null || !ref || v === ref ? "" : v > ref ? "up" : "down"}">${pf(v)}</b>`;
+  const sess = marketSession()[1], lines = [];
+  const lastDay = minuteBars.length ? Math.floor(minuteBars[minuteBars.length - 1].time / 86400) : null;  // أوقات الشموع بتوقيت الرياض
+  const stats = (from, to) => {
+    let o = null, h = -Infinity, l = Infinity, c = null, v = 0, val = 0, n = 0;
+    for (const b of minuteBars) {
+      if (Math.floor(b.time / 86400) !== lastDay) continue;
+      const m = Math.floor((b.time % 86400) / 60);
+      if (m < from || m >= to) continue;
+      if (o == null) o = b.open;
+      h = Math.max(h, b.high); l = Math.min(l, b.low); c = b.close; v += b.volume || 0; val += (b.high + b.low + b.close) / 3 * (b.volume || 0); n++;
+    }
+    return n ? { o, h, l, c, v, val } : null;
+  };
+  const reg = lastDay != null ? stats(600, 900) : null;
+  if (ddCfg.reg) lines.push(`<div class="dl">افتتاح ${cv(q.open, q.prev_close)} · أعلى <b class="up">${pf(q.day_high)}</b> · أدنى <b class="down">${pf(q.day_low)}</b> · ${sess === "open" ? "الآن" : "إغلاق"} ${cv(q.price, q.prev_close)} ${chg(q.price, q.prev_close)}
+    · الحجم <b>${qty(q.volume)}</b> · القيمة <b title="تقدير من شموع الدقيقة">${reg && reg.v ? "≈" + money(reg.val).replace("$", "") + " ر.س" : "—"}</b></div>`);
+  for (const [key, name, from, to] of [["post", "مزاد الإغلاق", 900, 910], ["pre", "مزاد الافتتاح", 570, 600]]) {
+    const x = lastDay != null && ddCfg[key] ? stats(from, to) : null;
+    if (x) lines.push(`<div class="dl"><span class="t">${name}:</span> سعر <b>${pf(x.c)}</b> · أعلى <b class="up">${pf(x.h)}</b> · أدنى <b class="down">${pf(x.l)}</b> · الحجم <b>${x.v ? qty(x.v) : "غير مسجل"}</b></div>`);
+  }
+  box.innerHTML = lines.join("");
+  box.hidden = !lines.length || document.getElementById("tv_chart")?.hidden === false;
+}
+
 // ما يظهر من بيانات اليوم (يُحفظ في المتصفح)
 let ddCfg = { reg: true, pre: true, post: true, night: true };
 try { ddCfg = { ...ddCfg, ...(JSON.parse(localStorage.getItem("daybox_cfg")) || {}) }; } catch {}
@@ -1437,6 +1480,7 @@ function renderDayBox() {
   if (!q || !box) return;
   const pf = v => v == null ? "—" : CURRENCY + v.toFixed(v < 1 ? 4 : 2);
   const chg = (v, ref) => v != null && ref ? `<span class="${v >= ref ? "up" : "down"}">${v >= ref ? "+" : ""}${((v / ref - 1) * 100).toFixed(2)}%</span>` : "";
+  if (IS_SA) return renderDayBoxSA(box, q, pf, chg);
   const sess = marketSession()[1], lastDay = minuteBars.length ? nyOf(minuteBars[minuteBars.length - 1].time).day : null;
   const reg = lastDay ? sessionStats(lastDay, 570, 960) : null;
   const lines = [], on = ddCfg;
@@ -1463,15 +1507,25 @@ function renderDayBox() {
   }
   box.innerHTML = lines.join("");
   box.hidden = !lines.length || document.getElementById("tv_chart")?.hidden === false;
-  // بمحاذاة سطر الشمعة على اليسار، وإن لم تتسع المساحة ينزل تحته
+  positionDayBox();
+}
+// بمحاذاة سطر الشمعة على اليسار، وإن لم تتسع المساحة ينزل تحته (يُعاد مع كل تغيّر في طول سطر الشمعة)
+function positionDayBox() {
+  const box = document.getElementById("day-box"), lgEl = document.getElementById("legend");
+  if (!box || !lgEl) return;
   box.style.top = "6px";
-  const lg = document.getElementById("legend").getBoundingClientRect(), bx = box.getBoundingClientRect();
+  const lg = lgEl.getBoundingClientRect(), bx = box.getBoundingClientRect();
   if (!box.hidden && lg.width && bx.left < lg.right + 12) box.style.top = (6 + lg.height + 4) + "px";
   // لوحة الموجات تنزل تحت الاثنين حتى لا تتداخل
   const wv = document.querySelector(".wv-panel");
   if (wv) wv.style.top = Math.max(36, box.hidden ? 0 : box.offsetTop + box.offsetHeight + 4, 6 + lg.height + 4) + "px";
 }
 const ddPop = document.getElementById("dd-pop");
+if (IS_SA) {  // نفس الخانات بأسماء جلسات السوق السعودي
+  document.querySelector('[data-dd="pre"]').parentElement.firstChild.textContent = "مزاد الافتتاح ";
+  document.querySelector('[data-dd="post"]').parentElement.firstChild.textContent = "مزاد الإغلاق ";
+  document.querySelector('[data-dd="night"]').parentElement.hidden = true;
+}
 document.querySelectorAll("[data-dd]").forEach(x => {
   x.checked = ddCfg[x.dataset.dd];
   x.onchange = () => { ddCfg[x.dataset.dd] = x.checked; try { localStorage.setItem("daybox_cfg", JSON.stringify(ddCfg)); } catch {} renderDayBox(); };
@@ -1579,7 +1633,8 @@ function openSymbol(v) {
   v = (v || "").trim();
   if (!v) return;
   // اختيار من القائمة المقترحة «رمز — اسم» أو اسم شركة: الرمز من أسهم السوق، وإلا يُفتح المكتوب كرمز
-  const sym = v.split(" — ")[0].trim().toUpperCase();
+  let sym = v.split(" — ")[0].trim().toUpperCase();
+  if (/^\d{4}$/.test(sym)) sym += ".SR";  // رمز سعودي من 4 أرقام (2222 = أرامكو)
   const byName = watchRows.find(q => q.symbol === sym) || watchRows.find(q => (q.name || "").toLowerCase() === v.toLowerCase())
     || watchRows.find(q => (q.name || "").toLowerCase().includes(v.toLowerCase()) && v.length >= 3);
   location.href = "/stock/" + encodeURIComponent(byName ? byName.symbol : sym);

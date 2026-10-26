@@ -1,3 +1,4 @@
+import re
 import logging
 import time
 from flask import Flask, abort, jsonify, render_template, request
@@ -49,14 +50,17 @@ def stock(symbol):
     watch_night(symbol)  # يُضاف لجلب أسعار التداول الليلي
     name = INDICES.get(symbol) or name_for(symbol) or name
     extras.ensure_info(symbol)  # الفحص الشرعي والأسهم الحرة لهذا السهم فورًا
+    # سهم سعودي (مثل 2222.SR): نفس الشارت والمؤشرات بأوقات تداول السوق السعودي وبالريال
+    is_sa = bool(re.fullmatch(r"\d{4}\.SR", symbol))
     return render_template(
         "stock.html",
         markets=MARKETS,
         market_id=market_id,
-        market=MARKETS[market_id],
+        market={**MARKETS[market_id], "currency": "ر.س "} if is_sa else MARKETS[market_id],
         symbol=symbol,
         name=name,
-        tv_symbol=TV_INDICES.get(symbol, symbol),
+        is_sa=is_sa,
+        tv_symbol="TADAWUL:" + symbol[:-3] if is_sa else TV_INDICES.get(symbol, symbol),
     )
 
 
