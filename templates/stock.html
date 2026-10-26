@@ -770,7 +770,7 @@ function showLegend(b, prev) {
     <span>O <b>${fmtP(b.open)}</b></span><span>H <b style="color:#22c55e">${fmtP(b.high)}</b></span>
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
-    <span>Vol <b>${fmtV(b.volume)}</b></span>${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
+    <span>Vol <b>${fmtV(b.volume)}</b></span>${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
     (bad => bad ? `<span style="color:#facc15">⚠ قيمة شاذة: ${bad.bad.map(([k, v]) => `${k} ${fmtP(v)}`).join(" ")}${overlays.includes("clean") ? " (مستبعدة من المؤشرات)" : ""}</span>` : "")(badTicks().map.get(bars.indexOf(b))) +
     (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
 }
@@ -871,7 +871,8 @@ function applyLive(q) {
   const now = Math.floor(Date.now() / 1000) + 3 * 3600;
   if (step && now - (now % step) > last.time) {
     const t = now - (now % step);
-    bars.push({ time: t, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0 });
+    // شمعة تُبنى في المتصفح من السعر اللحظي (ياهو لا يرسل شموع التداول الليلي ولا حجمه)
+    bars.push({ time: t, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0, built: session });
   } else {
     last.close = q.price;
     last.high = Math.max(last.high, q.price);
