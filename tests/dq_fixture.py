@@ -27,7 +27,7 @@ RAW = [
     raw("XXII", 0.1426, 0.0884, 35_400_000, avg=6_450_000, shares=63_000),           # فلوت صغير جدًا
     raw("SGRY", 23.25, 15.75, 58_800_000, exchange="NYQ", avg=3_120_000, shares=127_000_000),
     raw("BRAI", 3.01, 2.12, 4_400_000, avg=131_000, shares=40_000_000),
-    raw("FREDF", 0.3725, 0.0002, 1_000, exchange="PNK", avg=50_000, shares=56_100_000, t=NOW - 3 * 86400, _otc=True),  # إغلاق سابق شاذ
+    raw("FREDF", 0.3725, 0.0002, 1_000, hi=0.3800, lo=0.3600, opn=0.3600, exchange="PNK", avg=50_000, shares=56_100_000, t=NOW - 3 * 86400, _otc=True),  # إغلاق سابق شاذ
     raw("IVHI", 0.0165, 0.0000256, 10_000, exchange="PNK", avg=66_000, shares=104_700_000, _otc=True),
     raw("AMRLL", 0.08, 0.0002, 0, exchange="PNK", avg=0, shares=560_500_000, t=NOW - 20 * 86400, _otc=True),   # بلا حجم وصفقة قديمة
     raw("RLBD", 0.0001, 0.00001, 1_000_000, exchange="PNK", avg=4_470, shares=934_400_000, _otc=True),
@@ -71,6 +71,8 @@ def build():
         stream.latest_night = lambda s: None
         market._night_quotes.clear() if hasattr(market, "_night_quotes") else None
         extras.float_for = lambda s: FLOATS.get(s)
+        # وقت جلب الأسهم الحرة (تستخدمه طبقة الجودة فقط؛ لا أثر له على الحساب)
+        extras.float_meta = lambda s: {"float": FLOATS.get(s), "at": NOW - 2 * 86400} if FLOATS.get(s) else None
         extras.sharia_for = lambda s: {"status": "unknown", "why": "", "source": None, "purify": None}
         market._samples.clear()
         market._market_history.clear()

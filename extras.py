@@ -320,6 +320,12 @@ def float_for(symbol):
     return entry.get("float") if entry else None
 
 
+def float_meta(symbol):
+    """الأسهم الحرة المحفوظة ووقت جلبها (لطبقة جودة البيانات)."""
+    entry = _floats.get(symbol)
+    return {"float": entry.get("float"), "at": entry.get("at")} if entry else None
+
+
 # ===== الفحص الشرعي (تقريبي، على طريقة معايير AAOIFI والمؤشرات الإسلامية) =====
 # 1) النشاط: يُستبعد النشاط المحرم أصلًا، ويُعلَّم النشاط المختلط "يحتاج مراجعة"
 # 2) النسب: الديون ÷ القيمة السوقية ≤ 30%، والنقد والودائع ÷ القيمة السوقية ≤ 30%

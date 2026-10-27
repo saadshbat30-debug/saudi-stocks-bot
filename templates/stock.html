@@ -230,7 +230,7 @@
     <input class="st-search" id="st-search" list="st-sym-list" placeholder="🔍 ابحث عن أي سهم: رمز أو اسم ثم Enter" autocomplete="off">
     <datalist id="st-sym-list"></datalist>
   </div>
-  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span></div>
+  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span> <span class="muted" id="k-pxage" style="font-size:11px;cursor:help"></span></div>
   <div class="st-cell" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span><b id="k-ext">—</b></div>
   <div class="st-cell"><span class="muted">افتتاح</span><b id="d-open">—</b></div>
   <div class="st-cell"><span class="muted">أعلى</span><b id="d-high" class="up">—</b></div>
@@ -458,10 +458,10 @@
   <div class="pn-b"><div class="pad">
   <div class="flow-grid">
     <div><span class="muted">حجم اليوم</span><b id="f-volume">—</b></div>
-    <div><span class="muted">قيمة التداول</span><b id="f-value">—</b></div>
+    <div title="تقدير: متوسط السعر (VWAP) × حجم اليوم — ليست القيمة الفعلية للصفقات"><span class="muted">قيمة التداول ≈</span><b id="f-value">—</b></div>
     <div><span class="muted">متوسط السعر (VWAP)</span><b id="f-vwap">—</b></div>
     <div><span class="muted">السيولة × المعتاد</span><b id="f-ratio">—</b></div>
-    <div><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
+    <div id="f-turnover-box"><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
     <div><span class="muted">سرعة 5 دقائق</span><b id="f-speed">—</b></div>
     <div><span class="muted">صافي السيولة</span><b id="f-net">—</b></div>
   </div>
@@ -480,7 +480,7 @@
 </div></div>
 </section><section class="pn" data-panel="trades">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
-    <span class="grip">⠿</span><b>🧾 الصفقات</b><div class="pn-tools"><label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
+    <span class="grip">⠿</span><b title="ياهو لا يرسل الصفقات المنفردة: كل سطر هو الفرق في الحجم التراكمي لليوم بين رسالتي بث متتاليتين، وقد يجمع عدة صفقات">🧾 فروق الحجم (تقريب للصفقات)</b><div class="pn-tools"><label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
         <select id="big-min" style="background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px">
           <option value="5000">$5K</option><option value="10000" selected>$10K</option><option value="50000">$50K</option><option value="100000">$100K</option>
         </select></label></div>
@@ -490,7 +490,7 @@
       <thead><tr><th>الوقت</th><th>السعر</th><th>الكمية</th><th>القيمة</th></tr></thead>
       <tbody id="trades"><tr><td colspan="4" class="muted">جارٍ التحميل…</td></tr></tbody>
     </table></div>
-    <div class="ws-foot" id="trades-foot">من البث المباشر لياهو</div>
+    <div class="ws-foot" id="trades-foot">من البث المباشر لياهو — فروق الحجم التراكمي، وليست صفقات منفردة</div>
   </div>
 </section></div>
 <div class="ws-note">الوقت بتوقيت الرياض · شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق · الخط البرتقالي متوسط 20 شمعة · الخط السماوي VWAP · مرّر على أي شمعة لرؤية افتتاحها وأعلاها وأدناها وإغلاقها · أدوات الرسم على اليسار: اضغط رسمة لتحديدها واسحبها أو اسحب مقابضها (Delete للحذف، Esc للإلغاء، Ctrl+Z للتراجع) · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="text-decoration:underline">TradingView</a></div>
@@ -1125,6 +1125,25 @@ async function loadKpis() {
     ch.textContent = `${mainPct >= 0 ? "+" : ""}${f(mainPct)}%`; ch.className = mainPct >= 0 ? "up" : "down";
     ch.title = inExt ? `${extLabel}: التغير عن إغلاق الجلسة الرسمية` : "التغير عن إغلاق أمس";
     document.getElementById("k-session").textContent = inExt ? extLabel : "";
+    // جودة البيانات (عرض فقط): مصدر آخر سعر وعمر آخر صفقة، مع فصل وقت الصفقة عن وقت رسالة البث
+    {
+      const now = Date.now() / 1000, ts = t => t ? new Date(t * 1000).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", hour12: false }) : "غير معروف";
+      const tt = inExt ? q.ext_trade_time : q.trade_time, src = inExt ? q.ext_src : q.px_src;
+      const nm = { stream: "⚡ بث ياهو", screener: "🔄 ماسح ياهو", bars: "📊 شمعة دقيقة" }[src];
+      const age = tt ? Math.max(0, Math.round(now - tt)) : null;
+      const el = document.getElementById("k-pxage");
+      el.textContent = nm ? `${nm} · آخر صفقة قبل ${age == null ? "—" : age + "ث"}` : "";
+      const lines = [`وقت آخر صفقة (من ياهو): ${ts(tt)}`];
+      if (!inExt && q.msg_time) lines.push(`آخر رسالة بث استُلمت: ${ts(q.msg_time)} — قبل ${Math.max(0, Math.round(now - q.msg_time))}ث (قد تصل دون صفقة جديدة)`);
+      if (q.fetched_time) lines.push(`جلب صف الماسح: ${ts(q.fetched_time)} — قبل ${Math.max(0, Math.round(now - q.fetched_time))}ث`);
+      if (!inExt && q.dq?.length) lines.push("⚠ تغير غير موثوق (تحذير معلوماتي):", ...q.dq.map(x => "• " + x.text));
+      if (!inExt && q.dq?.length) el.textContent += " · ⚠ تغير غير موثوق";
+      el.title = lines.join("\n");
+    }
+    const qn = v => v == null ? "—" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? (v / 1e3).toFixed(1) + "K" : String(v);
+    document.getElementById("f-turnover-box").title = q.turnover_base === "outstanding"
+      ? `الحجم ÷ الأسهم القائمة ${qn(q.shares_out)} (Outstanding) — الأسهم الحرة غير متوفرة، والقائمة ليست أسهمًا حرة`
+      : q.turnover_base === "float" ? `الحجم ÷ الأسهم الحرة (Float) ${qn(q.float)} · المصدر: ${q.float_src || "ياهو"}${q.float_at ? " · جُلبت " + new Date(q.float_at * 1000).toLocaleDateString("en-GB") : ""}` : "";
     // بيانات السوق السعودي من ياهو متأخرة (عادةً 15 دقيقة): يُكتب ذلك صراحة
     if (IS_SA && q.delay_min) document.getElementById("k-session").textContent = `⏱ متأخر ${q.delay_min} دقيقة (ياهو)`;
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
@@ -1728,7 +1747,7 @@ async function loadTrades() {
   const el = document.getElementById("trades"), foot = document.getElementById("trades-foot");
   if (!list.length) {
     el.innerHTML = `<tr><td colspan="4" class="muted">لا توجد صفقات بعد — تظهر عندما يصل البث المباشر ⚡ للسهم</td></tr>`;
-    foot.textContent = "من البث المباشر لياهو"; return;
+    foot.textContent = "من البث المباشر لياهو — فروق الحجم التراكمي، وليست صفقات منفردة"; return;
   }
   const min = document.getElementById("big-only").checked ? +document.getElementById("big-min").value : 0;
   let buy = 0, sell = 0;
@@ -1743,7 +1762,7 @@ async function loadTrades() {
       <td><bdi dir="ltr">${t.size.toLocaleString("en-US")}</bdi></td><td><bdi dir="ltr">${moneyS(value)}</bdi></td></tr>`;
   }).join("");
   el.innerHTML = rowsHtml || `<tr><td colspan="4" class="muted">لا توجد صفقات بهذا الحجم</td></tr>`;
-  foot.innerHTML = `آخر ${list.length} صفقة · شراء (صعود) <b class="up">${moneyS(buy)}</b> · بيع (هبوط) <b class="down">${moneyS(sell)}</b> · الصافي <b class="${buy - sell >= 0 ? "up" : "down"}">${moneyS(buy - sell)}</b>`;
+  foot.innerHTML = `آخر ${list.length} فرقًا في الحجم التراكمي (ليست صفقات منفردة؛ القيمة ≈ السعر × الفرق) · شراء (صعود) <b class="up">${moneyS(buy)}</b> · بيع (هبوط) <b class="down">${moneyS(sell)}</b> · الصافي <b class="${buy - sell >= 0 ? "up" : "down"}">${moneyS(buy - sell)}</b>`;
 }
 document.getElementById("big-only").onchange = loadTrades;
 document.getElementById("big-min").onchange = loadTrades;

@@ -6,6 +6,7 @@ from collections import deque
 import yfinance as yf
 
 import breakout
+import dq
 import extras
 import stream
 from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
@@ -352,6 +353,8 @@ def _row(q):
         "otc": bool(q.get("_otc")),
         "exchange": q.get("exchange"),
         "quote_time": q.get("regularMarketTime") or 0,
+        "ext_time": q.get(f"{ext}Time") if ext else None,  # وقت آخر صفقة قبل الافتتاح / بعد الإغلاق
+        "_fetched": time.time(),  # وقت جلب هذا الصف من الماسح (لطبقة جودة البيانات)
         "ext_price": q.get(f"{ext}Price") if ext else None,
         "ext_change_pct": q.get(f"{ext}ChangePercent") if ext else None,
         "night_price": _overnight_fields(q)[0],
@@ -452,6 +455,9 @@ def _fresher_from_bars(r):
                 r["change"] = round(last - prev, 4)
                 r["change_pct"] = round((last / prev - 1) * 100, 2)
             r["from_bars"] = True
+            # السعر صار من شمعة الدقيقة: مصدره ووقته (بداية الشمعة) للعرض فقط
+            bar_t = c["bars"][-1]["time"] - RIYADH_OFFSET
+            r.update(px_src="bars", trade_time=int(bar_t), trade_age=round(time.time() - bar_t), msg_time=None, msg_age=None)
             break
     return r
 
@@ -507,6 +513,9 @@ def get_market(market_id):
                     stream.watch([r["symbol"] for r in rows])
                     extras.start_floats(_float_priority)
                     breakout.start(lambda: (_markets.get(market_id) or {}).get("rows", []))
+                    # إعادة طلب الأسهم الحرة بعد التقسيمات المنفذة (سجل منفصل لا يدخل الفلاتر)
+                    dq.start(lambda: __import__("corp_events").snapshot()["items"], extras.float_meta,
+                             lambda s: (yf.Ticker(s).info or {}).get("floatShares"))
                     if not _night_state["started"]:
                         _night_state["started"] = True
                         threading.Thread(target=_night_loop, daemon=True).start()
@@ -564,6 +573,7 @@ def _enrich(r, now):
     symbol = r["symbol"]
     live = stream.latest(symbol)
     quote_time = r.pop("quote_time", 0)
+    fetched_at = r.pop("_fetched", None)
     if live and live["trade_time"] < quote_time:
         live = None  # الماسح أحدث من آخر صفقة وصلت من البث
     if live:
@@ -613,6 +623,7 @@ def _enrich(r, now):
 
     # ===== السيولة =====
     avg_vol, shares, volume = r.pop("avg_volume"), r.pop("shares"), r["volume"]
+    shares_out = shares  # الأسهم القائمة كما هي (قبل استبدالها بالحرة) — للعرض فقط
     # الأسهم الحرة (إن جُلبت) أدق للتدوير، مثل موموو
     r["float"] = extras.float_for(symbol)
     sh = extras.sharia_for(symbol)
@@ -645,6 +656,16 @@ def _enrich(r, now):
             r[k] = _price_round(r[k])
     if r.get("ext_change_pct") is not None:
         r["ext_change_pct"] = round(r["ext_change_pct"], 2)
+
+    # ===== طبقة جودة البيانات: حقول إضافية فقط، لا تغيّر أي رقم أعلاه =====
+    r.update(dq.price_info(r, live, quote_time, fetched_at, now))
+    if r.get("ext_price"):
+        et = ext["trade_time"] if ext and ext.get("trade_time_known", True) else r.get("ext_time")
+        r["ext_trade_time"] = int(et) if et else None
+        r["ext_src"] = "stream" if ext else "screener"
+    r.pop("ext_time", None)
+    r["dq"], r["dq_rvol"] = dq.change_flags(r, avg_vol)
+    r.update(dq.float_info(symbol, r["float"], shares_out, extras.float_meta(symbol)))
     return r
 
 

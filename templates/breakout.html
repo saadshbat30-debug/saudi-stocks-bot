@@ -149,7 +149,8 @@ function render() {
     const full = c.passed === keys.length;
     return `<tr data-go="${esc(c.symbol)}"><td><b>${esc(c.symbol)}</b> <span class="muted">${esc((c.name || "").slice(0, 18))}</span></td>
       <td><span class="score ${full ? "full" : ""}">${c.passed}/${keys.length}</span></td>` +
-      keys.map(k => `<td class="num ${c.ok[k] === true ? "ok" : c.ok[k] === false ? "no" : "na"}">${c.ok[k] === true ? "✓" : c.ok[k] === false ? "✗" : "—"} ${ltr(show[k](c.values[k]))}</td>`).join("") + `</tr>`;
+      keys.map(k => { const alt = k === "float" && c.float_basis === "outstanding";
+        return `<td class="num ${c.ok[k] === true ? "ok" : c.ok[k] === false ? "no" : "na"}" ${alt ? 'title="الأسهم الحرة غير متوفرة: الرقم هو الأسهم القائمة (Outstanding) المستخدمة بديلًا في الشرط، وليست أسهمًا حرة"' : ""}>${c.ok[k] === true ? "✓" : c.ok[k] === false ? "✗" : "—"} ${ltr(show[k](c.values[k]) + (alt ? "*" : ""))}</td>`; }).join("") + `</tr>`;
   }).join("") : `<tr><td colspan="${keys.length + 2}" class="muted" style="text-align:center;padding:18px">جارٍ تجميع بيانات البث… المقاييس تحتاج 3 دقائق من الأسعار اللحظية</td></tr>`;
 }
 

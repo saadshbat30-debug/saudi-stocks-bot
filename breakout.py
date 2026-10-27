@@ -171,7 +171,10 @@ def _scan(get_rows):
         m = metrics(r["symbol"], r.get("avg_volume"), now)
         vals, ok = evaluate(q, m)
         passed = sum(1 for v in ok.values() if v)
-        candidates.append({"symbol": r["symbol"], "name": r.get("name"), "values": vals, "ok": ok, "passed": passed})
+        # للعرض فقط: هل رقم «الحرة» حقيقي أم الأسهم القائمة المستخدمة بديلًا (الشرط نفسه لم يتغير)
+        basis = "float" if q.get("float") else ("outstanding" if r.get("shares") else None)
+        candidates.append({"symbol": r["symbol"], "name": r.get("name"), "values": vals, "ok": ok, "passed": passed,
+                           "float_basis": basis})
         if active and passed == len(RULES) and r["symbol"] not in recent:
             fresh.append({
                 "id": f"{r['symbol']}-{int(now)}", "symbol": r["symbol"], "name": r.get("name"),

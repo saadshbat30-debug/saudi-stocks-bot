@@ -349,25 +349,56 @@ function nightMsg() {
 }
 
 // ===== الأعمدة: الترتيب والإظهار قابلان للتعديل ويُحفظان في المتصفح =====
+// ===== طبقة جودة البيانات: معلومات وتحذيرات للعرض فقط (لا تغيّر الترتيب ولا الفلاتر) =====
+const fmtAge = a => a == null ? "—" : a < 60 ? a + "ث" : a < 3600 ? Math.round(a / 60) + "د" : a < 86400 ? Math.round(a / 3600) + "س" : Math.round(a / 86400) + "ي";
+const fmtTs = t => t ? new Date(t * 1000).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", hour12: false }) + " (الرياض)" : "غير معروف";
+const PX_SRC = { stream: ["⚡", "بث ياهو اللحظي"], screener: ["🔄", "ماسح ياهو (كل دقيقة)"], bars: ["📊", "آخر شمعة دقيقة (الماسح متأخر)"] };
+const nowS = () => Date.now() / 1000;
+const ageOf = t => t ? Math.max(0, Math.round(nowS() - t)) : null;
+function pxCell(q) {
+  // في عرض ما قبل/بعد الجلسة أو الليلي: وقت صفقة الجلسة الممتدة
+  const tt = ext ? q.ext_trade_time : q.trade_time, src = ext ? (q.ext_src || null) : q.px_src;
+  const [ic, nm] = PX_SRC[src] || ["", "غير معروف"], age = ageOf(tt);
+  const lines = [`المصدر: ${nm}`, `وقت آخر صفقة (من ياهو): ${fmtTs(tt)}` + (age != null ? ` — قبل ${age} ثانية` : "")];
+  if (!ext && q.msg_time) lines.push(`آخر رسالة بث استُلمت: ${fmtTs(q.msg_time)} — قبل ${ageOf(q.msg_time)} ثانية`, "رسالة البث قد تصل دون صفقة جديدة (تحديث حجم أو مزايدة)");
+  if (q.fetched_time) lines.push(`جلب صف الماسح: ${fmtTs(q.fetched_time)} — قبل ${ageOf(q.fetched_time)} ثانية`);
+  return `<td class="num" title="${esc(lines.join("\n"))}">${ic} ${fmtAge(age)}</td>`;
+}
+const dqMark = (list, extra) => {
+  const t = [...(list || []).map(x => "• " + x.text), ...(extra || [])];
+  return t.length ? ` <span style="color:#facc15;cursor:help" title="${esc("تغير غير موثوق (تحذير معلوماتي فقط — السهم لم يُستبعد):\n" + t.join("\n"))}">⚠</span>` : "";
+};
+function floatTitle(q) {
+  if (q.float != null) {
+    let t = `الأسهم الحرة الحقيقية (Float)\nالمصدر: ${q.float_src || "ياهو"}\nتاريخ الجلب: ${q.float_at ? fmtTs(q.float_at) : "غير معروف"}`;
+    const c = q.float_check;
+    if (c) t += `\n⚠ تقسيم ${c.ratio} بتاريخ ${c.split} بعد جلب الرقم. أُعيد الطلب: ${c.new == null ? "لا رقم" : fmtBig(c.new)} (المتوقع ≈ ${c.expected == null ? "—" : fmtBig(c.expected)}) — الحالة: ${FLOAT_CHECK[c.status] || c.status}. الرقم الجديد لم يُعتمد بعد ويُستخدم القديم.`;
+    return t;
+  }
+  return q.shares_out ? `الأسهم الحرة غير متوفرة.\nالأسهم القائمة ${fmtBig(q.shares_out)} (Outstanding) تُستخدم بديلًا في التدوير — وليست أسهمًا حرة.` : "الأسهم الحرة والقائمة غير متوفرة";
+}
+const FLOAT_CHECK = { consistent: "متسق مع نسبة التقسيم", unchanged: "لم يتغير (ياهو لم يحدّثه بعد)", inconsistent: "غير متسق مع نسبة التقسيم", missing: "ياهو لم يُرجع رقمًا", no_previous: "لا رقم سابق للمقارنة" };
+
 const rsiCell = q => `<td class="num" ${q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : ""}>${fmt(q.rsi, 1)}</td>`;
 const COLUMNS = [
   { key: "price", label: "السعر", cell: q => `<td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>` },
-  { key: "change_pct", label: "التغير %", cell: q => `<td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>` },
+  { key: "change_pct", label: "التغير %", cell: q => `<td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi>${ext ? "" : dqMark(q.dq)}</td>` },
   { key: "change", label: "التغير", cell: q => `<td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>` },
   { key: "speed", label: "سرعة 5د", title: "نسبة تغير السعر خلال آخر 5 دقائق",
     cell: (q, ctx) => `<td class="num ${cls(q.speed)}"><bdi dir="ltr">${signed(q.speed)}</bdi>${q.speed ? `<span class="bar" style="width:${Math.round(Math.abs(q.speed) / ctx.maxSpeed * 30)}px;background:${q.speed > 0 ? "var(--up)" : "var(--down)"}"></span>` : ""}</td>` },
   { key: "volume", label: "الحجم", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>` },
-  { key: "value", label: "القيمة", title: "قيمة التداول بالدولار", cell: q => `<td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>` },
+  { key: "value", label: "القيمة ≈", title: "قيمة التداول التقديرية بالدولار = متوسط (أعلى + أدنى + السعر) ÷ 3 × الحجم — ليست القيمة الفعلية للصفقات", cell: q => `<td class="num"><bdi dir="ltr">≈$${fmtBig(q.value)}</bdi></td>` },
   { key: "vol_ratio", label: "السيولة ×", title: "حجم اليوم مقارنة بمتوسط 3 أشهر",
-    cell: q => `<td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi></td>` },
-  { key: "turnover", label: "التدوير %", title: "الحجم ÷ الأسهم الحرة (أو القائمة إن لم تتوفر)", cell: q => `<td class="num"><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%"}</bdi></td>` },
+    cell: q => `<td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi>${q.dq_rvol ? ` <span style="color:#facc15;cursor:help" title="${esc("تحذير معلوماتي فقط:\n" + q.dq_rvol + "\nحجم اليوم: " + fmtBig(q.volume))}">⚠</span>` : ""}</td>` },
+  { key: "turnover", label: "التدوير %", title: "الحجم ÷ الأسهم الحرة (أو القائمة إن لم تتوفر) — النجمة * تعني أن الأساس الأسهم القائمة", cell: q => `<td class="num" ${q.turnover_base === "outstanding" ? `title="الأساس: الأسهم القائمة ${fmtBig(q.shares_out)} (الحرة غير متوفرة)"` : ""}><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%" + (q.turnover_base === "outstanding" ? "*" : "")}</bdi></td>` },
   { key: "amplitude", label: "الاهتزاز %", title: "(أعلى − أدنى) ÷ إغلاق أمس", cell: q => `<td class="num"><bdi dir="ltr">${q.amplitude == null ? "—" : fmt(q.amplitude) + "%"}</bdi></td>` },
   { key: "rsi", label: "RSI", title: "مؤشر القوة النسبية 14 يوم", cell: rsiCell },
   { key: "pe", label: "P/E", title: "مكرر الأرباح", cell: q => `<td class="num"><bdi dir="ltr">${fmt(q.pe)}</bdi></td>` },
   { key: "pb", label: "P/B", title: "مضاعف القيمة الدفترية", cell: q => `<td class="num"><bdi dir="ltr">${fmt(q.pb)}</bdi></td>` },
   { key: "market_cap", label: "القيمة السوقية", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.market_cap)}</bdi></td>` },
-  { key: "float", label: "الأسهم الحرة", title: "الأسهم الحرة المتاحة للتداول (Float)",
-    cell: q => `<td class="num" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi></td>` },
+  { key: "float", label: "الأسهم الحرة", title: "الأسهم الحرة المتاحة للتداول (Float) — مرّر على الرقم لمعرفة المصدر وتاريخ الجلب",
+    cell: q => `<td class="num" title="${esc(floatTitle(q))}" ${q.float != null && q.float < LOW_FLOAT ? "style='color:#c4b5fd'" : ""}><bdi dir="ltr">${fmtBig(q.float)}</bdi>${q.float_check ? ' <span style="color:#facc15">⚠</span>' : ""}</td>` },
+  { key: "px_age", label: "آخر سعر", nosort: true, title: "عمر آخر صفقة ومصدرها: ⚡ بث لحظي · 🔄 الماسح · 📊 شمعة دقيقة — مرّر لمعرفة وقت الصفقة مقابل وقت رسالة البث", cell: pxCell },
   { key: "sharia", label: "شرعي", title: "فحص شرعي تقريبي: النشاط، والديون والنقد ≤ 30% من القيمة السوقية — ليس فتوى",
     cell: q => `<td title="${esc(q.sharia_why || "")}">${SHARIA_TAG[q.sharia] || '<span class="muted">—</span>'}</td>` },
   { key: "signals", label: "الإشارات", nosort: true, cell: q => `<td>${signals(q).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join("")}</td>` },

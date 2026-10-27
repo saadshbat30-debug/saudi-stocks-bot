@@ -77,6 +77,8 @@ def _on_message(msg):
         "at": time.time(),
         # وقت الصفقة من ياهو (بالملي ثانية) لمقارنته بوقت بيانات الماسح
         "trade_time": int(msg.get("time", 0) or 0) / 1000 or time.time(),
+        # هل الوقت أعلاه وقت الصفقة من ياهو فعلًا، أم وقت الاستلام بديلًا لأن الرسالة بلا وقت
+        "trade_time_known": bool(msg.get("time")),
     }
 
 
