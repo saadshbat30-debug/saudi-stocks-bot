@@ -1,0 +1,438 @@
+{
+ "ext0|all|all": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext0|all|gainers": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL"
+ ],
+ "ext0|all|losers": [],
+ "ext0|all|active": [
+  "SGRY",
+  "AAPL",
+  "XXII",
+  "BRAI",
+  "INNI",
+  "NOFL",
+  "ASE1",
+  "PRE1"
+ ],
+ "ext0|all|value": [
+  "AAPL",
+  "SGRY",
+  "BRAI",
+  "INNI",
+  "PRE1",
+  "NOFL",
+  "XXII",
+  "ASE1",
+  "FREDF",
+  "IVHI",
+  "RLBD",
+  "AMRLL"
+ ],
+ "ext0|all|momentum": [],
+ "ext0|all|liquidity": [
+  "INNI",
+  "BRAI",
+  "SGRY",
+  "XXII",
+  "ASE1",
+  "NOFL",
+  "PRE1",
+  "AAPL"
+ ],
+ "ext0|all|high": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL"
+ ],
+ "ext0|all|lowfloat": [
+  "XXII",
+  "PRE1",
+  "ASE1",
+  "INNI"
+ ],
+ "ext0|all|halted": [],
+ "ext0|all|sharia": [],
+ "ext0|all|band0": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII"
+ ],
+ "ext0|all|band1": [
+  "BRAI",
+  "ASE1"
+ ],
+ "ext0|all|band2": [
+  "PRE1",
+  "NOFL",
+  "INNI"
+ ],
+ "ext0|all|band3": [
+  "SGRY"
+ ],
+ "ext0|all|band4": [],
+ "ext0|all|band5": [
+  "AAPL"
+ ],
+ "ext0|all|sig-oversold": [],
+ "ext0|all|sig-overbought": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext0|all|sig-uptrend": [],
+ "ext0|all|sig-downtrend": [],
+ "ext0|listed|all": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext0|listed|gainers": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL"
+ ],
+ "ext0|listed|losers": [],
+ "ext0|listed|active": [
+  "SGRY",
+  "AAPL",
+  "XXII",
+  "BRAI",
+  "INNI",
+  "NOFL",
+  "ASE1",
+  "PRE1"
+ ],
+ "ext0|listed|value": [
+  "AAPL",
+  "SGRY",
+  "BRAI",
+  "INNI",
+  "PRE1",
+  "NOFL",
+  "XXII",
+  "ASE1"
+ ],
+ "ext0|listed|momentum": [],
+ "ext0|listed|liquidity": [
+  "INNI",
+  "BRAI",
+  "SGRY",
+  "XXII",
+  "ASE1",
+  "NOFL",
+  "PRE1",
+  "AAPL"
+ ],
+ "ext0|listed|high": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL"
+ ],
+ "ext0|listed|lowfloat": [
+  "XXII",
+  "PRE1",
+  "ASE1",
+  "INNI"
+ ],
+ "ext0|listed|halted": [],
+ "ext0|listed|sharia": [],
+ "ext0|listed|band0": [
+  "XXII"
+ ],
+ "ext0|listed|band1": [
+  "BRAI",
+  "ASE1"
+ ],
+ "ext0|listed|band2": [
+  "PRE1",
+  "NOFL",
+  "INNI"
+ ],
+ "ext0|listed|band3": [
+  "SGRY"
+ ],
+ "ext0|listed|band4": [],
+ "ext0|listed|band5": [
+  "AAPL"
+ ],
+ "ext0|listed|sig-oversold": [],
+ "ext0|listed|sig-overbought": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "PRE1",
+  "NOFL",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext0|listed|sig-uptrend": [],
+ "ext0|listed|sig-downtrend": [],
+ "ext0|otc|all": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext0|otc|gainers": [],
+ "ext0|otc|losers": [],
+ "ext0|otc|active": [],
+ "ext0|otc|value": [
+  "FREDF",
+  "IVHI",
+  "RLBD",
+  "AMRLL"
+ ],
+ "ext0|otc|momentum": [],
+ "ext0|otc|liquidity": [],
+ "ext0|otc|high": [],
+ "ext0|otc|lowfloat": [],
+ "ext0|otc|halted": [],
+ "ext0|otc|sharia": [],
+ "ext0|otc|band0": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext0|otc|band1": [],
+ "ext0|otc|band2": [],
+ "ext0|otc|band3": [],
+ "ext0|otc|band4": [],
+ "ext0|otc|band5": [],
+ "ext0|otc|sig-oversold": [],
+ "ext0|otc|sig-overbought": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext0|otc|sig-uptrend": [],
+ "ext0|otc|sig-downtrend": [],
+ "ext1|all|all": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "NOFL",
+  "PRE1",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext1|all|gainers": [
+  "PRE1"
+ ],
+ "ext1|all|losers": [],
+ "ext1|all|active": [
+  "PRE1"
+ ],
+ "ext1|all|value": [
+  "PRE1"
+ ],
+ "ext1|all|momentum": [],
+ "ext1|all|liquidity": [
+  "PRE1"
+ ],
+ "ext1|all|high": [],
+ "ext1|all|lowfloat": [
+  "PRE1"
+ ],
+ "ext1|all|halted": [],
+ "ext1|all|sharia": [],
+ "ext1|all|band0": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII"
+ ],
+ "ext1|all|band1": [
+  "BRAI",
+  "ASE1"
+ ],
+ "ext1|all|band2": [
+  "NOFL",
+  "PRE1",
+  "INNI"
+ ],
+ "ext1|all|band3": [
+  "SGRY"
+ ],
+ "ext1|all|band4": [],
+ "ext1|all|band5": [
+  "AAPL"
+ ],
+ "ext1|all|sig-oversold": [],
+ "ext1|all|sig-overbought": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD",
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "NOFL",
+  "PRE1",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext1|all|sig-uptrend": [],
+ "ext1|all|sig-downtrend": [],
+ "ext1|listed|all": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "NOFL",
+  "PRE1",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext1|listed|gainers": [
+  "PRE1"
+ ],
+ "ext1|listed|losers": [],
+ "ext1|listed|active": [
+  "PRE1"
+ ],
+ "ext1|listed|value": [
+  "PRE1"
+ ],
+ "ext1|listed|momentum": [],
+ "ext1|listed|liquidity": [
+  "PRE1"
+ ],
+ "ext1|listed|high": [],
+ "ext1|listed|lowfloat": [
+  "PRE1"
+ ],
+ "ext1|listed|halted": [],
+ "ext1|listed|sharia": [],
+ "ext1|listed|band0": [
+  "XXII"
+ ],
+ "ext1|listed|band1": [
+  "BRAI",
+  "ASE1"
+ ],
+ "ext1|listed|band2": [
+  "NOFL",
+  "PRE1",
+  "INNI"
+ ],
+ "ext1|listed|band3": [
+  "SGRY"
+ ],
+ "ext1|listed|band4": [],
+ "ext1|listed|band5": [
+  "AAPL"
+ ],
+ "ext1|listed|sig-oversold": [],
+ "ext1|listed|sig-overbought": [
+  "XXII",
+  "SGRY",
+  "BRAI",
+  "NOFL",
+  "PRE1",
+  "ASE1",
+  "AAPL",
+  "INNI"
+ ],
+ "ext1|listed|sig-uptrend": [],
+ "ext1|listed|sig-downtrend": [],
+ "ext1|otc|all": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext1|otc|gainers": [],
+ "ext1|otc|losers": [],
+ "ext1|otc|active": [],
+ "ext1|otc|value": [],
+ "ext1|otc|momentum": [],
+ "ext1|otc|liquidity": [],
+ "ext1|otc|high": [],
+ "ext1|otc|lowfloat": [],
+ "ext1|otc|halted": [],
+ "ext1|otc|sharia": [],
+ "ext1|otc|band0": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext1|otc|band1": [],
+ "ext1|otc|band2": [],
+ "ext1|otc|band3": [],
+ "ext1|otc|band4": [],
+ "ext1|otc|band5": [],
+ "ext1|otc|sig-oversold": [],
+ "ext1|otc|sig-overbought": [
+  "FREDF",
+  "IVHI",
+  "AMRLL",
+  "RLBD"
+ ],
+ "ext1|otc|sig-uptrend": [],
+ "ext1|otc|sig-downtrend": [],
+ "cards": [
+  "نظرة على السوق (1 سهم) ▲ مرتفع 1 ثابت 0 ▼ منخفض 0 قيمة التداول $10.49B أسهم بسيولة عالية (2×+) 7 أسهم عند قمة اليوم 7",
+  "🚀 أقوى زخم (آخر 5 دقائق) —",
+  "💧 أعلى سيولة نسبية INNI $5.00 2,413.4× 0.0% BRAI $3.05 34.0× +43.9% SGRY $23.25 18.9× +47.6% XXII $0.1426 5.5× +61.3% ASE1 $4.20 4.0× +5.0%",
+  "💰 الأعلى قيمة تداول AAPL $230.90 $9.22B +1.3% SGRY $23.25 $1.22B +47.6% BRAI $3.05 $12.2M +43.9% INNI $5.00 $12.1M 0.0% PRE1 $12.00 $7.0M +9.1%"
+ ],
+ "errors": []
+}
