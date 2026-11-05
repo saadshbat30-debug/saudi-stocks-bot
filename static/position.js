@@ -20,7 +20,8 @@
 
   // السهم المعروض: سهم الصفحة إن كانت له صفقة، وإلا آخر صفقة فُتحت، وإلا سهم الصفحة
   let sym = (PAGE && all()[PAGE]) ? PAGE : load(ACTIVE, null) && all()[load(ACTIVE, null)] ? load(ACTIVE, null) : PAGE;
-  let prices = {}, pushed = {}, purify = {}, ui = load(UI, { min: false });
+  // على شاشة الجوال تبدأ مصغّرة حتى لا تغطي الشارت (ما لم يكن صاحبها حفظ اختيارًا)
+let prices = {}, pushed = {}, purify = {}, ui = load(UI, { min: window.innerWidth < 700 });
   if ("x" in ui || "y" in ui) { delete ui.x; delete ui.y; save(UI, ui); }
 
   const css = document.createElement("style");
