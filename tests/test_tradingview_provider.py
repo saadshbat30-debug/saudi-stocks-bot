@@ -166,6 +166,22 @@ class TestBars(unittest.TestCase):
         self.assertEqual(len(out), 3)  # لا شموع مصطنعة
         self.assertEqual(meta["gaps"], {"missing": 3, "largest_min": 3})
 
+    def test_no_delete_for_sessions_of_previous_connection(self):
+        old = self.s.cs
+        self.p._setup()  # اتصال جديد: جلسة السلسلة القديمة لم تعد موجودة عند الخادم
+        stale = tvp._Series(("NASDAQ:AAPL", "1m", False), 10)
+        stale.cs, stale.gen = "cs_old", self.p.gen - 1
+        self.p.series[stale.key] = stale
+        self.p.client.sent.clear()
+        self.p._close_series(stale)
+        self.assertNotIn(("chart_delete_session", ["cs_old"]), self.p.client.sent)
+        end = time.time() + 5
+        while self.s.cs == old and time.time() < end:
+            time.sleep(0.02)
+        self.p.client.sent.clear()
+        self.p._close_series(self.s)
+        self.assertIn(("chart_delete_session", [self.s.cs]), self.p.client.sent)
+
     def test_series_error_then_retry_waits(self):
         self.p._on_series_error([self.cs, "invalid symbol"])
         self.assertTrue(self.s.error)

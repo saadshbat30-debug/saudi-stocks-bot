@@ -237,6 +237,7 @@ class _Series:
         self.resyncs = 0
         self.duplicates = 0  # نقاط مكررة بنفس القيم (تُتجاهل)
         self.error_at = 0.0
+        self.gen = -1
 
 
 class Provider:
@@ -255,6 +256,7 @@ class Provider:
         self.latency = []   # (وقت الاستلام − وقت الصفقة) لآخر 500 صفقة في الجلسة الرسمية
         self._temp = {}     # جلسات التاريخ المؤقتة
         self.limiter = _Limiter(SESSION_RATE, SESSION_BURST)
+        self.gen = 0  # رقم الاتصال الحالي: جلسات الاتصال السابق لا وجود لها عند الخادم
         self.rate_errors = 0
         self.daily_cache = {}  # الرمز ← {"at": وقت الجلب، "bars": [...]}
         self.daily_lock = threading.Lock()
@@ -298,6 +300,7 @@ class Provider:
     def _setup(self):
         """بعد كل اتصال (الأول وكل إعادة اتصال): جلسة أسعار جديدة بكل الرموز، وكل جلسات الشموع المفتوحة."""
         with self.lock:
+            self.gen += 1
             self.qs = protocol.session_id("qs")
             tvs = [s["cands"][s["i"]] for s in self.syms.values() if s["status"] != "unavailable"]
             series = list(self.series.values())
@@ -464,6 +467,7 @@ class Provider:
             if s.cs:
                 self.by_cs.pop(s.cs, None)
             s.cs = cs
+            s.gen = self.gen
             s.done.clear()
             s.error = None
             self.by_cs[cs] = s.key if not s.temp else (s.key, id(s))
@@ -481,7 +485,9 @@ class Provider:
                 del self.series[s.key]
             cs = s.cs
             self.by_cs.pop(cs, None)
-        if cs:
+            current = s.gen == self.gen
+        # حذف جلسة من اتصال سابق يرد عليه الخادم بخطأ unknown_session_id، فلا يُرسل
+        if cs and current:
             self._send("chart_delete_session", [cs])
 
     def _series_for(self, cs):
