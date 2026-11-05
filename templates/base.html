@@ -102,8 +102,18 @@ async function loadStatus() {
       (st.screener_error ? `<div style="opacity:.7;font-size:12px;direction:ltr;text-align:left;margin-top:4px">${st.screener_error.replace(/[<>&]/g, "")}</div>` : "");
     const ss = document.getElementById("stream-status"), s = st.stream;
     const ok = s.connected && s.last_tick_age != null && s.last_tick_age < 120;
-    ss.textContent = ok ? "⚡ البث متصل" : s.connected ? "⚡ البث متصل (بلا صفقات)" : "البث غير متصل";
-    ss.className = "session " + (ok ? "open" : "ext");
+    if (s.installed !== undefined) {
+      // TradingView عبر tvscraper: متصل / متأخر / منقطع
+      ss.textContent = s.state === "disconnected" ? "TradingView منقطع" : s.state === "delayed" ? "TradingView متأخر" : ok ? "⚡ TradingView متصل" : "TradingView متصل (بلا صفقات)";
+      ss.className = "session " + (ok && s.state === "connected" ? "open" : "ext");
+      ss.title = [`مصدر الأسعار والشموع: ${s.source}`, `الرموز: ${s.symbols.ok} متاح · ${s.delayed_symbols} متأخر (OTC 15 دقيقة) · ${s.symbols.unavailable} غير موجود في TradingView`,
+        `آخر رسالة قبل ${s.last_message_age ?? "—"} ث · إعادات الاتصال: ${s.reconnects}${s.last_error ? " · آخر خطأ: " + s.last_error : ""}`,
+        s.latency_median_s != null ? `التأخير المقيس (وقت الاستلام − وقت الصفقة): الوسيط ${s.latency_median_s} ث، 90% ≤ ${s.latency_p90_s} ث (${s.latency_samples} صفقة)` : "التأخير المقيس: لا صفقات في الجلسة الرسمية بعد",
+        "قائمة السوق والبيانات الأساسية من ماسح ياهو"].join("\n");
+    } else {
+      ss.textContent = ok ? "⚡ البث متصل" : s.connected ? "⚡ البث متصل (بلا صفقات)" : "البث غير متصل";
+      ss.className = "session " + (ok ? "open" : "ext");
+    }
   } catch {}
 }
 renderSession(); loadIndices(); loadStatus(); setInterval(loadStatus, 15000);

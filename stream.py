@@ -1,4 +1,10 @@
-"""بث مباشر للأسعار من ياهو (WebSocket) — كل صفقة تصل لحظة حدوثها."""
+"""بث مباشر للأسعار — كل صفقة تصل لحظة حدوثها.
+
+المصدر يُختار بالمتغير DATA_SOURCE:
+- tradingview (الافتراضي): TradingView عبر tvscraper (services/tradingview_provider.py).
+- yahoo: بث ياهو (WebSocket) كما كان — خيار رجوع.
+المصدران يملآن نفس المخازن (_prices، _ext_prices، _hist، _tape) فتبقى معادلات المنصة كما هي.
+"""
 import os
 import threading
 import time
@@ -9,6 +15,7 @@ from zoneinfo import ZoneInfo
 import yfinance as yf
 
 REGULAR_MARKET = 1  # market_hours في رسائل ياهو: 0 قبل الافتتاح، 1 الجلسة، 2 بعد الإغلاق
+DATA_SOURCE = os.environ.get("DATA_SOURCE", "tradingview").strip().lower()
 
 _prices = {}  # الرمز ← آخر سعر من البث (الجلسة الرسمية)
 _ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بعد الإغلاق
@@ -34,6 +41,10 @@ _lock = threading.Lock()
 
 
 def status():
+    p = tv()
+    if p:
+        s = p.status()
+        return {**s, "connections": f"{int(s['connected'])}/1", "error": _tv["error"]}
     with _lock:
         connected = sum(1 for sh in _shards if sh["ws"] is not None and sh["ws"]._ws is not None)
         total = len(_shards)
@@ -41,25 +52,23 @@ def status():
     last = max((p["at"] for p in list(_prices.values()) + list(_ext_prices.values()) + list(_night_prices.values())), default=0)
     ticking = sum(1 for p in list(_prices.values()) + list(_ext_prices.values()) if now - p["at"] < 60)
     return {"connected": connected > 0, "connections": f"{connected}/{total}", "watching": len(_wanted),
-            "ticking_1m": ticking, "last_tick_age": now - last if last else None}
+            "ticking_1m": ticking, "last_tick_age": now - last if last else None,
+            "source": "ياهو (WebSocket)", "tv_error": _tv["error"]}
 
 
-def _on_message(msg):
-    symbol, price = msg.get("id"), msg.get("price")
-    if not symbol or price is None:
-        return
+def _record(symbol, price, vol, trade_time, regular, change, change_pct, src, night=False):
+    """صفقة/تحديث واحد من أي مصدر إلى المخازن المشتركة."""
     # شريط الصفقات: الكمية = الزيادة في حجم اليوم منذ الرسالة السابقة
-    vol = int(msg.get("day_volume", 0) or 0)
     prev = _last_volume.get(symbol)
     _last_volume[symbol] = vol
     if prev is not None and vol > prev:
         _tape.setdefault(symbol, deque(maxlen=300)).append({
-            "time": int(msg.get("time", 0) or 0) / 1000 or time.time(),
+            "time": trade_time or time.time(),
             "price": price,
             "size": vol - prev,
-            "session": "regular" if msg.get("market_hours", 0) == REGULAR_MARKET else "ext",
+            "session": "regular" if regular else "ext",
         })
-    if msg.get("market_hours", 0) == REGULAR_MARKET:
+    if regular:
         now = time.time()
         h = _hist.setdefault(symbol, deque())
         h.append((now, price, vol or (h[-1][2] if h else 0)))
@@ -68,16 +77,87 @@ def _on_message(msg):
             h.popleft()
         target = _prices
     else:
-        target = _night_prices if is_overnight() else _ext_prices
+        target = _night_prices if night else _ext_prices
     target[symbol] = {
         "price": price,
-        "change": msg.get("change"),
-        "change_pct": msg.get("change_percent"),
-        "volume": int(msg.get("day_volume", 0) or 0),
+        "change": change,
+        "change_pct": change_pct,
+        "volume": vol,
         "at": time.time(),
-        # وقت الصفقة من ياهو (بالملي ثانية) لمقارنته بوقت بيانات الماسح
-        "trade_time": int(msg.get("time", 0) or 0) / 1000 or time.time(),
+        # وقت الصفقة من المصدر لمقارنته بوقت بيانات الماسح
+        "trade_time": trade_time or time.time(),
+        "src": src,
     }
+
+
+def _on_message(msg):
+    symbol, price = msg.get("id"), msg.get("price")
+    if not symbol or price is None:
+        return
+    regular = msg.get("market_hours", 0) == REGULAR_MARKET
+    _record(symbol, price, int(msg.get("day_volume", 0) or 0), int(msg.get("time", 0) or 0) / 1000,
+            regular, msg.get("change"), msg.get("change_percent"), "yahoo", night=not regular and is_overnight())
+
+
+# ===== TradingView =====
+_tv = {"p": None, "error": None}
+_tv_lock = threading.Lock()
+_delayed = {}  # الرمز ← آخر سعر متأخر من TradingView (OTC متأخر 15 دقيقة) — لا يُعامل كسعر لحظي
+
+
+def tv():
+    """مزود TradingView إذا كان هو المصدر المختار ومكتبته مثبتة، وإلا None (تعمل المنصة ببث ياهو)."""
+    if DATA_SOURCE != "tradingview":
+        return None
+    if _tv["p"] is None and _tv["error"] is None:
+        with _tv_lock:
+            if _tv["p"] is None and _tv["error"] is None:
+                from services import tradingview_provider as tvp
+                if tvp.IMPORT_ERROR:
+                    _tv["error"] = tvp.IMPORT_ERROR
+                    print(f"⚠️ مكتبة tvscraper غير مثبتة ({tvp.IMPORT_ERROR}) — يُستخدم بث ياهو. ثبّتها: py -m pip install -r requirements.txt")
+                else:
+                    _tv["p"] = tvp.get(on_quote=_on_tv_quote)
+    return _tv["p"]
+
+
+def _on_tv_quote(symbol, v, changed, rx, first):
+    from services.tradingview_provider import delay_seconds
+    session = v.get("current_session")
+    vol = int(v.get("volume") or 0)
+    delay = delay_seconds(v.get("update_mode"))
+    if delay:
+        if v.get("lp") is not None:
+            _delayed[symbol] = {"price": v["lp"], "change": v.get("ch"), "change_pct": v.get("chp"), "volume": vol,
+                                "at": rx, "trade_time": v.get("lp_time") or 0, "delay": delay, "src": "tradingview"}
+        return
+    if session == "market":
+        if v.get("lp") is None or not changed & {"lp", "volume", "lp_time", "ch", "chp"}:
+            return
+        # أول لقطة عند الاشتراك ليست صفقة جديدة: تُعتمد فقط إن كانت آخر صفقة خلال دقيقتين (مثل بث ياهو)
+        if first and not (v.get("lp_time") and rx - v["lp_time"] < 120):
+            _last_volume[symbol] = vol
+            return
+        _record(symbol, v["lp"], vol, v.get("lp_time"), True, v.get("ch"), v.get("chp"), "tradingview")
+    elif session in ("pre_market", "post_market"):
+        if v.get("rtc") is None or not changed & {"rtc", "rtc_time", "volume"}:
+            return
+        if first and not (v.get("rtc_time") and rx - v["rtc_time"] < 300):
+            _last_volume[symbol] = vol
+            return
+        _record(symbol, v["rtc"], vol, v.get("rtc_time"), False, v.get("rch"), v.get("rchp"), "tradingview")
+
+
+def hint(mapping):
+    """بورصة كل رمز من الماسح (حتى يُبنى رمز TradingView الصحيح مثل NYSE:F من أول محاولة)."""
+    p = tv()
+    if p:
+        p.hint(mapping)
+
+
+def latest_delayed(symbol, max_age=1200):
+    p = _delayed.get(symbol)
+    return p if p and time.time() - p["at"] < max_age else None
 
 
 def _subscribe(ws, symbols):
@@ -124,6 +204,14 @@ def _heartbeat():
 
 def watch(symbols):
     """يضيف رموزًا للبث، موزعة على عدة اتصالات (كل اتصال SHARD_SIZE رمز)."""
+    p = tv()
+    if p:
+        # الأسهم الأمريكية لـ TradingView، والباقي (مثل الأسهم السعودية .SR) يبقى على بث ياهو
+        from services.tradingview_provider import tv_candidates
+        p.watch([x for x in symbols if tv_candidates(x)])
+        symbols = [x for x in symbols if not tv_candidates(x)]
+        if not symbols:
+            return
     pending = []  # (اتصال، رموز جديدة) للاشتراك خارج القفل
     with _lock:
         new = [s for s in dict.fromkeys(symbols) if s not in _wanted]

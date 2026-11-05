@@ -351,7 +351,7 @@ function nightMsg() {
 // ===== الأعمدة: الترتيب والإظهار قابلان للتعديل ويُحفظان في المتصفح =====
 const rsiCell = q => `<td class="num" ${q.rsi < 30 || q.rsi > 70 ? "style='color:#facc15'" : ""}>${fmt(q.rsi, 1)}</td>`;
 const COLUMNS = [
-  { key: "price", label: "السعر", cell: q => `<td class="num"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi></td>` },
+  { key: "price", label: "السعر", cell: q => `<td class="num" title="${q.src === "tradingview" ? `المصدر: TradingView عبر tvscraper (غير رسمي)${q.delay_min ? ` — متأخر ${q.delay_min} دقيقة` : ""}${q.src_age != null ? ` — آخر تحديث قبل ${q.src_age} ث` : ""}` : "المصدر: ماسح ياهو (يتحدث كل دقيقة)"}"><bdi dir="ltr">${CURRENCY}${fmtPrice(q.price)}</bdi>${q.delay_min ? `<span class="muted" style="font-size:10px"> ⏱${q.delay_min}د</span>` : ""}</td>` },
   { key: "change_pct", label: "التغير %", cell: q => `<td class="num ${cls(q.change_pct)}"><bdi dir="ltr">${signed(q.change_pct)}</bdi></td>` },
   { key: "change", label: "التغير", cell: q => `<td class="num ${cls(q.change)}"><bdi dir="ltr">${signed(q.change, q.price < 1 ? 4 : 2, "")}</bdi></td>` },
   { key: "speed", label: "سرعة 5د", title: "نسبة تغير السعر خلال آخر 5 دقائق",

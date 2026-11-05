@@ -230,7 +230,7 @@
     <input class="st-search" id="st-search" list="st-sym-list" placeholder="🔍 ابحث عن أي سهم: رمز أو اسم ثم Enter" autocomplete="off">
     <datalist id="st-sym-list"></datalist>
   </div>
-  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span></div>
+  <div class="st-price"><b id="k-price">—</b> <span id="k-live"></span> <b id="k-change">—</b> <span class="muted" id="k-session" style="font-size:11px"></span> <span class="muted" id="k-src" style="font-size:11px;cursor:help"></span></div>
   <div class="st-cell" id="k-ext-box" hidden><span class="muted" id="k-ext-label">بعد الإغلاق</span> <span id="k-ext-live"></span><b id="k-ext">—</b></div>
   <div class="st-cell"><span class="muted">افتتاح</span><b id="d-open">—</b></div>
   <div class="st-cell"><span class="muted">أعلى</span><b id="d-high" class="up">—</b></div>
@@ -289,6 +289,7 @@
     <button class="chip" data-interval="1m">1د</button>
     <button class="chip active" data-interval="5m">5د</button>
     <button class="chip" data-interval="15m">15د</button>
+    <button class="chip" data-interval="30m">30د</button>
     <button class="chip" data-interval="1h">ساعة</button>
     <button class="chip" data-interval="1d">يوم</button>
     <button class="chip" data-interval="1w">أسبوع</button>
@@ -476,11 +477,11 @@
     <span>آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
     <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
   </div>
-  <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ</div>
+  <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ · ليس دليلًا على شراء أو بيع مبادر<span id="f-scope"></span></div>
 </div></div>
 </section><section class="pn" data-panel="trades">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
-    <span class="grip">⠿</span><b>🧾 الصفقات</b><div class="pn-tools"><label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
+    <span class="grip">⠿</span><b title="فروق الحجم التراكمي لليوم بين تحديثين متتاليين من المصدر — قد يجمع السطر عدة صفقات، وليس صفقات منفردة">🧾 الصفقات</b><div class="pn-tools"><label class="muted" style="font-size:12px"><input type="checkbox" id="big-only"> الكبيرة فقط ≥
         <select id="big-min" style="background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px">
           <option value="5000">$5K</option><option value="10000" selected>$10K</option><option value="50000">$50K</option><option value="100000">$100K</option>
         </select></label></div>
@@ -612,8 +613,8 @@ if (IS_SA) window.marketSession = function () {
   if (m >= 910 && m < 920) return ["التداول على سعر الإغلاق", "auction"];
   return ["السوق مغلق", ""];
 };
-const STEP = { "1m": 60, "5m": 300, "15m": 900 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
-let interval = "5m", bars = [], lastQuote = null;
+const STEP = { "1m": 60, "5m": 300, "15m": 900, "30m": 1800 };  // الفواصل التي تُبنى شمعتها الجديدة من البث
+let interval = "5m", bars = [], lastQuote = null, chartMeta = {};
 
 // ===== الشموع الشاذة: قيمة تبعد 80% أو أكثر عن الشمعتين المجاورتين وتعود بعدها (خطأ بيانات أو صفقة شاذة) =====
 // الشارت يعرض البيانات كما وصلت دائمًا. عند تفعيل «تجاهل الشاذة» تحسب المؤشرات بنسخة تُستبعد فيها القيمة
@@ -868,7 +869,7 @@ function showLegend(b, prev) {
     <span>O <b>${fmtP(b.open)}</b></span><span>H <b style="color:#22c55e">${fmtP(b.high)}</b></span>
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
-    <span>Vol <b>${fmtV(b.volume)}</b></span>${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
+    <span>Vol <b>${fmtV(b.volume)}</b>${chartMeta.volume_scope ? ` <span class="muted" title="${chartMeta.volume_scope === "Cboe One فقط" ? "في الدخول المجهول لـ TradingView حجم شموع ما داخل اليوم من بورصات Cboe وحدها (قِيس: نحو 5–15% من حجم السوق الموحد في ياهو). الشموع اليومية فما فوق حجمها كامل" : chartMeta.volume_scope}">(${chartMeta.volume_scope})</span>` : ""}</span>${b.closed === false ? `<span style="color:#facc15" title="الشمعة لم تُغلق بعد: أعلاها وأدناها وإغلاقها وحجمها ما زالت تتغير">⏳ جارية</span>` : b.closed === true ? `<span class="muted">✓ مغلقة</span>` : ""}${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
     (bad => bad ? `<span style="color:#facc15">⚠ قيمة شاذة: ${bad.bad.map(([k, v]) => `${k} ${fmtP(v)}`).join(" ")}${overlays.includes("clean") ? " (مستبعدة من المؤشرات)" : ""}</span>` : "")(badTicks().map.get(bars.indexOf(b))) +
     (setTimeout(() => window.positionDayBox && positionDayBox(), 0), "") +
     (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
@@ -889,10 +890,10 @@ window.swingZones = initSwingZones({ chart, series: candles, container: el, getB
 
 // الموجات (تعليمي): كل موجة في مربع مع القمم والقيعان والاتجاه
 window.waves = initWaves({ chart, series: candles, container: el, getBars: () => indBars(),
-  nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => ({ "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 })[interval] || 300 });
+  nowS: () => Math.floor(Date.now() / 1000) + 3 * 3600, step: () => ({ "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 })[interval] || 300 });
 
 // Opening Candle Indicator: السوق الافتراضي حسب سوق الصفحة
-const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
+const BAR_SEC = { "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "1d": 86400, "1w": 604800, "1mo": 2592000 };
 window.openingCandle = initOpeningCandle({
   chart, series: candles, container: el, getBars: () => indBars(),
   dayOf: t => Math.floor((t - 7 * 3600) / 86400),  // يوم التداول بتوقيت نيويورك مثل VWAP المنصة
@@ -929,7 +930,9 @@ const maData = () => smaData(20);
 async function loadChart(fit) {
   try {
     const data = await (await fetch(`/api/chart/${encodeURIComponent(SYMBOL)}?interval=${interval}`)).json();
+    try { chartMeta = await (await fetch(`/api/chart_meta/${encodeURIComponent(SYMBOL)}?interval=${interval}`)).json(); } catch { chartMeta = {}; }
     document.getElementById("chart-empty").hidden = data.length > 0;
+    if (!data.length && chartMeta.error) document.getElementById("chart-empty").textContent = `لا توجد بيانات لهذا الفاصل — ${chartMeta.error}`;
     if (!data.length) return;
     bars = data;
     precisionFor(bars[bars.length - 1].close);
@@ -976,8 +979,10 @@ function applyLive(q) {
   if (step && now - (now % step) > last.time) {
     const t = now - (now % step);
     // شمعة تُبنى في المتصفح من السعر اللحظي (ياهو لا يرسل شموع التداول الليلي ولا حجمه)
+    if (last.closed === false) last.closed = true;  // بدأت شمعة جديدة: السابقة أُغلقت
     bars.push({ time: t, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0, built: session });
   } else {
+    if (last.closed === true) return;  // شمعة مغلقة من المصدر (مثل اليومية بعد الإغلاق) لا يغيّرها سعر ما بعد الجلسة
     last.close = q.price;
     last.high = Math.max(last.high, q.price);
     last.low = Math.min(last.low, q.price);
@@ -992,7 +997,7 @@ function applyLive(q) {
 }
 
 // عداد إغلاق الشمعة: الوقت المتبقي حتى تُغلق الشمعة الحالية حسب الفاصل، تحت ملصق السعر على المحور
-const SPAN = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600 };
+const SPAN = { "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600 };
 // الثواني المتبقية لإغلاق الشمعة الحالية حسب الفاصل (null إذا لا يُعرف)
 // ===== لوحة شراء/بيع: تُسحب لأي مكان داخل الشارت ويُحفظ مكانها =====
 const bsPad = document.getElementById("bs-pad"), chartBox = bsPad.parentElement;
@@ -1016,7 +1021,7 @@ bsPad.addEventListener("pointerdown", e => {
   bsPad.addEventListener("pointermove", move); bsPad.addEventListener("pointerup", up);
 });
 new ResizeObserver(() => placeBsPad()).observe(chartBox);
-const TF_NAME = { "1m": "دقيقة", "5m": "5 دقائق", "15m": "15 دقيقة", "1h": "ساعة", "1d": "يوم", "1w": "أسبوع", "1mo": "شهر" };
+const TF_NAME = { "1m": "دقيقة", "5m": "5 دقائق", "15m": "15 دقيقة", "30m": "30 دقيقة", "1h": "ساعة", "1d": "يوم", "1w": "أسبوع", "1mo": "شهر" };
 function bsPadTick(left) {
   bsPad.hidden = !overlays.includes("bs") || !document.getElementById("tv_chart").hidden;
   if (bsPad.hidden) return;
@@ -1120,11 +1125,24 @@ async function loadKpis() {
     window.PositionWidget?.price(SYMBOL, mainPx);
     window.sessionPx = mainPx;  // سعر الجلسة الحالية (الرسمية أو قبل/بعد) — تعتمد عليه تنبيهات السعر
     document.getElementById("k-price").textContent = CURRENCY + f(mainPx, mainPx < 1 ? 4 : 2);
-    document.getElementById("k-live").innerHTML = (inExt ? xlive : q.live) ? live : "";
+    document.getElementById("k-live").innerHTML = (inExt ? xlive : q.live) ? (q.source ? live.replace("سعر لحظي", "تحديث مباشر من TradingView (غير رسمي)") : live) : "";
     const ch = document.getElementById("k-change");
     ch.textContent = `${mainPct >= 0 ? "+" : ""}${f(mainPct)}%`; ch.className = mainPct >= 0 ? "up" : "down";
     ch.title = inExt ? `${extLabel}: التغير عن إغلاق الجلسة الرسمية` : "التغير عن إغلاق أمس";
     document.getElementById("k-session").textContent = inExt ? extLabel : "";
+    // مصدر البيانات وحالته (شفافية): المصدر، وقت آخر تحديث، العمر، حالة الاتصال، التأخير المعلن
+    {
+      const m = q.source, el = document.getElementById("k-src");
+      if (m) {
+        const ST = { connected: "🟢 متصل", delayed: "🟠 متأخر", disconnected: "🔴 منقطع", unavailable: "⚪ غير متاح", pending: "⏳ جارٍ الاتصال" };
+        const ts = t => t ? new Date(t * 1000).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", hour12: false }) + " (الرياض)" : "—";
+        el.textContent = `TradingView · ${ST[m.state] || m.state}${m.age != null ? ` · قبل ${m.age}ث` : ""}${m.delay_s ? ` · متأخر ${Math.round(m.delay_s / 60)} د` : ""}`;
+        el.title = [`المصدر: ${m.src}`, m.tv_symbol ? `الرمز: ${m.tv_symbol}` : "", m.feed ? `تغذية الأسعار المعلنة: ${m.feed}` : "",
+          `التحديث المعلن من المصدر: ${m.update_mode || "—"}`, `آخر رسالة: ${ts(m.updated_at)} — عمرها ${m.age ?? "—"} ثانية`,
+          `وقت آخر صفقة: ${ts(m.trade_time)}${m.trade_age != null ? ` — قبل ${m.trade_age} ثانية` : ""}`, `الجلسة حسب المصدر: ${m.session || "—"}`,
+          "لم يُعتمد وصف «لحظي رسمي»: التأخير الفعلي يُقاس في /api/status"].filter(Boolean).join("\n");
+      } else el.textContent = "";
+    }
     // بيانات السوق السعودي من ياهو متأخرة (عادةً 15 دقيقة): يُكتب ذلك صراحة
     if (IS_SA && q.delay_min) document.getElementById("k-session").textContent = `⏱ متأخر ${q.delay_min} دقيقة (ياهو)`;
     document.getElementById("k-rsi").textContent = f(q.rsi, 1);
@@ -1207,6 +1225,7 @@ async function loadFlow() {
     const f = await (await fetch(`/api/flow/${encodeURIComponent(SYMBOL)}`)).json();
     setText("f-volume", qty(f.volume));
     setText("f-value", money(f.value));
+    document.getElementById("f-scope").textContent = f.volume_scope === "Cboe One فقط" ? " · حجم شموع الدقيقة من Cboe One فقط (النسب منه، والإجمالي من حجم اليوم الكامل)" : "";
     setText("f-vwap", f.vwap == null ? "—" : "$" + f.vwap.toFixed(f.vwap < 1 ? 4 : 2), f.vwap && f.price ? (f.price >= f.vwap ? "up" : "down") : "");
     setText("f-ratio", f.vol_ratio == null ? "—" : f.vol_ratio.toFixed(2) + "×", f.vol_ratio >= 2 ? "up" : "");
     setText("f-turnover", f.turnover == null ? "—" : f.turnover.toFixed(2) + "%");
@@ -1743,7 +1762,7 @@ async function loadTrades() {
       <td><bdi dir="ltr">${t.size.toLocaleString("en-US")}</bdi></td><td><bdi dir="ltr">${moneyS(value)}</bdi></td></tr>`;
   }).join("");
   el.innerHTML = rowsHtml || `<tr><td colspan="4" class="muted">لا توجد صفقات بهذا الحجم</td></tr>`;
-  foot.innerHTML = `آخر ${list.length} صفقة · شراء (صعود) <b class="up">${moneyS(buy)}</b> · بيع (هبوط) <b class="down">${moneyS(sell)}</b> · الصافي <b class="${buy - sell >= 0 ? "up" : "down"}">${moneyS(buy - sell)}</b>`;
+  foot.innerHTML = `آخر ${list.length} صفقة · على صعود <b class="up">${moneyS(buy)}</b> · على هبوط <b class="down">${moneyS(sell)}</b> · الصافي <b class="${buy - sell >= 0 ? "up" : "down"}">${moneyS(buy - sell)}</b>`;
 }
 document.getElementById("big-only").onchange = loadTrades;
 document.getElementById("big-min").onchange = loadTrades;

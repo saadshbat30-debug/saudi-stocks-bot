@@ -21,7 +21,67 @@ def valid_symbol(symbol):
     return bool(SYMBOL_RE.match(symbol))
 
 
+# ===== مصدر البيانات: TradingView (افتراضي) أو ياهو (DATA_SOURCE=yahoo) =====
+# ما لا يوفره TradingView يبقى من ياهو: قائمة السوق (الماسح)، ومتوسط حجم 3 أشهر، والأسهم القائمة والحرة،
+# والقيمة السوقية وP/E وP/B، والتداول الليلي، والعقود، والتاريخ القديم لاختبار الأخبار.
+_TV_PERIOD_MONTHS = {"5d": None, "3mo": 3, "6mo": 6}
+
+
+def _tv_us(symbols):
+    from services.tradingview_provider import tv_candidates
+    return [s for s in symbols if tv_candidates(s)] if stream.tv() else []
+
+
+def _download_tv(symbols, period):
+    """شموع يومية من TradingView بنفس شكل جدول ياهو (Open/High/Low/Close/Volume) ونفس المدة الزمنية."""
+    import pandas as pd
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ny = ZoneInfo("America/New_York")
+    months = _TV_PERIOD_MONTHS.get(period)
+    stream.watch(["^GSPC"])
+    # التحميل الجماعي (قائمة السوق) في الخلفية، وطلب سهم واحد أو قائمة متابعة صغيرة بأولوية
+    data = stream.tv().daily_cached(symbols, count=5 if period == "5d" else months * 23 + 15, background=len(symbols) > 5)
+    today = datetime.now(ny).date()
+    started = _session_started_today(ny)
+    # مثل مدة ياهو (range=3mo): الشموع التي يبدأ يومها بعد لحظة «الآن − N أشهر» (قِيس: 2026-11-05 22:40 UTC → أول شمعة 08-06)
+    since = (pd.Timestamp.now(tz="UTC") - pd.DateOffset(months=months)).timestamp() if months else None
+    frames = {}
+    for sym, bars in data.items():
+        rows = [b for b in bars if since is None or b[0] >= since]
+        if rows and started and datetime.fromtimestamp(rows[-1][0], ny).date() < today:
+            # الشموع المحفوظة تنتهي بالأمس: خانة لليوم كما في ياهو بعد الافتتاح (يحل محلها السعر الحالي،
+            # وتُستبعد من متوسط الحجم بـ [:-1]) — فلا تتغير نتيجة المؤشرات عن تاريخ ياهو
+            rows = rows + [(int(datetime(today.year, today.month, today.day, tzinfo=ny).timestamp()), *rows[-1][4:5] * 4, 0)]
+        if rows:
+            # حجم المؤشرات غير متاح في المصدر: صفر هنا حتى لا تُحسب منه نسبة سيولة (vol_ratio تبقى فارغة)
+            frames[sym] = pd.DataFrame([(*b[1:5], b[5] or 0) for b in rows], columns=["Open", "High", "Low", "Close", "Volume"],
+                                       index=pd.to_datetime([b[0] for b in rows], unit="s", utc=True).tz_convert(ny))
+    return frames
+
+
+def _session_started_today(ny):
+    """هل بدأت جلسة اليوم الرسمية؟ من وقت آخر صفقة في مؤشر S&P 500 (يراعي العطل)، أو من الساعة إن لم يتوفر."""
+    from datetime import datetime
+    now = datetime.now(ny)
+    q = stream.tv().quote("^GSPC")
+    t = (q or {}).get("v", {}).get("lp_time")
+    if t:
+        return datetime.fromtimestamp(t, ny).date() == now.date()
+    return now.weekday() < 5 and now.hour * 60 + now.minute >= 9 * 60 + 30
+
+
 def _download(symbols, period):
+    tv_syms = _tv_us(symbols)
+    frames = _download_tv(tv_syms, period) if tv_syms else {}
+    symbols = [s for s in symbols if s not in tv_syms]
+    if not symbols:
+        return frames
+    frames.update(_download_yf(symbols, period))
+    return frames
+
+
+def _download_yf(symbols, period):
     data = yf.download(
         symbols,
         period=period,
@@ -98,6 +158,7 @@ def get_quotes(symbols):
     stream.watch(symbols)
     result = {}
     single = symbols[0] if len(symbols) == 1 else None  # صفحة سهم: عرض وطلب أحدث من نقطة الأسعار
+    tv_syms = set(_tv_us(symbols))
     for s in symbols:
         row = row_for(s)
         if row:
@@ -114,16 +175,28 @@ def get_quotes(symbols):
                 r, s20 = rsi(closes), sma(closes, 20)
                 result[s]["rsi"] = round(r, 1) if r is not None else None
                 result[s]["sma20"] = round(s20, 2) if s20 else None
-    if single and single in result:
+    # العرض والطلب من TradingView في الدخول المجهول هما أفضل سعرين على Cboe One فقط (ليسا NBBO) فلا يُعرضان
+    if single and single in result and single not in tv_syms:
         rq = _raw_for([single], max_age=10).get(single)
         if rq:
             result[single] = {**result[single], "bid": rq.get("bid") or None, "ask": rq.get("ask") or None,
                               "bid_size": rq.get("bidSize"), "ask_size": rq.get("askSize")}
+    for s in result:
+        if s in tv_syms:
+            result[s] = {**result[s], "source": stream.tv().meta(s)}
     symbols = [s for s in symbols if s not in result]
     if not symbols:
         return result
-    raw = _raw_for(symbols)  # الافتتاح والأعلى والأدنى ومدة تأخير البيانات من نقطة الأسعار (قبل القفل)
+    # الافتتاح والأعلى والأدنى ومدة تأخير البيانات: من TradingView للأسهم الأمريكية، ومن نقطة أسعار ياهو للباقي
+    raw = _raw_for([s for s in symbols if s not in tv_syms])
+    tvq = {s: stream.tv().quote(s) for s in symbols if s in tv_syms}
     with _lock:
+        now = time.time()
+        for s, q in tvq.items():
+            v = (q or {}).get("v") or {}
+            if v.get("lp") is not None and v.get("prev_close_price"):
+                _quotes[s] = {"price": v["lp"], "prev_close": v["prev_close_price"],
+                              "volume": int(v["volume"]) if v.get("volume") is not None else None, "at": now}
         _refresh(_quotes, symbols, "5d", CACHE_SECONDS, _snapshot)
         _refresh(_history, symbols, "6mo", HISTORY_CACHE_SECONDS, _closes)
         for s in symbols:
@@ -168,6 +241,20 @@ def get_quotes(symbols):
                     pass
                 item["delay_min"] = rq.get("exchangeDataDelayedBy")  # ياهو: كم دقيقة تتأخر بيانات هذه البورصة
                 item["currency_code"] = rq.get("currency")
+            v = ((tvq.get(s) or {}).get("v")) or {}
+            if v:
+                pr = lambda x: _price_round(x) if isinstance(x, (int, float)) else None
+                item.update({k: val for k, val in {
+                    "open": pr(v.get("open_price")), "day_high": pr(v.get("high_price")), "day_low": pr(v.get("low_price")),
+                    "prev_close": pr(v.get("prev_close_price")), "high52": pr(v.get("price_52_week_high")),
+                    "low52": pr(v.get("price_52_week_low")), "market_cap": v.get("market_cap_basic"),
+                    "exchange": v.get("listed_exchange"), "currency_code": v.get("currency_code")}.items() if val is not None})
+                d = (stream.tv().meta(s) or {}).get("delay_s")
+                item["delay_min"] = round(d / 60) if d else 0
+                if d:
+                    item.pop("live", None)  # سعر متأخر لا يوصف بأنه لحظي
+            if s in tv_syms:
+                item["source"] = stream.tv().meta(s)
             result[s] = item
         return result
 
@@ -504,6 +591,7 @@ def get_market(market_id):
                 rows = [r for r in map(_row, quotes) if r]
                 if rows:
                     cached = _markets[market_id] = {"rows": rows, "at": now}
+                    stream.hint({r["symbol"]: (r["exchange"], r["otc"]) for r in rows})
                     stream.watch([r["symbol"] for r in rows])
                     extras.start_floats(_float_priority)
                     breakout.start(lambda: (_markets.get(market_id) or {}).get("rows", []))
@@ -566,6 +654,21 @@ def _enrich(r, now):
     quote_time = r.pop("quote_time", 0)
     if live and live["trade_time"] < quote_time:
         live = None  # الماسح أحدث من آخر صفقة وصلت من البث
+    delayed = None
+    if not live and stream.tv():
+        d = stream.latest_delayed(symbol)
+        if d and d["trade_time"] >= quote_time:
+            delayed = d  # TradingView متأخر (OTC 15 دقيقة) لكنه أحدث من الماسح: يُعرض دون وصفه بأنه لحظي
+    if delayed:
+        r["price"] = delayed["price"]
+        if delayed["change"] is not None:
+            r["change"] = delayed["change"]
+        if delayed["change_pct"] is not None:
+            r["change_pct"] = delayed["change_pct"]
+        if delayed["volume"]:
+            r["volume"] = delayed["volume"]
+        r["delay_min"] = round(delayed["delay"] / 60)
+    r["src"] = (live or delayed or {}).get("src") or "yahoo"
     if live:
         # السعر اللحظي من البث يتقدم على بيانات الماسح
         r["price"] = live["price"]
@@ -576,6 +679,7 @@ def _enrich(r, now):
         if live["volume"]:
             r["volume"] = live["volume"]
         r["live"] = True
+        r["src_age"] = round(now - live["at"])
     price = r["price"]
     if r["day_high"] is not None:
         r["day_high"] = max(r["day_high"], price)
@@ -655,6 +759,7 @@ CHART_INTERVALS = {
     "1m": ("2d", "1m", 15),
     "5m": ("5d", "5m", 30),
     "15m": ("1mo", "15m", 60),
+    "30m": ("1mo", "30m", 60),
     "1h": ("3mo", "60m", 300),
     "1d": ("2y", "1d", 600),
     "1w": ("10y", "1wk", 3600),
@@ -666,8 +771,14 @@ _charts = {}
 
 
 def get_chart(symbol, interval, prepost=False):
-    period, yf_interval, max_age = CHART_INTERVALS[interval]
     key = (symbol, interval, prepost)
+    if _tv_us([symbol]):
+        # TradingView: الجلسة تبقى مفتوحة في الخلفية، فالطلب يقرأ من الذاكرة ولا يفتح اتصالًا جديدًا
+        bars, meta = stream.tv().bars(symbol, interval, extended=prepost)
+        out = [{**b, "time": b["time"] + RIYADH_OFFSET} for b in bars]
+        _charts[key] = {"bars": out, "at": time.time(), "meta": meta}
+        return out
+    period, yf_interval, max_age = CHART_INTERVALS[interval]
     cached = _charts.get(key)
     if cached and time.time() - cached["at"] < max_age:
         return cached["bars"]
@@ -686,8 +797,20 @@ def get_chart(symbol, interval, prepost=False):
             "close": float(row["Close"]),
             "volume": int(row["Volume"] or 0),
         })
-    _charts[key] = {"bars": bars, "at": time.time()}
+    _charts[key] = {"bars": bars, "at": time.time(), "meta": {"src": "ياهو (yfinance)"}}
     return bars
+
+
+def chart_meta(symbol, interval, prepost=False):
+    """مصدر الشموع وحالتها: جارية/مغلقة، الفجوات، التصحيحات، نطاق الحجم."""
+    c = _charts.get((symbol, interval, prepost))
+    if not c:
+        return {}
+    m = dict(c.get("meta") or {})
+    bars = c["bars"]
+    if bars:
+        m["last_bar_closed"] = bars[-1].get("closed")
+    return m
 
 
 def name_for(symbol):
@@ -782,6 +905,8 @@ def get_flow(symbol):
         "turnover": quote.get("turnover"),
         "speed": quote.get("speed"),
         "live": bool(quote.get("live")),
+        # تقدير من موقع إغلاق كل شمعة، وليس صفقات شراء/بيع مبادرة. حجم شموع TradingView من Cboe One فقط
+        "volume_scope": chart_meta(symbol, "1m", True).get("volume_scope"),
         **_flow_dict(inflow * scale, outflow * scale),
         **recent,
     }

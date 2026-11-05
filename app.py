@@ -12,7 +12,7 @@ import options
 from alerts import send_telegram, start_alerts
 from config import SAUDI_URL, ALERT_PCT, ALERT_SPEED, ALERT_VOL_RATIO, INDICES, LOW_FLOAT, MARKETS, find_stock
 import stream
-from market import STATUS, row_for, raw_quotes, screener_age, watch_night, CHART_INTERVALS, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
+from market import STATUS, row_for, raw_quotes, screener_age, watch_night, CHART_INTERVALS, chart_meta, get_chart, get_flow, get_market, get_quotes, name_for, raw_quote, valid_symbol
 
 app = Flask(__name__)
 # إخفاء سطور الطلبات العادية حتى تظهر رسائل المنصة المهمة فقط
@@ -78,7 +78,20 @@ def api_chart(symbol):
     if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
         abort(404)
     # شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق (مثل موموو)، والشموع اليومية للجلسة الرسمية
-    return jsonify(get_chart(symbol, interval, prepost=interval in ("1m", "5m", "15m", "1h")))
+    return jsonify(get_chart(symbol, interval, prepost=interval in PREPOST_INTERVALS))
+
+
+PREPOST_INTERVALS = ("1m", "5m", "15m", "30m", "1h")
+
+
+@app.route("/api/chart_meta/<symbol>")
+def api_chart_meta(symbol):
+    """مصدر شموع آخر طلب للشارت وحالتها (جارية/مغلقة، الفجوات، التصحيحات، نطاق الحجم)."""
+    symbol = symbol.upper()
+    interval = request.args.get("interval", "5m")
+    if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
+        abort(404)
+    return jsonify(chart_meta(symbol, interval, prepost=interval in PREPOST_INTERVALS))
 
 
 @app.route("/api/flow/<symbol>")
