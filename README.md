@@ -72,7 +72,7 @@
   - حجم شموع ما داخل اليوم مصدره Cboe One وحده.
   - أسهم OTC متأخرة 15 دقيقة.
 - **قائمة الأسهم والبيانات الأساسية**: من ماسح Yahoo Finance. TradingView لا يوفر ماسحًا في هذه المكتبة.
-- **الرجوع إلى ياهو**: شغّل المنصة بالمتغير `DATA_SOURCE=yahoo`. في PowerShell: `$env:DATA_SOURCE="yahoo"; py app.py`.
+- **اختيار المصدر**: ياهو هو الافتراضي حتى يكتمل اختبار TradingView في الجلسة الرسمية. للتشغيل بـ TradingView في PowerShell: `$env:DATA_SOURCE="tradingview"; py app.py`.
 
 ## التشغيل على جهازك (ويندوز)
 ```powershell

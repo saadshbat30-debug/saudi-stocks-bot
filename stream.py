@@ -1,8 +1,8 @@
 """بث مباشر للأسعار — كل صفقة تصل لحظة حدوثها.
 
 المصدر يُختار بالمتغير DATA_SOURCE:
-- tradingview (الافتراضي): TradingView عبر tvscraper (services/tradingview_provider.py).
-- yahoo: بث ياهو (WebSocket) كما كان — خيار رجوع.
+- yahoo (الافتراضي مؤقتًا حتى يكتمل اختبار الجلسة الرسمية): بث ياهو (WebSocket) كما كان.
+- tradingview: TradingView عبر tvscraper (services/tradingview_provider.py).
 المصدران يملآن نفس المخازن (_prices، _ext_prices، _hist، _tape) فتبقى معادلات المنصة كما هي.
 """
 import os
@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import yfinance as yf
 
 REGULAR_MARKET = 1  # market_hours في رسائل ياهو: 0 قبل الافتتاح، 1 الجلسة، 2 بعد الإغلاق
-DATA_SOURCE = os.environ.get("DATA_SOURCE", "tradingview").strip().lower()
+DATA_SOURCE = os.environ.get("DATA_SOURCE", "yahoo").strip().lower()
 
 _prices = {}  # الرمز ← آخر سعر من البث (الجلسة الرسمية)
 _ext_prices = {}  # الرمز ← آخر سعر قبل الافتتاح / بعد الإغلاق

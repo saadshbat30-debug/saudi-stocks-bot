@@ -21,7 +21,7 @@ def valid_symbol(symbol):
     return bool(SYMBOL_RE.match(symbol))
 
 
-# ===== مصدر البيانات: TradingView (افتراضي) أو ياهو (DATA_SOURCE=yahoo) =====
+# ===== مصدر البيانات: ياهو أو TradingView (DATA_SOURCE=tradingview) — انظر stream.py =====
 # ما لا يوفره TradingView يبقى من ياهو: قائمة السوق (الماسح)، ومتوسط حجم 3 أشهر، والأسهم القائمة والحرة،
 # والقيمة السوقية وP/E وP/B، والتداول الليلي، والعقود، والتاريخ القديم لاختبار الأخبار.
 _TV_PERIOD_MONTHS = {"5d": None, "3mo": 3, "6mo": 6}

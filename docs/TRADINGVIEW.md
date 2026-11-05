@@ -10,8 +10,8 @@
 | | الأمر |
 |---|---|
 | تثبيت المكتبة (مرة واحدة) | `py -m pip install -r requirements.txt` (يحتاج git لأن المكتبة ليست على PyPI) |
-| التشغيل (TradingView افتراضيًا) | `py app.py` |
-| الرجوع إلى ياهو دون تعديل الكود | PowerShell: `$env:DATA_SOURCE="yahoo"; py app.py` |
+| التشغيل بـ TradingView | PowerShell: `$env:DATA_SOURCE="tradingview"; py app.py` |
+| التشغيل بياهو (الافتراضي مؤقتًا حتى يكتمل اختبار الجلسة الرسمية) | `py app.py` أو `$env:DATA_SOURCE="yahoo"; py app.py` |
 | الرجوع للنسخة السابقة كاملة | `git checkout claude/brave-pasteur-us96un` |
 | حساب TradingView (اختياري) | `$env:TV_AUTH_TOKEN="..."`. يُعامل ككلمة مرور، ولا يُحفظ في المستودع |
 | معدل فتح الجلسات | `TV_SESSION_RATE` (الافتراضي 1 جلسة/ثانية) |

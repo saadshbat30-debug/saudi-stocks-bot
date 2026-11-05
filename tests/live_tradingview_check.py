@@ -96,18 +96,24 @@ def main(out_path):
     time.sleep(4)
     # انقطاع أطول (≥ 70 ثانية) حتى تفوت شمعة دقيقة كاملة: نوجه إعادة الاتصال لعنوان خاطئ مؤقتًا
     # فتفشل المحاولات بتأخير المكتبة المتزايد (1، 2، 4، ...)، ثم نعيد العنوان ونتحقق من استرجاع الشموع الفائتة
+    # عنوان محلي يرفض الاتصال فورًا = انقطاع حقيقي تُعاد فيه المحاولة بتأخير المكتبة المتزايد
     url = p.client.url
-    p.client.url = "wss://data.tradingview.com/socket.io/invalid-path-for-test"
-    c1 = p.client.connects
+    p.client.url = "ws://127.0.0.1:9/refused-for-test"
     t_down = time.time()
     p.client.force_reconnect()
     time.sleep(70)
     errors_seen = p.client.last_error
+    connects_during_outage = p.client.connects
     p.client.url = url
-    while p.client.connects == c1 and time.time() - t_down < 200:
+    while not (p.connected() and p.client.connects > connects_during_outage) and time.time() - t_down < 200:
         time.sleep(0.2)
     outage = (t_down, time.time())
-    time.sleep(6)
+    # انتظار اكتمال إعادة التاريخ لكل الجلسات (تُفتح بالحد المشترك)
+    for s in watch:
+        ser = p.series.get((p.resolved(s), "1m", ext))
+        if ser:
+            ser.done.wait(60)
+    time.sleep(2)
     gap_test, after = {}, {}
     for s in watch:
         bars, meta = p.bars(s, "1m", extended=ext, wait=10)
@@ -119,6 +125,7 @@ def main(out_path):
         gap_test[s] = [x for x in times if outage[0] - 60 <= x <= outage[1]]
     R["reconnect"] = {"first_reconnect_seconds": reconnect_s, "connects_total": p.client.connects,
                       "outage_seconds": round(outage[1] - outage[0], 1), "error_during_outage": errors_seen,
+                      "connected_during_outage": connects_during_outage > c0 + 1,
                       "per_symbol": after, "bars_inside_outage_recovered": {s: [datetime.fromtimestamp(x, NY).strftime("%H:%M") for x in v] for s, v in gap_test.items()},
                       "duplicates_ignored_delta": {s: after[s]["duplicates_ignored"] - dup_before[s] for s in watch}}
     log("6/7/8) إعادة الاتصال:", R["reconnect"])
