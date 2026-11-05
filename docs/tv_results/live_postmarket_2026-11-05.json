@@ -1,0 +1,2177 @@
+{
+ "started": "2026-11-05T17:23:21-05:00",
+ "connect_seconds": 0.34,
+ "history": {
+  "TSLA|1m": {
+   "bars": 2000,
+   "seconds": 0.61,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-03T15:21",
+   "last": "2026-11-05T17:23",
+   "forming": true,
+   "gaps": {
+    "missing": 42,
+    "largest_min": 4
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AAPL|1m": {
+   "bars": 2000,
+   "seconds": 0.24,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-03T13:02",
+   "last": "2026-11-05T17:20",
+   "forming": false,
+   "gaps": {
+    "missing": 179,
+    "largest_min": 8
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AMD|1m": {
+   "bars": 2000,
+   "seconds": 0.34,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-03T15:26",
+   "last": "2026-11-05T17:23",
+   "forming": true,
+   "gaps": {
+    "missing": 38,
+    "largest_min": 3
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SOFI|1m": {
+   "bars": 2000,
+   "seconds": 0.33,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-02T14:57",
+   "last": "2026-11-05T17:22",
+   "forming": false,
+   "gaps": {
+    "missing": 1021,
+    "largest_min": 48
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "PLUG|1m": {
+   "bars": 2000,
+   "seconds": 0.23,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-02T04:10",
+   "last": "2026-11-05T17:23",
+   "forming": true,
+   "gaps": {
+    "missing": 1562,
+    "largest_min": 123
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "F|1m": {
+   "bars": 2000,
+   "seconds": 0.7,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-02T07:31",
+   "last": "2026-11-05T17:07",
+   "forming": false,
+   "gaps": {
+    "missing": 1277,
+    "largest_min": 82
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BAC|1m": {
+   "bars": 2000,
+   "seconds": 1.17,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-02T12:26",
+   "last": "2026-11-05T17:21",
+   "forming": false,
+   "gaps": {
+    "missing": 1167,
+    "largest_min": 48
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "GME|1m": {
+   "bars": 2000,
+   "seconds": 0.88,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-30T14:22",
+   "last": "2026-11-05T17:22",
+   "forming": false,
+   "gaps": {
+    "missing": 1963,
+    "largest_min": 85
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SPY|1m": {
+   "bars": 2000,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-03T13:08",
+   "last": "2026-11-05T17:23",
+   "forming": true,
+   "gaps": {
+    "missing": 175,
+    "largest_min": 6
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BRK-B|1m": {
+   "bars": 2000,
+   "seconds": 1.12,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-02T12:22",
+   "last": "2026-11-05T17:22",
+   "forming": false,
+   "gaps": {
+    "missing": 1161,
+    "largest_min": 55
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "TCEHY|1m": {
+   "bars": 2000,
+   "seconds": 0.93,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T15:48",
+   "last": "2026-11-05T16:01",
+   "forming": false,
+   "gaps": {
+    "missing": 360,
+    "largest_min": 89
+   },
+   "volume_scope": null
+  },
+  "^GSPC|1m": {
+   "bars": 800,
+   "seconds": 0.92,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-04T09:30",
+   "last": "2026-11-05T16:09",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|1m": {
+   "bars": 800,
+   "seconds": 0.97,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-11-03T15:40",
+   "last": "2026-11-05T15:59",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|5m": {
+   "bars": 1000,
+   "seconds": 1.05,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T14:05",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AAPL|5m": {
+   "bars": 1000,
+   "seconds": 1.0,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T13:45",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 4,
+    "largest_min": 5
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AMD|5m": {
+   "bars": 1000,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T14:05",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SOFI|5m": {
+   "bars": 1000,
+   "seconds": 1.0,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T06:15",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 93,
+    "largest_min": 45
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "PLUG|5m": {
+   "bars": 1000,
+   "seconds": 1.15,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-27T08:30",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 404,
+    "largest_min": 225
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "F|5m": {
+   "bars": 1000,
+   "seconds": 0.91,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-27T14:45",
+   "last": "2026-11-05T17:05",
+   "forming": false,
+   "gaps": {
+    "missing": 314,
+    "largest_min": 80
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BAC|5m": {
+   "bars": 1000,
+   "seconds": 0.97,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-28T13:50",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 189,
+    "largest_min": 45
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "GME|5m": {
+   "bars": 1000,
+   "seconds": 1.04,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-27T15:50",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 350,
+    "largest_min": 85
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SPY|5m": {
+   "bars": 1000,
+   "seconds": 0.89,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T13:40",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 5,
+    "largest_min": 5
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BRK-B|5m": {
+   "bars": 1000,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-28T13:55",
+   "last": "2026-11-05T17:20",
+   "forming": true,
+   "gaps": {
+    "missing": 185,
+    "largest_min": 50
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "TCEHY|5m": {
+   "bars": 1000,
+   "seconds": 1.19,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-21T08:00",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 136,
+    "largest_min": 85
+   },
+   "volume_scope": null
+  },
+  "^GSPC|5m": {
+   "bars": 400,
+   "seconds": 0.73,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-30T09:30",
+   "last": "2026-11-05T16:05",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|5m": {
+   "bars": 400,
+   "seconds": 1.06,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-29T15:10",
+   "last": "2026-11-05T15:55",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|15m": {
+   "bars": 1400,
+   "seconds": 1.06,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T19:30",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AAPL|15m": {
+   "bars": 1400,
+   "seconds": 1.0,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T19:00",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 2,
+    "largest_min": 15
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AMD|15m": {
+   "bars": 1400,
+   "seconds": 0.96,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T19:30",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SOFI|15m": {
+   "bars": 1400,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T14:45",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 16,
+    "largest_min": 45
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "PLUG|15m": {
+   "bars": 1400,
+   "seconds": 1.11,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-29T18:00",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 296,
+    "largest_min": 225
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "F|15m": {
+   "bars": 1400,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-30T17:15",
+   "last": "2026-11-05T17:00",
+   "forming": false,
+   "gaps": {
+    "missing": 200,
+    "largest_min": 150
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BAC|15m": {
+   "bars": 1400,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-05T15:45",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 71,
+    "largest_min": 60
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "GME|15m": {
+   "bars": 1400,
+   "seconds": 1.19,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-05T08:30",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 104,
+    "largest_min": 75
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SPY|15m": {
+   "bars": 1400,
+   "seconds": 0.73,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T19:30",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BRK-B|15m": {
+   "bars": 1400,
+   "seconds": 1.14,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-05T11:00",
+   "last": "2026-11-05T17:15",
+   "forming": true,
+   "gaps": {
+    "missing": 95,
+    "largest_min": 60
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "TCEHY|15m": {
+   "bars": 1400,
+   "seconds": 1.12,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-01T11:15",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 107,
+    "largest_min": 75
+   },
+   "volume_scope": null
+  },
+  "^GSPC|15m": {
+   "bars": 600,
+   "seconds": 0.69,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-06T14:45",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|15m": {
+   "bars": 600,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-10-05T15:30",
+   "last": "2026-11-05T15:45",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|30m": {
+   "bars": 1400,
+   "seconds": 1.06,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-04T05:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AAPL|30m": {
+   "bars": 1400,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-04T05:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AMD|30m": {
+   "bars": 1400,
+   "seconds": 0.94,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-04T05:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SOFI|30m": {
+   "bars": 1400,
+   "seconds": 1.17,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-03T18:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 6,
+    "largest_min": 30
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "PLUG|30m": {
+   "bars": 1400,
+   "seconds": 1.05,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-08-28T12:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 130,
+    "largest_min": 210
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "F|30m": {
+   "bars": 1400,
+   "seconds": 0.88,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-01T04:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 60,
+    "largest_min": 150
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BAC|30m": {
+   "bars": 1400,
+   "seconds": 0.88,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-03T10:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 17,
+    "largest_min": 60
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "GME|30m": {
+   "bars": 1400,
+   "seconds": 1.07,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-03T08:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 25,
+    "largest_min": 90
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SPY|30m": {
+   "bars": 1400,
+   "seconds": 0.97,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-04T05:30",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BRK-B|30m": {
+   "bars": 1400,
+   "seconds": 1.16,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-02T19:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 31,
+    "largest_min": 60
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "TCEHY|30m": {
+   "bars": 1400,
+   "seconds": 1.05,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-06T15:00",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 50,
+    "largest_min": 60
+   },
+   "volume_scope": null
+  },
+  "^GSPC|30m": {
+   "bars": 600,
+   "seconds": 0.77,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-08T10:30",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|30m": {
+   "bars": 600,
+   "seconds": 0.96,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-09-01T15:00",
+   "last": "2026-11-05T15:30",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|1h": {
+   "bars": 1100,
+   "seconds": 1.06,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AAPL|1h": {
+   "bars": 1100,
+   "seconds": 1.0,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "AMD|1h": {
+   "bars": 1100,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SOFI|1h": {
+   "bars": 1100,
+   "seconds": 1.08,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "PLUG|1h": {
+   "bars": 1100,
+   "seconds": 1.13,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-29T08:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "F|1h": {
+   "bars": 1100,
+   "seconds": 0.77,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-29T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BAC|1h": {
+   "bars": 1100,
+   "seconds": 1.2,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-30T16:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "GME|1h": {
+   "bars": 1100,
+   "seconds": 0.89,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T04:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "SPY|1h": {
+   "bars": 1100,
+   "seconds": 0.93,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-31T06:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "BRK-B|1h": {
+   "bars": 1100,
+   "seconds": 1.87,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-30T18:00",
+   "last": "2026-11-05T17:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "Cboe One فقط"
+  },
+  "TCEHY|1h": {
+   "bars": 1100,
+   "seconds": 0.62,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-05-12T10:00",
+   "last": "2026-11-05T16:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "^GSPC|1h": {
+   "bars": 500,
+   "seconds": 0.41,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-28T13:30",
+   "last": "2026-11-05T15:30",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|1h": {
+   "bars": 500,
+   "seconds": 1.04,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2026-07-28T13:30",
+   "last": "2026-11-05T15:30",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|1d": {
+   "bars": 520,
+   "seconds": 0.99,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AAPL|1d": {
+   "bars": 520,
+   "seconds": 1.04,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AMD|1d": {
+   "bars": 520,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SOFI|1d": {
+   "bars": 520,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "PLUG|1d": {
+   "bars": 520,
+   "seconds": 0.96,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "F|1d": {
+   "bars": 520,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BAC|1d": {
+   "bars": 520,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "GME|1d": {
+   "bars": 520,
+   "seconds": 0.96,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SPY|1d": {
+   "bars": 520,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BRK-B|1d": {
+   "bars": 520,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "TCEHY|1d": {
+   "bars": 520,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "^GSPC|1d": {
+   "bars": 520,
+   "seconds": 0.96,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|1d": {
+   "bars": 520,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2024-10-10T00:00",
+   "last": "2026-11-05T00:00",
+   "forming": false,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AAPL|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AMD|1w": {
+   "bars": 530,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SOFI|1w": {
+   "bars": 310,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2020-11-30T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "PLUG|1w": {
+   "bars": 530,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "F|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BAC|1w": {
+   "bars": 530,
+   "seconds": 1.0,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "GME|1w": {
+   "bars": 530,
+   "seconds": 0.99,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SPY|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BRK-B|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "TCEHY|1w": {
+   "bars": 530,
+   "seconds": 0.97,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "^GSPC|1w": {
+   "bars": 530,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|1w": {
+   "bars": 530,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2016-09-12T00:00",
+   "last": "2026-11-02T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "TSLA|1mo": {
+   "bars": 198,
+   "seconds": 0.93,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2010-06-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AAPL|1mo": {
+   "bars": 552,
+   "seconds": 1.07,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1980-12-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "AMD|1mo": {
+   "bars": 648,
+   "seconds": 1.02,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1972-12-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SOFI|1mo": {
+   "bars": 73,
+   "seconds": 0.9,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2020-11-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "PLUG|1mo": {
+   "bars": 326,
+   "seconds": 1.03,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1999-10-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "F|1mo": {
+   "bars": 707,
+   "seconds": 1.08,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1968-01-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BAC|1mo": {
+   "bars": 656,
+   "seconds": 1.04,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1972-04-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "GME|1mo": {
+   "bars": 298,
+   "seconds": 0.9,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2002-02-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "SPY|1mo": {
+   "bars": 407,
+   "seconds": 1.01,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1993-01-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "BRK-B|1mo": {
+   "bars": 367,
+   "seconds": 0.99,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1996-05-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "TCEHY|1mo": {
+   "bars": 216,
+   "seconds": 0.98,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "2008-11-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": null
+  },
+  "^GSPC|1mo": {
+   "bars": 1000,
+   "seconds": 1.07,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1941-01-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  },
+  "^DJI|1mo": {
+   "bars": 1000,
+   "seconds": 1.04,
+   "complete": true,
+   "error": null,
+   "dupes": 0,
+   "sorted": true,
+   "first": "1943-08-01T00:00",
+   "last": "2026-11-01T00:00",
+   "forming": true,
+   "gaps": {
+    "missing": 0,
+    "largest_min": 0
+   },
+   "volume_scope": "المؤشرات بلا حجم في المصدر"
+  }
+ },
+ "forming": {
+  "session": "extended",
+  "per_symbol": {
+   "TSLA": {
+    "samples": 25,
+    "in_place_updates": 13,
+    "new_bars_opened": 2,
+    "bar_count_growth": 2,
+    "older_bars_all_closed": true
+   },
+   "AAPL": {
+    "samples": 25,
+    "in_place_updates": 6,
+    "new_bars_opened": 2,
+    "bar_count_growth": 2,
+    "older_bars_all_closed": true
+   },
+   "AMD": {
+    "samples": 25,
+    "in_place_updates": 9,
+    "new_bars_opened": 1,
+    "bar_count_growth": 1,
+    "older_bars_all_closed": true
+   },
+   "SOFI": {
+    "samples": 25,
+    "in_place_updates": 1,
+    "new_bars_opened": 2,
+    "bar_count_growth": 2,
+    "older_bars_all_closed": true
+   },
+   "PLUG": {
+    "samples": 25,
+    "in_place_updates": 0,
+    "new_bars_opened": 1,
+    "bar_count_growth": 1,
+    "older_bars_all_closed": true
+   },
+   "F": {
+    "samples": 25,
+    "in_place_updates": 0,
+    "new_bars_opened": 0,
+    "bar_count_growth": 0,
+    "older_bars_all_closed": true
+   }
+  }
+ },
+ "reconnect": {
+  "first_reconnect_seconds": 1.49,
+  "connects_total": 3,
+  "outage_seconds": 123.5,
+  "error_during_outage": "ConnectionRefusedError: [Errno 111] Connection refused",
+  "connected_during_outage": false,
+  "per_symbol": {
+   "TSLA": {
+    "bars": 2005,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 2000,
+    "corrections": 0,
+    "gaps": {
+     "missing": 42,
+     "largest_min": 4
+    }
+   },
+   "AAPL": {
+    "bars": 2003,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 2002,
+    "corrections": 0,
+    "gaps": {
+     "missing": 182,
+     "largest_min": 8
+    }
+   },
+   "AMD": {
+    "bars": 2004,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 1998,
+    "corrections": 0,
+    "gaps": {
+     "missing": 38,
+     "largest_min": 3
+    }
+   },
+   "SOFI": {
+    "bars": 2003,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 2001,
+    "corrections": 0,
+    "gaps": {
+     "missing": 1022,
+     "largest_min": 48
+    }
+   },
+   "PLUG": {
+    "bars": 2021,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 1980,
+    "corrections": 1,
+    "gaps": {
+     "missing": 1796,
+     "largest_min": 227
+    }
+   },
+   "F": {
+    "bars": 2026,
+    "dupes": 0,
+    "sorted": true,
+    "kept_all_previous": true,
+    "resyncs": 2,
+    "duplicates_ignored": 1973,
+    "corrections": 1,
+    "gaps": {
+     "missing": 1553,
+     "largest_min": 82
+    }
+   }
+  },
+  "bars_inside_outage_recovered": {
+   "TSLA": [
+    "17:27",
+    "17:28",
+    "17:29"
+   ],
+   "AAPL": [
+    "17:27"
+   ],
+   "AMD": [
+    "17:27",
+    "17:28",
+    "17:29"
+   ],
+   "SOFI": [
+    "17:27"
+   ],
+   "PLUG": [],
+   "F": []
+  },
+  "duplicates_ignored_delta": {
+   "TSLA": 1997,
+   "AAPL": 1999,
+   "AMD": 1997,
+   "SOFI": 1999,
+   "PLUG": 1979,
+   "F": 1973
+  }
+ },
+ "compare_yahoo": {
+  "TSLA": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 0.58,
+    "close_bps_max": 7.99,
+    "close_within_1c": 123,
+    "volume_ratio_median": 0.089
+   },
+   "1m": {
+    "common": 779,
+    "close_bps_median": 0.73,
+    "close_bps_max": 13.73,
+    "close_within_1c": 229,
+    "volume_ratio_median": 0.088
+   },
+   "quote": {
+    "tv_last": 343.69,
+    "yahoo_last": 343.69,
+    "tv_prev_close": 385.19,
+    "yahoo_prev_close": 382.2,
+    "tv_day_volume": 78396494.0,
+    "yahoo_day_volume": 78372766
+   }
+  },
+  "AAPL": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.14,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 0.3,
+    "close_bps_max": 3.64,
+    "close_within_1c": 205,
+    "volume_ratio_median": 0.09
+   },
+   "1m": {
+    "common": 779,
+    "close_bps_median": 0.29,
+    "close_bps_max": 4.26,
+    "close_within_1c": 411,
+    "volume_ratio_median": 0.098
+   },
+   "quote": {
+    "tv_last": 344.17,
+    "yahoo_last": 344.17,
+    "tv_prev_close": 349.51,
+    "yahoo_prev_close": 350.0294,
+    "tv_day_volume": 74526367.0,
+    "yahoo_day_volume": 74173346
+   }
+  },
+  "AMD": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 1.11,
+    "close_bps_max": 8.84,
+    "close_within_1c": 84,
+    "volume_ratio_median": 0.096
+   },
+   "1m": {
+    "common": 779,
+    "close_bps_median": 1.44,
+    "close_bps_max": 13.11,
+    "close_within_1c": 138,
+    "volume_ratio_median": 0.091
+   },
+   "quote": {
+    "tv_last": 404.4,
+    "yahoo_last": 404.4,
+    "tv_prev_close": 488.78,
+    "yahoo_prev_close": 486.0,
+    "tv_day_volume": 70308842.0,
+    "yahoo_day_volume": 70120811
+   }
+  },
+  "SOFI": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 2.87,
+    "close_bps_max": 12.52,
+    "close_within_1c": 381,
+    "volume_ratio_median": 0.067
+   },
+   "1m": {
+    "common": 779,
+    "close_bps_median": 2.86,
+    "close_bps_max": 12.52,
+    "close_within_1c": 764,
+    "volume_ratio_median": 0.071
+   },
+   "quote": {
+    "tv_last": 16.04,
+    "yahoo_last": 16.04,
+    "tv_prev_close": 17.38,
+    "yahoo_prev_close": 17.39,
+    "tv_day_volume": 77540310.0,
+    "yahoo_day_volume": 77429858
+   }
+  },
+  "PLUG": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 36.5,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 17.26,
+    "close_bps_max": 75.76,
+    "close_within_1c": 384,
+    "volume_ratio_median": 0.052
+   },
+   "1m": {
+    "common": 766,
+    "close_bps_median": 16.88,
+    "close_bps_max": 75.76,
+    "close_within_1c": 766,
+    "volume_ratio_median": 0.035
+   },
+   "quote": {
+    "tv_last": 1.35,
+    "yahoo_last": 1.35,
+    "tv_prev_close": 1.46,
+    "yahoo_prev_close": 1.49,
+    "tv_day_volume": 88776854.0,
+    "yahoo_day_volume": 88710737
+   }
+  },
+  "F": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 3.15,
+    "close_bps_max": 16.31,
+    "close_within_1c": 382,
+    "volume_ratio_median": 0.053
+   },
+   "1m": {
+    "common": 777,
+    "close_bps_median": 3.88,
+    "close_bps_max": 11.92,
+    "close_within_1c": 776,
+    "volume_ratio_median": 0.049
+   },
+   "quote": {
+    "tv_last": 12.53,
+    "yahoo_last": 12.53,
+    "tv_prev_close": 12.67,
+    "yahoo_prev_close": 12.68,
+    "tv_day_volume": 53979371.0,
+    "yahoo_day_volume": 53910575
+   }
+  },
+  "BAC": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 0.98,
+    "close_bps_max": 7.02,
+    "close_within_1c": 379,
+    "volume_ratio_median": 0.092
+   },
+   "1m": {
+    "common": 778,
+    "close_bps_median": 0.88,
+    "close_bps_max": 5.87,
+    "close_within_1c": 762,
+    "volume_ratio_median": 0.086
+   },
+   "quote": {
+    "tv_last": 49.76,
+    "yahoo_last": 49.76,
+    "tv_prev_close": 51.63,
+    "yahoo_prev_close": 51.65,
+    "tv_day_volume": 61480594.0,
+    "yahoo_day_volume": 61464357
+   }
+  },
+  "GME": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 2.04,
+    "close_bps_max": 17.26,
+    "close_within_1c": 341,
+    "volume_ratio_median": 0.086
+   },
+   "1m": {
+    "common": 763,
+    "close_bps_median": 1.99,
+    "close_bps_max": 28.65,
+    "close_within_1c": 648,
+    "volume_ratio_median": 0.072
+   },
+   "quote": {
+    "tv_last": 24.17,
+    "yahoo_last": 24.17,
+    "tv_prev_close": 25.14,
+    "yahoo_prev_close": 25.1184,
+    "tv_day_volume": 6950704.0,
+    "yahoo_day_volume": 6947884
+   }
+  },
+  "SPY": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.0
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 0.13,
+    "close_bps_max": 1.29,
+    "close_within_1c": 275,
+    "volume_ratio_median": 0.143
+   },
+   "1m": {
+    "common": 779,
+    "close_bps_median": 0.13,
+    "close_bps_max": 1.37,
+    "close_within_1c": 522,
+    "volume_ratio_median": 0.152
+   },
+   "quote": {
+    "tv_last": 733.0,
+    "yahoo_last": 733.0,
+    "tv_prev_close": 766.81,
+    "yahoo_prev_close": 767.05,
+    "tv_day_volume": 123340318.0,
+    "yahoo_day_volume": 120886017
+   }
+  },
+  "BRK-B": {
+   "1d": {
+    "common": 22,
+    "close_bps_median": 0.0,
+    "close_bps_max": 0.0,
+    "close_within_1c": 22,
+    "volume_ratio_median": 1.001
+   },
+   "5m": {
+    "common": 384,
+    "close_bps_median": 0.52,
+    "close_bps_max": 7.26,
+    "close_within_1c": 128,
+    "volume_ratio_median": 0.083
+   },
+   "1m": {
+    "common": 778,
+    "close_bps_median": 0.69,
+    "close_bps_max": 7.26,
+    "close_within_1c": 221,
+    "volume_ratio_median": 0.083
+   },
+   "quote": {
+    "tv_last": 572.33,
+    "yahoo_last": 572.33,
+    "tv_prev_close": 579.09,
+    "yahoo_prev_close": 577.55,
+    "tv_day_volume": 9796656.0,
+    "yahoo_day_volume": 9785795
+   }
+  }
+ },
+ "status": {
+  "source": "TradingView عبر tvscraper (غير رسمي)",
+  "installed": true,
+  "import_error": null,
+  "state": "connected",
+  "connected": true,
+  "connects": 3,
+  "reconnects": 2,
+  "connected_since": 1793917762,
+  "disconnected_for": null,
+  "last_message_age": 0.6,
+  "last_error": "ConnectionRefusedError: [Errno 111] Connection refused",
+  "watching": 13,
+  "symbols": {
+   "ok": 13,
+   "pending": 0,
+   "unavailable": 0
+  },
+  "delayed_symbols": 1,
+  "unavailable_sample": [],
+  "ticking_1m": 6,
+  "last_tick_age": 0.7,
+  "latency_median_s": null,
+  "latency_p90_s": null,
+  "latency_samples": 0,
+  "charts_open": 36,
+  "bar_corrections": 2,
+  "rate_limit_errors": 0,
+  "session_rate_per_s": 1.0,
+  "critical_errors": [],
+  "daily_cached": 502
+ },
+ "finished": "2026-11-05T17:30:30-05:00"
+}
