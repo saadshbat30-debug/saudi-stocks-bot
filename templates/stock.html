@@ -1865,7 +1865,9 @@ loadKpis();
 PosLines.draw();
 loadFlow();
 setInterval(loadFlow, 5000);
-setInterval(loadKpis, 5000);
+// السعر كل ثانية: الخادم يقرأ من الذاكرة ولا يطلب المصدر، ولا يُرسل طلب جديد قبل انتهاء السابق
+let kpisBusy = false;
+setInterval(async () => { if (kpisBusy) return; kpisBusy = true; try { await loadKpis(); } finally { kpisBusy = false; } }, 1000);
 setInterval(() => loadChart(false), 30000);
 </script>
 {% endblock %}
