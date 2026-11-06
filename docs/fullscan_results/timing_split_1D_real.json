@@ -1,0 +1,7 @@
+{
+ "symbols": 500,
+ "fetch_s": 27.8,
+ "fetch_per_50_s": 2.78,
+ "compute_s": 0.33,
+ "compute_ms_per_symbol": 0.65
+}

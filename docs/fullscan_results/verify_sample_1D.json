@@ -1,0 +1,602 @@
+[
+ {
+  "symbol": "AACI",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.01065329525126657,
+   "signal": 0.00840464607040487,
+   "rsi": 60.262174477164,
+   "vol_x": 4.846359447004608
+  },
+  "independent": {
+   "macd": 0.01065329525126657,
+   "signal": 0.00840464607040487,
+   "rsi": 60.262174477164,
+   "vol_x": 4.846359447004608
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ABNB",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 2.438664626426146,
+   "signal": 1.182857133226417,
+   "rsi": 66.21446318964557,
+   "vol_x": 3.182079171388662
+  },
+  "independent": {
+   "macd": 2.438664626426146,
+   "signal": 1.182857133226417,
+   "rsi": 66.21446318964557,
+   "vol_x": 3.182079171388662
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ADPT",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.18113255211353163,
+   "signal": 0.01415376054535265,
+   "rsi": 57.24390766776662,
+   "vol_x": 1.594408671440319
+  },
+  "independent": {
+   "macd": 0.18113255211353163,
+   "signal": 0.01415376054535265,
+   "rsi": 57.24390766776661,
+   "vol_x": 1.594408671440319
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 1.4210854715202004e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ADUR",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.5333633465753458,
+   "signal": -0.6523312636248252,
+   "rsi": 50.5843564291253,
+   "vol_x": 1.7407216746762237
+  },
+  "independent": {
+   "macd": -0.5333633465753458,
+   "signal": -0.6523312636248252,
+   "rsi": 50.58435642912528,
+   "vol_x": 1.7407216746762237
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 2.1316282072803006e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ADV",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.5986885756612352,
+   "signal": 0.06331197387284045,
+   "rsi": 51.3992214656471,
+   "vol_x": 1.526388170055453
+  },
+  "independent": {
+   "macd": 0.5986885756612352,
+   "signal": 0.06331197387284045,
+   "rsi": 51.399221465647095,
+   "vol_x": 1.526388170055453
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "AFCG",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.04844292162834751,
+   "signal": -0.07487522188551449,
+   "rsi": 52.65297153152576,
+   "vol_x": 2.843798449612403
+  },
+  "independent": {
+   "macd": -0.04844292162834751,
+   "signal": -0.07487522188551449,
+   "rsi": 52.65297153152576,
+   "vol_x": 2.843798449612403
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ALGN",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 3.136613527175996,
+   "signal": 1.5213565880946036,
+   "rsi": 64.68011491616619,
+   "vol_x": 1.6687165064041656
+  },
+  "independent": {
+   "macd": 3.136613527175996,
+   "signal": 1.5213565880946036,
+   "rsi": 64.68011491616619,
+   "vol_x": 1.6687165064041656
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ALOV",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.0019192128389455831,
+   "signal": 0.0009179364332065418,
+   "rsi": 57.15933367680298,
+   "vol_x": 3.597265831716352
+  },
+  "independent": {
+   "macd": 0.0019192128389455831,
+   "signal": 0.0009179364332065418,
+   "rsi": 57.15933367680298,
+   "vol_x": 3.597265831716352
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ALTO",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.043660598306519915,
+   "signal": -0.06546827597129211,
+   "rsi": 53.69698538459847,
+   "vol_x": 2.560354343346484
+  },
+  "independent": {
+   "macd": -0.043660598306519915,
+   "signal": -0.06546827597129211,
+   "rsi": 53.69698538459845,
+   "vol_x": 2.560354343346484
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 2.1316282072803006e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "AMPH",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.7297560383707911,
+   "signal": 0.5854086186577405,
+   "rsi": 66.69447765561613,
+   "vol_x": 1.984870578343643
+  },
+  "independent": {
+   "macd": 0.7297560383707911,
+   "signal": 0.5854086186577405,
+   "rsi": 66.69447765561614,
+   "vol_x": 1.984870578343643
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 1.4210854715202004e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "AMTX",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.06513436035014397,
+   "signal": -0.11643770385319625,
+   "rsi": 56.92025388048026,
+   "vol_x": 1.9124386105902313
+  },
+  "independent": {
+   "macd": -0.06513436035014397,
+   "signal": -0.11643770385319625,
+   "rsi": 56.92025388048026,
+   "vol_x": 1.9124386105902313
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ANGI",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.22261692928271426,
+   "signal": 0.1759569153826541,
+   "rsi": 60.093394383912944,
+   "vol_x": 1.5432410716759482
+  },
+  "independent": {
+   "macd": 0.22261692928271426,
+   "signal": 0.1759569153826541,
+   "rsi": 60.09339438391294,
+   "vol_x": 1.5432410716759482
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ARTNA",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.02224374865546963,
+   "signal": -0.09957932236864526,
+   "rsi": 56.497689997519416,
+   "vol_x": 1.9850617016670276
+  },
+  "independent": {
+   "macd": -0.02224374865546963,
+   "signal": -0.09957932236864526,
+   "rsi": 56.497689997519394,
+   "vol_x": 1.9850617016670276
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 2.1316282072803006e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ASPS",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.015814137786108518,
+   "signal": -0.046076675547152675,
+   "rsi": 53.913665974686694,
+   "vol_x": 1.5562231759656653
+  },
+  "independent": {
+   "macd": -0.015814137786108518,
+   "signal": -0.046076675547152675,
+   "rsi": 53.91366597468669,
+   "vol_x": 1.5562231759656653
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "ATNI",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.32569749046594154,
+   "signal": -0.6138648461398067,
+   "rsi": 61.3599857589177,
+   "vol_x": 1.5849237376796432
+  },
+  "independent": {
+   "macd": -0.32569749046594154,
+   "signal": -0.6138648461398067,
+   "rsi": 61.359985758917695,
+   "vol_x": 1.5849237376796432
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "AVLN",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.23085181297107127,
+   "signal": -0.8164316650217653,
+   "rsi": 59.511439148522896,
+   "vol_x": 1.580795084023075
+  },
+  "independent": {
+   "macd": -0.23085181297107127,
+   "signal": -0.8164316650217653,
+   "rsi": 59.511439148522896,
+   "vol_x": 1.580795084023075
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "AWRE",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.030037513719939568,
+   "signal": -0.05176755059397954,
+   "rsi": 50.61077687697654,
+   "vol_x": 1.6161852212485124
+  },
+  "independent": {
+   "macd": -0.030037513719939568,
+   "signal": -0.05176755059397954,
+   "rsi": 50.61077687697654,
+   "vol_x": 1.6161852212485124
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "BCTX",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.11687133284893747,
+   "signal": -0.1467183669465421,
+   "rsi": 60.370435404744825,
+   "vol_x": 2.6883050413716627
+  },
+  "independent": {
+   "macd": -0.11687133284893747,
+   "signal": -0.1467183669465421,
+   "rsi": 60.370435404744825,
+   "vol_x": 2.6883050413716627
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "BLLN",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 2.5007212585585563,
+   "signal": 1.8485966764723991,
+   "rsi": 58.6828004398881,
+   "vol_x": 1.8772788704174503
+  },
+  "independent": {
+   "macd": 2.5007212585585563,
+   "signal": 1.8485966764723991,
+   "rsi": 58.6828004398881,
+   "vol_x": 1.8772788704174503
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "BLNK",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.015551070040398463,
+   "signal": -0.028238009500992974,
+   "rsi": 60.466539669869356,
+   "vol_x": 4.754588093132186
+  },
+  "independent": {
+   "macd": -0.015551070040398463,
+   "signal": -0.028238009500992974,
+   "rsi": 60.46653966986936,
+   "vol_x": 4.754588093132186
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "BRCB",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.773635748824514,
+   "signal": 0.6695549090965016,
+   "rsi": 65.93303478085355,
+   "vol_x": 2.221996247200533
+  },
+  "independent": {
+   "macd": 0.773635748824514,
+   "signal": 0.6695549090965016,
+   "rsi": 65.93303478085355,
+   "vol_x": 2.221996247200533
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "BYFC",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": -0.009055464410790748,
+   "signal": -0.04567867784132211,
+   "rsi": 53.006749699699796,
+   "vol_x": 4.5948497854077255
+  },
+  "independent": {
+   "macd": -0.009055464410790748,
+   "signal": -0.04567867784132211,
+   "rsi": 53.006749699699796,
+   "vol_x": 4.5948497854077255
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "CAPR",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.11333829425755138,
+   "signal": -0.28062668026342674,
+   "rsi": 62.956774267472326,
+   "vol_x": 1.526436132814434
+  },
+  "independent": {
+   "macd": 0.11333829425755138,
+   "signal": -0.28062668026342674,
+   "rsi": 62.95677426747233,
+   "vol_x": 1.526436132814434
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 7.105427357601002e-15,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "CAR",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 1.007631541225706,
+   "signal": -1.6884314309258854,
+   "rsi": 61.76875148658206,
+   "vol_x": 2.1067771829591972
+  },
+  "independent": {
+   "macd": 1.007631541225706,
+   "signal": -1.6884314309258854,
+   "rsi": 61.76875148658205,
+   "vol_x": 2.1067771829591972
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 1.4210854715202004e-14,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ },
+ {
+  "symbol": "CARG",
+  "bar_date": "2026-11-06",
+  "file": {
+   "macd": 0.8930142103728755,
+   "signal": 0.3770137431649151,
+   "rsi": 55.78450838272324,
+   "vol_x": 1.8968699933857573
+  },
+  "independent": {
+   "macd": 0.8930142103728755,
+   "signal": 0.3770137431649151,
+   "rsi": 55.78450838272324,
+   "vol_x": 1.8968699933857573
+  },
+  "max_abs_diff": {
+   "macd": 0.0,
+   "signal": 0.0,
+   "rsi": 0.0,
+   "vol_x": 0.0
+  },
+  "conditions_hold": true,
+  "values_match": true
+ }
+]

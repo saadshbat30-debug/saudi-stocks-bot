@@ -1,9 +1,9 @@
 [
  {
   "n": 1000,
-  "first_s": 0.77,
-  "new_bar_s": 0.34,
-  "changes_ms": 0.2,
+  "first_s": 0.78,
+  "new_bar_s": 0.4,
+  "changes_ms": 0.3,
   "evaluated": 1000,
   "matched": 0,
   "process_peak_mb": 330,
@@ -11,9 +11,9 @@
  },
  {
   "n": 3000,
-  "first_s": 2.48,
-  "new_bar_s": 1.24,
-  "changes_ms": 0.7,
+  "first_s": 2.46,
+  "new_bar_s": 1.21,
+  "changes_ms": 0.8,
   "evaluated": 3000,
   "matched": 0,
   "process_peak_mb": 931,
@@ -21,9 +21,9 @@
  },
  {
   "n": 6000,
-  "first_s": 4.62,
-  "new_bar_s": 2.47,
-  "changes_ms": 1.4,
+  "first_s": 5.05,
+  "new_bar_s": 2.32,
+  "changes_ms": 1.5,
   "evaluated": 6000,
   "matched": 0,
   "process_peak_mb": 1832,
