@@ -1,0 +1,857 @@
+{
+ "meta": {
+  "git_commit": "9036547",
+  "run_started_ny": "2026-11-06 16:50:31",
+  "python": "3.13.16",
+  "yfinance": "1.7.0",
+  "run_finished_ny": "2026-11-06 16:53:44"
+ },
+ "stages": [
+  {
+   "stage": 100,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 100",
+    "pool_size": 5909,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1106202615:41"
+   },
+   "started_ny": "2026-11-06 16:50:32",
+   "finished_ny": "2026-11-06 16:50:43",
+   "regular_session_at_start": false,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-06 15:55:00",
+   "next_5m_close_ny": "2026-11-06 16:05:00",
+   "requested": 100,
+   "fetched": 100,
+   "with_bars": 100,
+   "evaluated_current": 83,
+   "matched": 19,
+   "insufficient": 8,
+   "no_trade": 9,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 0,
+   "rate_limited_events": 0,
+   "requests": 2,
+   "fetch_s": 5.81,
+   "compute_s": 0.061,
+   "wait_between_batches_s": 6.0,
+   "cycle_s": 11.9,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 3044,
+    "median": 3044,
+    "max": 16844
+   },
+   "evaluated_before_next_5m_close": null,
+   "reference_bar_ny": "2026-11-06 15:55:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "NMAX",
+     "engine": {
+      "macd": 0.005441532005135308,
+      "signal": 0.0008279629605375245,
+      "rsi": 57.455409149733754,
+      "vol_x": 6.778140506659702
+     },
+     "pandas": {
+      "macd": 0.005441532009277772,
+      "signal": 0.0008279629666303908,
+      "rsi": 57.45540916242505,
+      "vol_x": 6.778140506659702
+     },
+     "diff": {
+      "macd": 4.142464149481384e-12,
+      "signal": 6.092866228907257e-12,
+      "rsi": 1.2691295125932811e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "GOOD",
+     "engine": {
+      "macd": -0.0056894090450132495,
+      "signal": -0.009581280704921341,
+      "rsi": 50.37122159406769,
+      "vol_x": 10.784121944831936
+     },
+     "pandas": {
+      "macd": -0.0056894090395971375,
+      "signal": -0.0095812806969567,
+      "rsi": 50.37122160190854,
+      "vol_x": 10.784121944831936
+     },
+     "diff": {
+      "macd": 5.416112003331364e-12,
+      "signal": 7.964641099422742e-12,
+      "rsi": 7.840846194540063e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "KLIC",
+     "engine": {
+      "macd": 0.15745098500428156,
+      "signal": 0.1275543851270918,
+      "rsi": 63.47202325834281,
+      "vol_x": 7.983273496034905
+     },
+     "pandas": {
+      "macd": 0.1574509851322503,
+      "signal": 0.12755438531528585,
+      "rsi": 63.47202327272402,
+      "vol_x": 7.983273496034905
+     },
+     "diff": {
+      "macd": 1.2796874671039404e-10,
+      "signal": 1.8819404368208836e-10,
+      "rsi": 1.4381214441527845e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "FNGD",
+     "engine": {
+      "macd": 0.12058414004873441,
+      "signal": 0.06998553258883647,
+      "rsi": 65.84124453820827,
+      "vol_x": 12.657319661594572
+     },
+     "pandas": {
+      "macd": 0.12058414009376861,
+      "signal": 0.06998553265506005,
+      "rsi": 65.8412445324376,
+      "vol_x": 12.657319661594572
+     },
+     "diff": {
+      "macd": 4.503419859247515e-11,
+      "signal": 6.62235821735635e-11,
+      "rsi": 5.770672828475654e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PNBK",
+     "engine": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "pandas": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NEON",
+     "engine": {
+      "macd": 0.003026617168327528,
+      "signal": 0.00344766669175197,
+      "rsi": 53.05525903079799,
+      "vol_x": 3.973738769868694
+     },
+     "pandas": {
+      "macd": 0.003026617168327528,
+      "signal": 0.00344766669175197,
+      "rsi": 53.05525903079799,
+      "vol_x": 3.973738769868694
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "IIPR",
+     "engine": {
+      "macd": 0.13452408584900866,
+      "signal": 0.038559800787483715,
+      "rsi": 75.77965866245133,
+      "vol_x": 11.659919028340083
+     },
+     "pandas": {
+      "macd": 0.13452408595949095,
+      "signal": 0.03855980094996189,
+      "rsi": 75.77965868802782,
+      "vol_x": 11.659919028340083
+     },
+     "diff": {
+      "macd": 1.1048228998333798e-10,
+      "signal": 1.624781767461947e-10,
+      "rsi": 2.5576497364454553e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CHRD",
+     "engine": {
+      "macd": 0.10170395976211921,
+      "signal": 0.11833464371696974,
+      "rsi": 53.154037316034376,
+      "vol_x": 7.048279418927825
+     },
+     "pandas": {
+      "macd": 0.10170395966812862,
+      "signal": 0.1183346435787249,
+      "rsi": 53.15403731771548,
+      "vol_x": 7.048279418927825
+     },
+     "diff": {
+      "macd": 9.399059308634605e-11,
+      "signal": 1.3824483224844641e-10,
+      "rsi": 1.6811014802442514e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "HBCP",
+     "engine": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.532433211197684,
+      "vol_x": 4.743061703683744
+     },
+     "pandas": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.53243321119771,
+      "vol_x": 4.743061703683744
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 2.842170943040401e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CCJ",
+     "engine": {
+      "macd": 0.10933607635945464,
+      "signal": 0.1490148765919797,
+      "rsi": 51.8070032098082,
+      "vol_x": 1.4544078884121447
+     },
+     "pandas": {
+      "macd": 0.10933607636826537,
+      "signal": 0.14901487660494883,
+      "rsi": 51.80700321157376,
+      "vol_x": 1.4544078884121447
+     },
+     "diff": {
+      "macd": 8.810729923425242e-12,
+      "signal": 1.2969125773309997e-11,
+      "rsi": 1.765556589816697e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  },
+  {
+   "stage": 500,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 500",
+    "pool_size": 5909,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1106202615:41"
+   },
+   "started_ny": "2026-11-06 16:50:45",
+   "finished_ny": "2026-11-06 16:51:43",
+   "regular_session_at_start": false,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-06 15:55:00",
+   "next_5m_close_ny": "2026-11-06 16:05:00",
+   "requested": 500,
+   "fetched": 500,
+   "with_bars": 499,
+   "evaluated_current": 422,
+   "matched": 103,
+   "insufficient": 40,
+   "no_trade": 37,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 1,
+   "rate_limited_events": 0,
+   "requests": 10,
+   "fetch_s": 27.77,
+   "compute_s": 0.405,
+   "wait_between_batches_s": 30.0,
+   "cycle_s": 58.2,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 3104,
+    "median": 3104,
+    "max": 19604
+   },
+   "evaluated_before_next_5m_close": null,
+   "reference_bar_ny": "2026-11-06 15:55:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "NMAX",
+     "engine": {
+      "macd": 0.005441532005135308,
+      "signal": 0.0008279629605375245,
+      "rsi": 57.455409149733754,
+      "vol_x": 6.778140506659702
+     },
+     "pandas": {
+      "macd": 0.005441532009277772,
+      "signal": 0.0008279629666303908,
+      "rsi": 57.45540916242505,
+      "vol_x": 6.778140506659702
+     },
+     "diff": {
+      "macd": 4.142464149481384e-12,
+      "signal": 6.092866228907257e-12,
+      "rsi": 1.2691295125932811e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "GOOD",
+     "engine": {
+      "macd": -0.0056894090450132495,
+      "signal": -0.009581280704921341,
+      "rsi": 50.37122159406769,
+      "vol_x": 10.784121944831936
+     },
+     "pandas": {
+      "macd": -0.0056894090395971375,
+      "signal": -0.0095812806969567,
+      "rsi": 50.37122160190854,
+      "vol_x": 10.784121944831936
+     },
+     "diff": {
+      "macd": 5.416112003331364e-12,
+      "signal": 7.964641099422742e-12,
+      "rsi": 7.840846194540063e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "KLIC",
+     "engine": {
+      "macd": 0.15745098500428156,
+      "signal": 0.1275543851270918,
+      "rsi": 63.47202325834281,
+      "vol_x": 7.983273496034905
+     },
+     "pandas": {
+      "macd": 0.1574509851322503,
+      "signal": 0.12755438531528585,
+      "rsi": 63.47202327272402,
+      "vol_x": 7.983273496034905
+     },
+     "diff": {
+      "macd": 1.2796874671039404e-10,
+      "signal": 1.8819404368208836e-10,
+      "rsi": 1.4381214441527845e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "FNGD",
+     "engine": {
+      "macd": 0.12058414004873441,
+      "signal": 0.06998553258883647,
+      "rsi": 65.84124453820827,
+      "vol_x": 12.657319661594572
+     },
+     "pandas": {
+      "macd": 0.12058414009376861,
+      "signal": 0.06998553265506005,
+      "rsi": 65.8412445324376,
+      "vol_x": 12.657319661594572
+     },
+     "diff": {
+      "macd": 4.503419859247515e-11,
+      "signal": 6.62235821735635e-11,
+      "rsi": 5.770672828475654e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PNBK",
+     "engine": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "pandas": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NEON",
+     "engine": {
+      "macd": 0.003026617168327528,
+      "signal": 0.00344766669175197,
+      "rsi": 53.05525903079799,
+      "vol_x": 3.973738769868694
+     },
+     "pandas": {
+      "macd": 0.003026617168327528,
+      "signal": 0.00344766669175197,
+      "rsi": 53.05525903079799,
+      "vol_x": 3.973738769868694
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "IIPR",
+     "engine": {
+      "macd": 0.13452408584900866,
+      "signal": 0.038559800787483715,
+      "rsi": 75.77965866245133,
+      "vol_x": 11.659919028340083
+     },
+     "pandas": {
+      "macd": 0.13452408595949095,
+      "signal": 0.03855980094996189,
+      "rsi": 75.77965868802782,
+      "vol_x": 11.659919028340083
+     },
+     "diff": {
+      "macd": 1.1048228998333798e-10,
+      "signal": 1.624781767461947e-10,
+      "rsi": 2.5576497364454553e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CHRD",
+     "engine": {
+      "macd": 0.10170395976211921,
+      "signal": 0.11833464371696974,
+      "rsi": 53.154037316034376,
+      "vol_x": 7.048279418927825
+     },
+     "pandas": {
+      "macd": 0.10170395966812862,
+      "signal": 0.1183346435787249,
+      "rsi": 53.15403731771548,
+      "vol_x": 7.048279418927825
+     },
+     "diff": {
+      "macd": 9.399059308634605e-11,
+      "signal": 1.3824483224844641e-10,
+      "rsi": 1.6811014802442514e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "HBCP",
+     "engine": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.532433211197684,
+      "vol_x": 4.743061703683744
+     },
+     "pandas": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.53243321119771,
+      "vol_x": 4.743061703683744
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 2.842170943040401e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CCJ",
+     "engine": {
+      "macd": 0.10933607635945464,
+      "signal": 0.1490148765919797,
+      "rsi": 51.8070032098082,
+      "vol_x": 1.4544078884121447
+     },
+     "pandas": {
+      "macd": 0.10933607636826537,
+      "signal": 0.14901487660494883,
+      "rsi": 51.80700321157376,
+      "vol_x": 1.4544078884121447
+     },
+     "diff": {
+      "macd": 8.810729923425242e-12,
+      "signal": 1.2969125773309997e-11,
+      "rsi": 1.765556589816697e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  },
+  {
+   "stage": 1000,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 1000",
+    "pool_size": 5909,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1106202615:41"
+   },
+   "started_ny": "2026-11-06 16:51:45",
+   "finished_ny": "2026-11-06 16:53:43",
+   "regular_session_at_start": false,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-06 15:55:00",
+   "next_5m_close_ny": "2026-11-06 16:05:00",
+   "requested": 1000,
+   "fetched": 1000,
+   "with_bars": 997,
+   "evaluated_current": 848,
+   "matched": 201,
+   "insufficient": 87,
+   "no_trade": 62,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 3,
+   "rate_limited_events": 0,
+   "requests": 20,
+   "fetch_s": 56.42,
+   "compute_s": 0.828,
+   "wait_between_batches_s": 60.0,
+   "cycle_s": 117.3,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 3223,
+    "median": 3223,
+    "max": 19723
+   },
+   "evaluated_before_next_5m_close": null,
+   "reference_bar_ny": "2026-11-06 15:55:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "NMAX",
+     "engine": {
+      "macd": 0.005441532005135308,
+      "signal": 0.0008279629605375245,
+      "rsi": 57.455409149733754,
+      "vol_x": 6.778140506659702
+     },
+     "pandas": {
+      "macd": 0.005441532009277772,
+      "signal": 0.0008279629666303908,
+      "rsi": 57.45540916242505,
+      "vol_x": 6.778140506659702
+     },
+     "diff": {
+      "macd": 4.142464149481384e-12,
+      "signal": 6.092866228907257e-12,
+      "rsi": 1.2691295125932811e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "GOOD",
+     "engine": {
+      "macd": -0.0056894090450132495,
+      "signal": -0.009581280704921341,
+      "rsi": 50.37122159406769,
+      "vol_x": 10.784121944831936
+     },
+     "pandas": {
+      "macd": -0.0056894090395971375,
+      "signal": -0.0095812806969567,
+      "rsi": 50.37122160190854,
+      "vol_x": 10.784121944831936
+     },
+     "diff": {
+      "macd": 5.416112003331364e-12,
+      "signal": 7.964641099422742e-12,
+      "rsi": 7.840846194540063e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "KLIC",
+     "engine": {
+      "macd": 0.15745098500428156,
+      "signal": 0.1275543851270918,
+      "rsi": 63.47202325834281,
+      "vol_x": 7.983273496034905
+     },
+     "pandas": {
+      "macd": 0.1574509851322503,
+      "signal": 0.12755438531528585,
+      "rsi": 63.47202327272402,
+      "vol_x": 7.983273496034905
+     },
+     "diff": {
+      "macd": 1.2796874671039404e-10,
+      "signal": 1.8819404368208836e-10,
+      "rsi": 1.4381214441527845e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "FNGD",
+     "engine": {
+      "macd": 0.12058414004873441,
+      "signal": 0.06998553258883647,
+      "rsi": 65.84124453820827,
+      "vol_x": 12.657319661594572
+     },
+     "pandas": {
+      "macd": 0.12058414009376861,
+      "signal": 0.06998553265506005,
+      "rsi": 65.8412445324376,
+      "vol_x": 12.657319661594572
+     },
+     "diff": {
+      "macd": 4.503419859247515e-11,
+      "signal": 6.62235821735635e-11,
+      "rsi": 5.770672828475654e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PNBK",
+     "engine": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "pandas": {
+      "macd": 0.0007386082660552074,
+      "signal": -0.000671653854598895,
+      "rsi": 65.30305244896351,
+      "vol_x": 7.0751953125
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NEON",
+     "engine": {
+      "macd": 0.0030147521671138877,
+      "signal": 0.0034318184144303517,
+      "rsi": 53.05814121160644,
+      "vol_x": 3.973738769868694
+     },
+     "pandas": {
+      "macd": 0.003026617168327528,
+      "signal": 0.00344766669175197,
+      "rsi": 53.05525903079799,
+      "vol_x": 3.973738769868694
+     },
+     "diff": {
+      "macd": 1.1865001213640092e-05,
+      "signal": 1.5848277321618524e-05,
+      "rsi": 0.002882180808448709,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "IIPR",
+     "engine": {
+      "macd": 0.13452408584900866,
+      "signal": 0.038559800787483715,
+      "rsi": 75.77965866245133,
+      "vol_x": 11.659919028340083
+     },
+     "pandas": {
+      "macd": 0.13452408595949095,
+      "signal": 0.03855980094996189,
+      "rsi": 75.77965868802782,
+      "vol_x": 11.659919028340083
+     },
+     "diff": {
+      "macd": 1.1048228998333798e-10,
+      "signal": 1.624781767461947e-10,
+      "rsi": 2.5576497364454553e-08,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CHRD",
+     "engine": {
+      "macd": 0.10170395976211921,
+      "signal": 0.11833464371696974,
+      "rsi": 53.154037316034376,
+      "vol_x": 7.048279418927825
+     },
+     "pandas": {
+      "macd": 0.10170395966812862,
+      "signal": 0.1183346435787249,
+      "rsi": 53.15403731771548,
+      "vol_x": 7.048279418927825
+     },
+     "diff": {
+      "macd": 9.399059308634605e-11,
+      "signal": 1.3824483224844641e-10,
+      "rsi": 1.6811014802442514e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "HBCP",
+     "engine": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.532433211197684,
+      "vol_x": 4.743061703683744
+     },
+     "pandas": {
+      "macd": -0.03580281662831197,
+      "signal": 0.020883622148252075,
+      "rsi": 35.53243321119771,
+      "vol_x": 4.743061703683744
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 2.842170943040401e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "CCJ",
+     "engine": {
+      "macd": 0.10933607635945464,
+      "signal": 0.1490148765919797,
+      "rsi": 51.8070032098082,
+      "vol_x": 1.4544078884121447
+     },
+     "pandas": {
+      "macd": 0.10933607636826537,
+      "signal": 0.14901487660494883,
+      "rsi": 51.80700321157376,
+      "vol_x": 1.4544078884121447
+     },
+     "diff": {
+      "macd": 8.810729923425242e-12,
+      "signal": 1.2969125773309997e-11,
+      "rsi": 1.765556589816697e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  }
+ ]
+}
