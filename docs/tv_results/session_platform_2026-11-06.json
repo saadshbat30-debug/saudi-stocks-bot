@@ -1,0 +1,1180 @@
+{
+ "started": "2026-11-06T10:17:59-05:00",
+ "symbols": [
+  "TSLA",
+  "NVDA",
+  "AAPL",
+  "AMD",
+  "PLTR",
+  "SOFI",
+  "F",
+  "BAC",
+  "INTC",
+  "AMZN",
+  "META",
+  "MSFT",
+  "LCID",
+  "NIO",
+  "RIVN",
+  "MARA",
+  "RIOT",
+  "SNAP",
+  "PLUG",
+  "AAL",
+  "CCL",
+  "GOOGL",
+  "T",
+  "PFE",
+  "UBER",
+  "HOOD",
+  "COIN",
+  "SMCI",
+  "MU",
+  "WBD",
+  "NU",
+  "GRAB",
+  "SOUN",
+  "RKLB",
+  "ACHR",
+  "JOBY",
+  "OPEN",
+  "CLSK",
+  "BBAI",
+  "IONQ"
+ ],
+ "volume_price": {
+  "TSLA": {
+   "tv_volume": [
+    9532942.0,
+    9545532.0
+   ],
+   "yahoo_volume": [
+    10945888,
+    11079050
+   ],
+   "tv_volume_growth_60s": 12590.0,
+   "yahoo_volume_growth_60s": 133162,
+   "volume_ratio_tv_over_yahoo": 0.8616,
+   "price_tv": 360.82,
+   "price_yahoo": 360.86,
+   "price_diff_bps": 1.1,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 73
+  },
+  "NVDA": {
+   "tv_volume": [
+    52745189.0,
+    52804113.0
+   ],
+   "yahoo_volume": [
+    56283440,
+    56711505
+   ],
+   "tv_volume_growth_60s": 58924.0,
+   "yahoo_volume_growth_60s": 428065,
+   "volume_ratio_tv_over_yahoo": 0.9311,
+   "price_tv": 191.65,
+   "price_yahoo": 191.6,
+   "price_diff_bps": 2.6,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 80
+  },
+  "AAPL": {
+   "tv_volume": [
+    8728279.0,
+    8736435.0
+   ],
+   "yahoo_volume": [
+    9619422,
+    9717064
+   ],
+   "tv_volume_growth_60s": 8156.0,
+   "yahoo_volume_growth_60s": 97642,
+   "volume_ratio_tv_over_yahoo": 0.8991,
+   "price_tv": 342.45,
+   "price_yahoo": 342.42,
+   "price_diff_bps": 0.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 63
+  },
+  "AMD": {
+   "tv_volume": [
+    15307248.0,
+    15322854.0
+   ],
+   "yahoo_volume": [
+    16527179,
+    16666739
+   ],
+   "tv_volume_growth_60s": 15606.0,
+   "yahoo_volume_growth_60s": 139560,
+   "volume_ratio_tv_over_yahoo": 0.9194,
+   "price_tv": 446.895,
+   "price_yahoo": 447.2411,
+   "price_diff_bps": 7.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 76
+  },
+  "PLTR": {
+   "tv_volume": [
+    6351961.0,
+    6357391.0
+   ],
+   "yahoo_volume": [
+    6861607,
+    6919083
+   ],
+   "tv_volume_growth_60s": 5430.0,
+   "yahoo_volume_growth_60s": 57476,
+   "volume_ratio_tv_over_yahoo": 0.9188,
+   "price_tv": 162.305,
+   "price_yahoo": 162.33,
+   "price_diff_bps": 1.5,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 43
+  },
+  "SOFI": {
+   "tv_volume": [
+    10493613.0,
+    10501379.0
+   ],
+   "yahoo_volume": [
+    11438201,
+    11584752
+   ],
+   "tv_volume_growth_60s": 7766.0,
+   "yahoo_volume_growth_60s": 146551,
+   "volume_ratio_tv_over_yahoo": 0.9065,
+   "price_tv": 16.38,
+   "price_yahoo": 16.38,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 33
+  },
+  "F": {
+   "tv_volume": [
+    3827406.0,
+    3830922.0
+   ],
+   "yahoo_volume": [
+    4490303,
+    4548112
+   ],
+   "tv_volume_growth_60s": 3516.0,
+   "yahoo_volume_growth_60s": 57809,
+   "volume_ratio_tv_over_yahoo": 0.8423,
+   "price_tv": 12.64,
+   "price_yahoo": 12.635,
+   "price_diff_bps": 4.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 14
+  },
+  "BAC": {
+   "tv_volume": [
+    5298377.0,
+    5303005.0
+   ],
+   "yahoo_volume": [
+    5889061,
+    5963408
+   ],
+   "tv_volume_growth_60s": 4628.0,
+   "yahoo_volume_growth_60s": 74347,
+   "volume_ratio_tv_over_yahoo": 0.8893,
+   "price_tv": 50.295,
+   "price_yahoo": 50.3,
+   "price_diff_bps": 1.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 37
+  },
+  "INTC": {
+   "tv_volume": [
+    44073373.0,
+    44110752.0
+   ],
+   "yahoo_volume": [
+    47658562,
+    48012823
+   ],
+   "tv_volume_growth_60s": 37379.0,
+   "yahoo_volume_growth_60s": 354261,
+   "volume_ratio_tv_over_yahoo": 0.9187,
+   "price_tv": 55.36,
+   "price_yahoo": 55.3695,
+   "price_diff_bps": 1.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 79
+  },
+  "AMZN": {
+   "tv_volume": [
+    9087298.0,
+    9093170.0
+   ],
+   "yahoo_volume": [
+    9770780,
+    9838485
+   ],
+   "tv_volume_growth_60s": 5872.0,
+   "yahoo_volume_growth_60s": 67705,
+   "volume_ratio_tv_over_yahoo": 0.9242,
+   "price_tv": 263.21,
+   "price_yahoo": 263.32,
+   "price_diff_bps": 4.2,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 68
+  },
+  "META": {
+   "tv_volume": [
+    3298332.0,
+    3305466.0
+   ],
+   "yahoo_volume": [
+    3606258,
+    3648711
+   ],
+   "tv_volume_growth_60s": 7134.0,
+   "yahoo_volume_growth_60s": 42453,
+   "volume_ratio_tv_over_yahoo": 0.9059,
+   "price_tv": 618.9,
+   "price_yahoo": 619.12,
+   "price_diff_bps": 3.6,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 45
+  },
+  "MSFT": {
+   "tv_volume": [
+    4658473.0,
+    4662903.0
+   ],
+   "yahoo_volume": [
+    5095920,
+    5152970
+   ],
+   "tv_volume_growth_60s": 4430.0,
+   "yahoo_volume_growth_60s": 57050,
+   "volume_ratio_tv_over_yahoo": 0.9049,
+   "price_tv": 532.94,
+   "price_yahoo": 533.1,
+   "price_diff_bps": 3.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 52
+  },
+  "LCID": {
+   "tv_volume": [
+    1681138.0,
+    1681419.0
+   ],
+   "yahoo_volume": [
+    1992969,
+    2007093
+   ],
+   "tv_volume_growth_60s": 281.0,
+   "yahoo_volume_growth_60s": 14124,
+   "volume_ratio_tv_over_yahoo": 0.8377,
+   "price_tv": 3.14,
+   "price_yahoo": 3.135,
+   "price_diff_bps": 15.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 2
+  },
+  "NIO": {
+   "tv_volume": [
+    7683617.0,
+    7686110.0
+   ],
+   "yahoo_volume": [
+    8783127,
+    8815170
+   ],
+   "tv_volume_growth_60s": 2493.0,
+   "yahoo_volume_growth_60s": 32043,
+   "volume_ratio_tv_over_yahoo": 0.8719,
+   "price_tv": 3.37,
+   "price_yahoo": 3.365,
+   "price_diff_bps": 14.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 6
+  },
+  "RIVN": {
+   "tv_volume": [
+    4364940.0,
+    4373586.0
+   ],
+   "yahoo_volume": [
+    5042853,
+    5144301
+   ],
+   "tv_volume_growth_60s": 8646.0,
+   "yahoo_volume_growth_60s": 101448,
+   "volume_ratio_tv_over_yahoo": 0.8502,
+   "price_tv": 13.425,
+   "price_yahoo": 13.43,
+   "price_diff_bps": 3.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 18
+  },
+  "MARA": {
+   "tv_volume": [
+    8382196.0,
+    8393167.0
+   ],
+   "yahoo_volume": [
+    8991031,
+    9079929
+   ],
+   "tv_volume_growth_60s": 10971.0,
+   "yahoo_volume_growth_60s": 88898,
+   "volume_ratio_tv_over_yahoo": 0.9244,
+   "price_tv": 5.895,
+   "price_yahoo": 5.905,
+   "price_diff_bps": 16.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 19
+  },
+  "RIOT": {
+   "tv_volume": [
+    9450192.0,
+    9467937.0
+   ],
+   "yahoo_volume": [
+    11185333,
+    11375606
+   ],
+   "tv_volume_growth_60s": 17745.0,
+   "yahoo_volume_growth_60s": 190273,
+   "volume_ratio_tv_over_yahoo": 0.8323,
+   "price_tv": 15.5,
+   "price_yahoo": 15.515,
+   "price_diff_bps": 9.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 44
+  },
+  "SNAP": {
+   "tv_volume": [
+    6539214.0,
+    6548832.0
+   ],
+   "yahoo_volume": [
+    7886250,
+    7958020
+   ],
+   "tv_volume_growth_60s": 9618.0,
+   "yahoo_volume_growth_60s": 71770,
+   "volume_ratio_tv_over_yahoo": 0.8229,
+   "price_tv": 5.06,
+   "price_yahoo": 5.055,
+   "price_diff_bps": 9.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 14
+  },
+  "PLUG": {
+   "tv_volume": [
+    8395852.0,
+    8411586.0
+   ],
+   "yahoo_volume": [
+    9993132,
+    10107002
+   ],
+   "tv_volume_growth_60s": 15734.0,
+   "yahoo_volume_growth_60s": 113870,
+   "volume_ratio_tv_over_yahoo": 0.8323,
+   "price_tv": 1.435,
+   "price_yahoo": 1.435,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 20
+  },
+  "AAL": {
+   "tv_volume": [
+    5118785.0,
+    5124586.0
+   ],
+   "yahoo_volume": [
+    5969854,
+    6067119
+   ],
+   "tv_volume_growth_60s": 5801.0,
+   "yahoo_volume_growth_60s": 97265,
+   "volume_ratio_tv_over_yahoo": 0.8446,
+   "price_tv": 13.25,
+   "price_yahoo": 13.25,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 27
+  },
+  "CCL": {
+   "tv_volume": [
+    2120587.0,
+    2122565.0
+   ],
+   "yahoo_volume": [
+    2436373,
+    2469394
+   ],
+   "tv_volume_growth_60s": 1978.0,
+   "yahoo_volume_growth_60s": 33021,
+   "volume_ratio_tv_over_yahoo": 0.8595,
+   "price_tv": 29.85,
+   "price_yahoo": 29.8531,
+   "price_diff_bps": 1.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 32
+  },
+  "GOOGL": {
+   "tv_volume": [
+    9404193.0,
+    9410742.0
+   ],
+   "yahoo_volume": [
+    9913615,
+    9970836
+   ],
+   "tv_volume_growth_60s": 6549.0,
+   "yahoo_volume_growth_60s": 57221,
+   "volume_ratio_tv_over_yahoo": 0.9438,
+   "price_tv": 287.9,
+   "price_yahoo": 287.935,
+   "price_diff_bps": 1.2,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 68
+  },
+  "T": {
+   "tv_volume": [
+    8888212.0,
+    8894668.0
+   ],
+   "yahoo_volume": [
+    9656226,
+    9781721
+   ],
+   "tv_volume_growth_60s": 6456.0,
+   "yahoo_volume_growth_60s": 125495,
+   "volume_ratio_tv_over_yahoo": 0.9093,
+   "price_tv": 21.805,
+   "price_yahoo": 21.805,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 16
+  },
+  "PFE": {
+   "tv_volume": [
+    15242938.0,
+    15250399.0
+   ],
+   "yahoo_volume": [
+    15730251,
+    15877819
+   ],
+   "tv_volume_growth_60s": 7461.0,
+   "yahoo_volume_growth_60s": 147568,
+   "volume_ratio_tv_over_yahoo": 0.9605,
+   "price_tv": 29.14,
+   "price_yahoo": 29.1401,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 35
+  },
+  "UBER": {
+   "tv_volume": [
+    3837623.0,
+    3845480.0
+   ],
+   "yahoo_volume": [
+    4359669,
+    4510467
+   ],
+   "tv_volume_growth_60s": 7857.0,
+   "yahoo_volume_growth_60s": 150798,
+   "volume_ratio_tv_over_yahoo": 0.8526,
+   "price_tv": 69.77,
+   "price_yahoo": 69.77,
+   "price_diff_bps": 0.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 34
+  },
+  "HOOD": {
+   "tv_volume": [
+    4088397.0,
+    4092871.0
+   ],
+   "yahoo_volume": [
+    4592668,
+    4632917
+   ],
+   "tv_volume_growth_60s": 4474.0,
+   "yahoo_volume_growth_60s": 40249,
+   "volume_ratio_tv_over_yahoo": 0.8834,
+   "price_tv": 80.14,
+   "price_yahoo": 80.15,
+   "price_diff_bps": 1.2,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 35
+  },
+  "COIN": {
+   "tv_volume": [
+    1547030.0,
+    1549679.0
+   ],
+   "yahoo_volume": [
+    1753812,
+    1774730
+   ],
+   "tv_volume_growth_60s": 2649.0,
+   "yahoo_volume_growth_60s": 20918,
+   "volume_ratio_tv_over_yahoo": 0.8732,
+   "price_tv": 135.685,
+   "price_yahoo": 135.61,
+   "price_diff_bps": 5.5,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 33
+  },
+  "SMCI": {
+   "tv_volume": [
+    13962544.0,
+    13978065.0
+   ],
+   "yahoo_volume": [
+    14842973,
+    14949344
+   ],
+   "tv_volume_growth_60s": 15521.0,
+   "yahoo_volume_growth_60s": 106371,
+   "volume_ratio_tv_over_yahoo": 0.935,
+   "price_tv": 28.97,
+   "price_yahoo": 28.985,
+   "price_diff_bps": 5.2,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 49
+  },
+  "MU": {
+   "tv_volume": [
+    14524173.0,
+    14535565.0
+   ],
+   "yahoo_volume": [
+    15834591,
+    16020494
+   ],
+   "tv_volume_growth_60s": 11392.0,
+   "yahoo_volume_growth_60s": 185903,
+   "volume_ratio_tv_over_yahoo": 0.9073,
+   "price_tv": 699.24,
+   "price_yahoo": 700.43,
+   "price_diff_bps": 17.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 85
+  },
+  "WBD": {
+   "tv_volume": [
+    null,
+    null
+   ],
+   "yahoo_volume": [
+    40,
+    40
+   ],
+   "tv_volume_growth_60s": 0,
+   "yahoo_volume_growth_60s": 0,
+   "volume_ratio_tv_over_yahoo": null,
+   "price_tv": null,
+   "price_yahoo": 30.95,
+   "price_diff_bps": null,
+   "session": null,
+   "update_mode": null,
+   "tape_entries": 0
+  },
+  "NU": {
+   "tv_volume": [
+    9353470.0,
+    9360441.0
+   ],
+   "yahoo_volume": [
+    10149668,
+    10252885
+   ],
+   "tv_volume_growth_60s": 6971.0,
+   "yahoo_volume_growth_60s": 103217,
+   "volume_ratio_tv_over_yahoo": 0.913,
+   "price_tv": 12.16,
+   "price_yahoo": 12.165,
+   "price_diff_bps": 4.1,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 29
+  },
+  "GRAB": {
+   "tv_volume": [
+    13785809.0,
+    13785919.0
+   ],
+   "yahoo_volume": [
+    16237509,
+    16373767
+   ],
+   "tv_volume_growth_60s": 110.0,
+   "yahoo_volume_growth_60s": 136258,
+   "volume_ratio_tv_over_yahoo": 0.842,
+   "price_tv": 3.54,
+   "price_yahoo": 3.545,
+   "price_diff_bps": 14.1,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 3
+  },
+  "SOUN": {
+   "tv_volume": [
+    8465492,
+    8484682.0
+   ],
+   "yahoo_volume": [
+    9164150,
+    9328949
+   ],
+   "tv_volume_growth_60s": 19190.0,
+   "yahoo_volume_growth_60s": 164799,
+   "volume_ratio_tv_over_yahoo": 0.9095,
+   "price_tv": 4.11,
+   "price_yahoo": 4.1,
+   "price_diff_bps": 24.4,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 25
+  },
+  "RKLB": {
+   "tv_volume": [
+    4252743.0,
+    4256752.0
+   ],
+   "yahoo_volume": [
+    4621533,
+    4653982
+   ],
+   "tv_volume_growth_60s": 4009.0,
+   "yahoo_volume_growth_60s": 32449,
+   "volume_ratio_tv_over_yahoo": 0.9146,
+   "price_tv": 49.62,
+   "price_yahoo": 49.655,
+   "price_diff_bps": 7.0,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 33
+  },
+  "ACHR": {
+   "tv_volume": [
+    4232198.0,
+    4235789.0
+   ],
+   "yahoo_volume": [
+    4964873,
+    5053329
+   ],
+   "tv_volume_growth_60s": 3591.0,
+   "yahoo_volume_growth_60s": 88456,
+   "volume_ratio_tv_over_yahoo": 0.8382,
+   "price_tv": 4.23,
+   "price_yahoo": 4.24,
+   "price_diff_bps": 23.6,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 14
+  },
+  "JOBY": {
+   "tv_volume": [
+    5834853.0,
+    5860225.0
+   ],
+   "yahoo_volume": [
+    6835618,
+    7073809
+   ],
+   "tv_volume_growth_60s": 25372.0,
+   "yahoo_volume_growth_60s": 238191,
+   "volume_ratio_tv_over_yahoo": 0.8284,
+   "price_tv": 5.68,
+   "price_yahoo": 5.69,
+   "price_diff_bps": 17.6,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 30
+  },
+  "OPEN": {
+   "tv_volume": [
+    16117079,
+    16138114.0
+   ],
+   "yahoo_volume": [
+    18121373,
+    18278501
+   ],
+   "tv_volume_growth_60s": 21035.0,
+   "yahoo_volume_growth_60s": 157128,
+   "volume_ratio_tv_over_yahoo": 0.8829,
+   "price_tv": 1.555,
+   "price_yahoo": 1.5574,
+   "price_diff_bps": 15.4,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 12
+  },
+  "CLSK": {
+   "tv_volume": [
+    4616939.0,
+    4620999.0
+   ],
+   "yahoo_volume": [
+    4976330,
+    4995861
+   ],
+   "tv_volume_growth_60s": 4060.0,
+   "yahoo_volume_growth_60s": 19531,
+   "volume_ratio_tv_over_yahoo": 0.925,
+   "price_tv": 5.815,
+   "price_yahoo": 5.8161,
+   "price_diff_bps": 1.9,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 28
+  },
+  "BBAI": {
+   "tv_volume": [
+    3687080.0,
+    3687180.0
+   ],
+   "yahoo_volume": [
+    4262524,
+    4285384
+   ],
+   "tv_volume_growth_60s": 100.0,
+   "yahoo_volume_growth_60s": 22860,
+   "volume_ratio_tv_over_yahoo": 0.8604,
+   "price_tv": 2.15,
+   "price_yahoo": 2.14,
+   "price_diff_bps": 46.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 1
+  },
+  "IONQ": {
+   "tv_volume": [
+    8560597.0,
+    8569666.0
+   ],
+   "yahoo_volume": [
+    9460239,
+    9581639
+   ],
+   "tv_volume_growth_60s": 9069.0,
+   "yahoo_volume_growth_60s": 121400,
+   "volume_ratio_tv_over_yahoo": 0.8944,
+   "price_tv": 29.77,
+   "price_yahoo": 29.7899,
+   "price_diff_bps": 6.7,
+   "session": "market",
+   "update_mode": "streaming",
+   "tape_entries": 54
+  }
+ },
+ "breakout_metrics": {
+  "TSLA": {
+   "acc1m": 2.26,
+   "chg3m": 0.334,
+   "rng3m": 0.447,
+   "pos3m": 74.8,
+   "val3m": 20137423,
+   "vol1m": 29623,
+   "age": 0.7
+  },
+  "NVDA": {
+   "acc1m": 0.92,
+   "chg3m": 0.12,
+   "rng3m": 0.381,
+   "pos3m": 31.5,
+   "val3m": 25840985,
+   "vol1m": 42400,
+   "age": 0.1
+  },
+  "AAPL": {
+   "acc1m": 0.88,
+   "chg3m": -0.05,
+   "rng3m": 0.248,
+   "pos3m": 51.8,
+   "val3m": 9007848,
+   "vol1m": 8067,
+   "age": 2.8
+  },
+  "AMD": {
+   "acc1m": 1.05,
+   "chg3m": 0.518,
+   "rng3m": 1.115,
+   "pos3m": 46.5,
+   "val3m": 11591331,
+   "vol1m": 8884,
+   "age": 0.0
+  },
+  "PLTR": {
+   "acc1m": 1.13,
+   "chg3m": -0.225,
+   "rng3m": 0.461,
+   "pos3m": 0.0,
+   "val3m": 2643077,
+   "vol1m": 5895,
+   "age": 1.0
+  },
+  "SOFI": {
+   "acc1m": 0.35,
+   "chg3m": -0.122,
+   "rng3m": 0.489,
+   "pos3m": 12.5,
+   "val3m": 364318,
+   "vol1m": 3306,
+   "age": 0.2
+  },
+  "F": {
+   "acc1m": 6.78,
+   "chg3m": -0.079,
+   "rng3m": 0.278,
+   "pos3m": 71.4,
+   "val3m": 205715,
+   "vol1m": 12579,
+   "age": 7.4
+  },
+  "BAC": {
+   "acc1m": 0.49,
+   "chg3m": -0.139,
+   "rng3m": 0.219,
+   "pos3m": 27.3,
+   "val3m": 570863,
+   "vol1m": 2227,
+   "age": 3.8
+  },
+  "INTC": {
+   "acc1m": 1.37,
+   "chg3m": 0.489,
+   "rng3m": 0.978,
+   "pos3m": 50.0,
+   "val3m": 8344291,
+   "vol1m": 61169,
+   "age": 1.4
+  },
+  "AMZN": {
+   "acc1m": 1.46,
+   "chg3m": 0.027,
+   "rng3m": 0.188,
+   "pos3m": 31.3,
+   "val3m": 5926744,
+   "vol1m": 9513,
+   "age": 0.2
+  },
+  "META": {
+   "acc1m": 2.68,
+   "chg3m": 0.058,
+   "rng3m": 0.288,
+   "pos3m": 37.1,
+   "val3m": 12429807,
+   "vol1m": 11491,
+   "age": 2.8
+  },
+  "MSFT": {
+   "acc1m": 2.88,
+   "chg3m": 0.019,
+   "rng3m": 0.199,
+   "pos3m": 20.8,
+   "val3m": 7821011,
+   "vol1m": 8658,
+   "age": 0.5
+  },
+  "LCID": {
+   "acc1m": 0.06,
+   "chg3m": -0.957,
+   "rng3m": 1.288,
+   "pos3m": 0.0,
+   "val3m": 48408,
+   "vol1m": 449,
+   "age": 1.4
+  },
+  "NIO": {
+   "acc1m": 775.97,
+   "chg3m": 0.148,
+   "rng3m": 0.446,
+   "pos3m": 100.0,
+   "val3m": 171555,
+   "vol1m": 50826,
+   "age": 0.1
+  },
+  "RIVN": {
+   "acc1m": 0.11,
+   "chg3m": 0.149,
+   "rng3m": 0.448,
+   "pos3m": 50.0,
+   "val3m": 161940,
+   "vol1m": 636,
+   "age": 22.2
+  },
+  "MARA": {
+   "acc1m": 1.27,
+   "chg3m": 0.17,
+   "rng3m": 0.424,
+   "pos3m": 60.0,
+   "val3m": 157898,
+   "vol1m": 10373,
+   "age": 0.0
+  },
+  "RIOT": {
+   "acc1m": 0.51,
+   "chg3m": 0.129,
+   "rng3m": 0.647,
+   "pos3m": 35.0,
+   "val3m": 479057,
+   "vol1m": 6264,
+   "age": 3.8
+  },
+  "SNAP": {
+   "acc1m": 4.74,
+   "chg3m": -0.296,
+   "rng3m": 0.794,
+   "pos3m": 12.5,
+   "val3m": 296680,
+   "vol1m": 41290,
+   "age": 2.2
+  },
+  "PLUG": {
+   "acc1m": 2.61,
+   "chg3m": -0.347,
+   "rng3m": 0.348,
+   "pos3m": 0.0,
+   "val3m": 22184,
+   "vol1m": 8740,
+   "age": 8.5
+  },
+  "AAL": {
+   "acc1m": 1.24,
+   "chg3m": -0.075,
+   "rng3m": 0.416,
+   "pos3m": 63.6,
+   "val3m": 170431,
+   "vol1m": 4935,
+   "age": 6.8
+  },
+  "CCL": {
+   "acc1m": 0.64,
+   "chg3m": -0.301,
+   "rng3m": 0.369,
+   "pos3m": 0.0,
+   "val3m": 329434,
+   "vol1m": 2668,
+   "age": 2.8
+  },
+  "GOOGL": {
+   "acc1m": 0.52,
+   "chg3m": 0.156,
+   "rng3m": 0.316,
+   "pos3m": 49.5,
+   "val3m": 4099647,
+   "vol1m": 2955,
+   "age": 1.8
+  },
+  "T": {
+   "acc1m": 2.15,
+   "chg3m": 0.138,
+   "rng3m": 0.184,
+   "pos3m": 87.5,
+   "val3m": 329404,
+   "vol1m": 7840,
+   "age": 5.3
+  },
+  "PFE": {
+   "acc1m": 0.73,
+   "chg3m": -0.069,
+   "rng3m": 0.24,
+   "pos3m": 64.3,
+   "val3m": 686983,
+   "vol1m": 6302,
+   "age": 2.8
+  },
+  "UBER": {
+   "acc1m": 0.71,
+   "chg3m": -0.272,
+   "rng3m": 0.532,
+   "pos3m": 48.6,
+   "val3m": 828296,
+   "vol1m": 3109,
+   "age": 1.7
+  },
+  "HOOD": {
+   "acc1m": 0.64,
+   "chg3m": 0.131,
+   "rng3m": 0.437,
+   "pos3m": 30.0,
+   "val3m": 945702,
+   "vol1m": 2848,
+   "age": 0.7
+  },
+  "COIN": {
+   "acc1m": 0.53,
+   "chg3m": 0.177,
+   "rng3m": 0.614,
+   "pos3m": 63.9,
+   "val3m": 557002,
+   "vol1m": 860,
+   "age": 0.7
+  },
+  "SMCI": {
+   "acc1m": 1.42,
+   "chg3m": 0.277,
+   "rng3m": 0.864,
+   "pos3m": 32.0,
+   "val3m": 1174937,
+   "vol1m": 16843,
+   "age": 0.7
+  },
+  "MU": {
+   "acc1m": 1.24,
+   "chg3m": 0.579,
+   "rng3m": 1.212,
+   "pos3m": 50.5,
+   "val3m": 32735832,
+   "vol1m": 17812,
+   "age": 0.9
+  },
+  "WBD": null,
+  "NU": {
+   "acc1m": 3.92,
+   "chg3m": 0.041,
+   "rng3m": 0.329,
+   "pos3m": 25.0,
+   "val3m": 431173,
+   "vol1m": 23479,
+   "age": 1.8
+  },
+  "GRAB": {
+   "acc1m": 0.0,
+   "chg3m": 0.0,
+   "rng3m": 0.283,
+   "pos3m": 100.0,
+   "val3m": 133682,
+   "vol1m": 0,
+   "age": 67.9
+  },
+  "SOUN": {
+   "acc1m": 1.06,
+   "chg3m": -0.732,
+   "rng3m": 1.356,
+   "pos3m": 27.3,
+   "val3m": 358789,
+   "vol1m": 30422,
+   "age": 1.0
+  },
+  "RKLB": {
+   "acc1m": 1.75,
+   "chg3m": 0.02,
+   "rng3m": 0.829,
+   "pos3m": 19.5,
+   "val3m": 635139,
+   "vol1m": 5968,
+   "age": 1.2
+  },
+  "ACHR": {
+   "acc1m": 0.49,
+   "chg3m": 0.355,
+   "rng3m": 0.709,
+   "pos3m": 50.0,
+   "val3m": 101795,
+   "vol1m": 4741,
+   "age": 0.7
+  },
+  "JOBY": {
+   "acc1m": 0.26,
+   "chg3m": -0.701,
+   "rng3m": 1.329,
+   "pos3m": 33.3,
+   "val3m": 284244,
+   "vol1m": 5727,
+   "age": 4.9
+  },
+  "OPEN": {
+   "acc1m": 0.58,
+   "chg3m": -0.965,
+   "rng3m": 1.634,
+   "pos3m": 40.0,
+   "val3m": 526928,
+   "vol1m": 76555,
+   "age": 2.8
+  },
+  "CLSK": {
+   "acc1m": 0.93,
+   "chg3m": 0.172,
+   "rng3m": 0.603,
+   "pos3m": 28.6,
+   "val3m": 106342,
+   "vol1m": 5793,
+   "age": 1.4
+  },
+  "BBAI": {
+   "acc1m": 0.35,
+   "chg3m": -0.93,
+   "rng3m": 0.939,
+   "pos3m": 0.0,
+   "val3m": 36021,
+   "vol1m": 2496,
+   "age": 1.7
+  },
+  "IONQ": {
+   "acc1m": 1.66,
+   "chg3m": -0.672,
+   "rng3m": 0.914,
+   "pos3m": 3.7,
+   "val3m": 863540,
+   "vol1m": 13172,
+   "age": 1.4
+  }
+ },
+ "breakout_metrics_ok": 39,
+ "status": {
+  "state": "connected",
+  "watching": 40,
+  "symbols": {
+   "ok": 39,
+   "pending": 0,
+   "unavailable": 1
+  },
+  "ticking_1m": 38,
+  "last_tick_age": 0.0,
+  "latency_median_s": 0.76,
+  "latency_p90_s": 1.2,
+  "latency_samples": 500,
+  "rate_limit_errors": 0,
+  "reconnects": 0,
+  "delayed_symbols": 0
+ },
+ "finished": "2026-11-06T10:21:38-05:00"
+}
