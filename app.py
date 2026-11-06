@@ -1,7 +1,7 @@
 import re
 import logging
 import time
-from flask import Flask, abort, jsonify, render_template, request
+from flask import Flask, abort, jsonify, redirect, render_template, request
 
 import breakout
 import corp_events
@@ -29,6 +29,9 @@ TV_INDICES = {"^DJI": "DJ:DJI", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX", "^RUT
 def home(market_id="us"):
     if market_id not in MARKETS:
         abort(404)
+    # تطبيق الجوال (Android WebView) يفتح واجهة الجوال؛ الرادار الكامل يبقى على /market/us
+    if request.path == "/" and "; wv)" in request.headers.get("User-Agent", ""):
+        return redirect("/m")
     return render_template(
         "index.html",
         markets=MARKETS,
@@ -78,7 +81,72 @@ def api_chart(symbol):
     if not valid_symbol(symbol) or interval not in CHART_INTERVALS:
         abort(404)
     # شموع اليوم تشمل ما قبل الافتتاح وما بعد الإغلاق (مثل موموو)، والشموع اليومية للجلسة الرسمية
-    return jsonify(get_chart(symbol, interval, prepost=interval in PREPOST_INTERVALS))
+    bars = get_chart(symbol, interval, prepost=interval in PREPOST_INTERVALS)
+    tail = request.args.get("tail", type=int)  # آخر N شموع فقط (تحديث الشارت في الجوال بدل إعادة تحميله كاملًا)
+    return jsonify(bars[-tail:] if tail and tail > 0 else bars)
+
+
+# ===== واجهة الجوال =====
+M_MIN_VALUE = 100000  # نفس حد «نشاط حقيقي» في الصفحة الرئيسية (MIN_VALUE في index.html)
+
+
+def _m_active(q):
+    return (q.get("price") or 0) >= 0.01 and (q.get("value") or 0) >= M_MIN_VALUE
+
+
+# نفس تعريفات تبويبات الصفحة الرئيسية (TABS في index.html): الترتيب ثم الشرط
+M_TABS = {
+    "gainers": ("change_pct", False, lambda q: q["change_pct"] > 0 and _m_active(q)),
+    "losers": ("change_pct", True, lambda q: q["change_pct"] < 0 and _m_active(q)),
+    "active": ("volume", False, _m_active),
+    "value": ("value", False, None),
+    "momentum": ("speed", False, lambda q: q.get("speed") is not None and _m_active(q)),
+    "liquidity": ("vol_ratio", False, lambda q: q.get("vol_ratio") is not None and _m_active(q)),
+    "high": ("change_pct", False, lambda q: q.get("at_high") and _m_active(q)),
+    "lowfloat": ("change_pct", False, lambda q: q.get("float") is not None and q["float"] < LOW_FLOAT and _m_active(q)),
+    "sharia": ("change_pct", False, lambda q: q.get("sharia") == "ok" and _m_active(q)),
+}
+M_FIELDS = ("symbol", "name", "price", "change_pct", "volume", "value", "vol_ratio", "speed", "otc", "live",
+            "float", "market_cap", "rsi", "regularOnly", "delay_min")
+
+
+@app.route("/m")
+def mobile():
+    return render_template("mobile.html", low_float=LOW_FLOAT)
+
+
+@app.route("/api/m/list")
+def api_m_list():
+    """قائمة الرادار مختصرة للجوال: ?tab=gainers&ext=0|1&venue=all|listed|otc&limit=60&q=بحث"""
+    tab = request.args.get("tab", "gainers")
+    ext = request.args.get("ext") == "1"
+    venue = request.args.get("venue", "all")
+    limit = min(request.args.get("limit", 60, type=int), 300)
+    search = request.args.get("q", "").strip().lower()
+    rows = get_market("us")
+    out = []
+    for r in rows:
+        q = r
+        if ext:  # مثل view() في الصفحة الرئيسية: سعر وتغير وزخم الجلسة الممتدة
+            q = {**r, "price": r.get("ext_price"), "change_pct": r.get("ext_change_pct"), "speed": r.get("ext_speed"),
+                 "at_high": False, "live": r.get("ext_live")}
+            if q["price"] is None and (tab == "sharia" or search):
+                q = {**r, "regularOnly": True}
+        if q.get("price") is None or q.get("change_pct") is None:
+            continue
+        out.append(q)
+    if search:
+        out = [q for q in out if search in q["symbol"].lower() or search in (q.get("name") or "").lower()]
+        out.sort(key=lambda q: (q["symbol"].lower() != search, not q["symbol"].lower().startswith(search), -(q.get("value") or 0)))
+    else:
+        key, asc, test = M_TABS.get(tab, M_TABS["gainers"])
+        if test:
+            out = [q for q in out if test(q)]
+        neg = float("-inf")
+        out.sort(key=lambda q: q.get(key) if q.get(key) is not None else neg, reverse=not asc)
+    if venue != "all":
+        out = [q for q in out if bool(q.get("otc")) == (venue == "otc")]
+    return jsonify({"total": len(out), "rows": [{k: q.get(k) for k in M_FIELDS} for q in out[:limit]]})
 
 
 PREPOST_INTERVALS = ("1m", "5m", "15m", "30m", "1h")

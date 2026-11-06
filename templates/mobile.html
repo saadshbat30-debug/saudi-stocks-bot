@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<title>منصة الأسهم</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a2129; --card2:#202a34; --line:#2a333d; --text:#e6edf3; --muted:#8b98a5; --up:#22c55e; --down:#ef4444; --accent:#3b82f6; --warn:#facc15; --nav:64px; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif; font-size:15px; overscroll-behavior-y:contain; }
+  body { padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom)); }
+  a { color:inherit; text-decoration:none; }
+  button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  .ltr { direction:ltr; unicode-bidi:isolate; display:inline-block; }
+  .up { color:var(--up); } .down { color:var(--down); } .muted { color:var(--muted); }
+
+  /* الشريط العلوي */
+  .top { position:sticky; top:0; z-index:20; background:rgba(15,20,25,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px 6px; }
+  .bar h1 { margin:0; font-size:18px; font-weight:700; }
+  .pill { font-size:11.5px; padding:4px 9px; border-radius:999px; background:var(--card); border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .pill.ok { color:var(--up); border-color:#1f5133; } .pill.bad { color:var(--warn); border-color:#5b4a12; }
+  .idx { display:flex; gap:14px; overflow-x:auto; padding:2px 14px 9px; scrollbar-width:none; font-size:12.5px; }
+  .idx::-webkit-scrollbar { display:none; }
+  .idx a { white-space:nowrap; display:flex; gap:5px; align-items:baseline; }
+  .idx b { font-weight:600; }
+
+  /* الشرائح */
+  .chips { display:flex; gap:7px; overflow-x:auto; padding:10px 14px 4px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chip { flex:none; padding:7px 13px; border-radius:999px; background:var(--card); border:1px solid var(--line); color:var(--muted); font-size:13.5px; white-space:nowrap; }
+  .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .seg { display:flex; margin:6px 14px 0; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px; }
+  .seg button { flex:1; padding:7px 4px; border-radius:7px; color:var(--muted); font-size:13px; }
+  .seg button.on { background:var(--card2); color:var(--text); font-weight:600; }
+
+  /* القوائم */
+  .list { padding:6px 0 10px; }
+  .row { display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); }
+  .row:active { background:var(--card); }
+  .row .id { flex:1; min-width:0; }
+  .row .sym { font-weight:700; font-size:15.5px; direction:ltr; unicode-bidi:isolate; }
+  .row .nm { color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .row .sub { color:var(--muted); font-size:11.5px; margin-top:3px; }
+  .row .px { text-align:left; direction:ltr; font-variant-numeric:tabular-nums; }
+  .row .px b { display:block; font-size:15px; font-weight:600; }
+  .chg { display:inline-block; min-width:78px; text-align:center; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13.5px; direction:ltr; font-variant-numeric:tabular-nums; color:#fff; }
+  .chg.u { background:#15803d; } .chg.d { background:#b91c1c; } .chg.z { background:#334155; }
+  .tag { font-size:10px; padding:1px 5px; border-radius:5px; background:#26303b; color:var(--muted); margin-inline-start:4px; vertical-align:middle; }
+  .more { display:block; margin:12px auto; padding:10px 22px; border-radius:10px; background:var(--card); border:1px solid var(--line); color:var(--text); }
+  .empty { padding:40px 20px; text-align:center; color:var(--muted); line-height:1.8; }
+  .note { padding:8px 14px; font-size:12px; color:var(--muted); line-height:1.6; }
+  .search { display:flex; gap:8px; padding:12px 14px 4px; }
+  .search input { flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text); font:inherit; font-size:16px; }
+
+  /* شريط الأقسام السفلي */
+  nav.tabs { position:fixed; bottom:0; inset-inline:0; z-index:30; height:calc(var(--nav) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom);
+    display:flex; background:#121920; border-top:1px solid var(--line); }
+  nav.tabs button { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--muted); font-size:11px; }
+  nav.tabs button svg { width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  nav.tabs button.on { color:var(--accent); font-weight:600; }
+  section.view { display:none; } section.view.on { display:block; }
+
+  /* صفحة السهم */
+  .sheet { position:fixed; inset:0; z-index:40; background:var(--bg); overflow-y:auto; display:none; padding-bottom:30px; }
+  .sheet.on { display:block; }
+  .sh-top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:10px 12px; background:rgba(15,20,25,.97); border-bottom:1px solid var(--line); }
+  .sh-top .back { font-size:24px; padding:2px 8px; }
+  .sh-top .t { flex:1; min-width:0; }
+  .sh-top .t b { font-size:17px; direction:ltr; unicode-bidi:isolate; }
+  .sh-top .t div { color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .star { font-size:24px; color:var(--muted); padding:2px 6px; } .star.on { color:var(--warn); }
+  .quote { padding:14px; }
+  .quote .p { font-size:32px; font-weight:700; direction:ltr; unicode-bidi:isolate; font-variant-numeric:tabular-nums; }
+  .quote .c { font-size:16px; font-weight:600; margin-inline-start:8px; direction:ltr; unicode-bidi:isolate; }
+  .quote .s { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.6; }
+  #chart { height:300px; margin:0 6px; position:relative; }
+  #chart .msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; text-align:center; padding:20px; }
+  .legend { padding:4px 14px; font-size:11.5px; color:var(--muted); direction:ltr; text-align:left; min-height:18px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); margin:12px 14px; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .grid div { background:var(--card); padding:10px 12px; display:flex; justify-content:space-between; gap:8px; font-size:13px; }
+  .grid div span { color:var(--muted); }
+  .grid div b { font-weight:600; direction:ltr; unicode-bidi:isolate; font-variant-numeric:tabular-nums; }
+  .h2 { font-size:15px; font-weight:700; padding:16px 14px 4px; }
+  .actions { display:flex; gap:8px; padding:6px 14px; }
+  .actions a { flex:1; text-align:center; padding:11px 6px; border-radius:10px; background:var(--card); border:1px solid var(--line); font-size:13.5px; }
+
+  /* الأخبار */
+  .nw { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  .sc { flex:none; width:50px; height:50px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:700; direction:ltr; font-size:16px; }
+  .sc small { font-size:9px; font-weight:500; opacity:.85; }
+  .sc.p2 { background:#15803d; } .sc.p1 { background:#14532d; } .sc.z { background:#334155; } .sc.n1 { background:#7f1d1d; } .sc.n2 { background:#b91c1c; }
+  .nw .ttl { display:block; font-size:14px; line-height:1.55; margin:3px 0; }
+  .nw .meta { font-size:11.5px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+  .res { font-size:12px; padding:3px 7px; border-radius:6px; background:var(--card2); white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar"><h1>📊 منصة الأسهم</h1><span class="pill" id="sess">—</span><span class="pill" id="src">—</span></div>
+  <div class="idx" id="idx"></div>
+</div>
+
+<!-- ===== السوق ===== -->
+<section class="view" id="v-market">
+  <div class="chips" id="m-tabs"></div>
+  <div class="seg" id="m-ext"><button data-v="0">الجلسة الرسمية</button><button data-v="1">قبل / بعد الجلسة</button></div>
+  <div class="seg" id="m-venue"><button data-v="all">الكل</button><button data-v="listed">المدرجة</button><button data-v="otc">OTC</button></div>
+  <div class="list" id="m-list"><div class="empty">جارٍ التحميل…</div></div>
+</section>
+
+<!-- ===== المفضلة ===== -->
+<section class="view" id="v-favs">
+  <div class="note">اضغط ★ في صفحة أي سهم لإضافته هنا</div>
+  <div class="list" id="f-list"></div>
+</section>
+
+<!-- ===== البحث ===== -->
+<section class="view" id="v-search">
+  <div class="search"><input id="q" type="search" placeholder="🔍 رمز أو اسم شركة" autocomplete="off" autocapitalize="characters" dir="auto"></div>
+  <div class="list" id="s-list"><div class="empty">اكتب رمز السهم مثل TSLA أو اسم الشركة</div></div>
+</section>
+
+<!-- ===== قبل الانطلاق ===== -->
+<section class="view" id="v-break">
+  <div class="note" id="b-status"></div>
+  <div class="h2">الإشارات اليوم</div>
+  <div class="list" id="b-sigs"></div>
+  <div class="h2">الأقرب لتحقيق الشروط</div>
+  <div class="list" id="b-cands"></div>
+</section>
+
+<!-- ===== الأخبار ===== -->
+<section class="view" id="v-news">
+  <div class="chips" id="n-filter"></div>
+  <div class="list" id="n-list"><div class="empty">جارٍ التحميل…</div></div>
+</section>
+
+<!-- ===== صفحة السهم ===== -->
+<div class="sheet" id="sheet">
+  <div class="sh-top"><button class="back" id="back" aria-label="رجوع">→</button>
+    <div class="t"><b id="d-sym"></b><div id="d-name"></div></div>
+    <button class="star" id="d-star" aria-label="المفضلة">★</button></div>
+  <div class="quote"><span class="p" id="d-price">—</span><span class="c" id="d-chg"></span><div class="s" id="d-src"></div></div>
+  <div class="chips" id="d-iv"></div>
+  <div id="chart"></div>
+  <div class="legend" id="d-legend"></div>
+  <div class="grid" id="d-stats"></div>
+  <div class="actions"><a id="d-full" href="#">📈 الشارت المتقدم والمؤشرات</a><a id="d-opt" href="#">📑 العقود</a></div>
+  <div class="h2">أخبار السهم</div>
+  <div class="list" id="d-news"></div>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button data-v="market"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>السوق</button>
+  <button data-v="favs"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>المفضلة</button>
+  <button data-v="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg>بحث</button>
+  <button data-v="break"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>قبل الانطلاق</button>
+  <button data-v="news"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>الأخبار</button>
+</nav>
+
+<script src="{{ url_for('static', filename='vendor/lightweight-charts-4.2.0.js') }}"></script>
+<script>const LOW_FLOAT = {{ low_float|tojson }};</script>
+<script>
+{% raw %}
+// كل الأرقام من خادم المنصة نفسه (نفس واجهات الصفحات الكاملة) — لا بيانات داخل الصفحة
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const px = n => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: n < 1 ? 4 : 2, maximumFractionDigits: n < 1 ? 4 : 2 });
+const fmt = (n, d = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const big = v => v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : String(Math.round(v));
+const pct = v => v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const L = v => `<bdi dir="ltr">${v}</bdi>`;  // رقم بعلامته ($ أو × أو %) دون أن يقلبه اتجاه النص العربي
+const ago = t => { const s = Math.max(0, Date.now() / 1000 - t); return s < 60 ? "الآن" : s < 3600 ? `قبل ${Math.round(s / 60)} د` : s < 86400 ? `قبل ${Math.round(s / 3600)} س` : `قبل ${Math.round(s / 86400)} يوم`; };
+const getJSON = async url => (await fetch(url)).json();
+let favs = new Set(store.get("favs_us", []));  // نفس مفتاح المفضلة في الصفحة الكاملة
+
+// حالة السوق بتوقيت نيويورك (نفس دالة الصفحات الكاملة، بدون العطل الرسمية)
+function marketSession() {
+  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const m = ny.getHours() * 60 + ny.getMinutes(), day = ny.getDay();
+  if ((m >= 1200 && day <= 4) || (m < 240 && day >= 1 && day <= 5)) return ["تداول ليلي", "night"];
+  if (day === 0 || day === 6) return ["السوق مغلق", ""];
+  if (m >= 570 && m < 960) return ["السوق مفتوح", "open"];
+  if (m >= 240 && m < 570) return ["قبل الافتتاح", "ext"];
+  if (m >= 960 && m < 1200) return ["بعد الإغلاق", "ext"];
+  return ["السوق مغلق", ""];
+}
+
+// صف سهم في أي قائمة: الرمز والاسم، السعر، والتغير ملونًا
+function rowHtml(q, metric) {
+  const m = metric ? metric(q) : null;
+  const c = q.change_pct;
+  return `<a class="row" href="#stock/${encodeURIComponent(q.symbol)}">
+    <div class="id"><span class="sym">${esc(q.symbol)}</span>${q.otc ? '<span class="tag">OTC</span>' : ""}${q.live ? ' <span style="color:var(--warn)">⚡</span>' : ""}${q.delay_min ? `<span class="tag">⏱${q.delay_min}د</span>` : ""}${q.regularOnly ? '<span class="tag">رسمي</span>' : ""}
+      <div class="nm">${esc(q.name || "")}</div>
+      <div class="sub">${m ?? `حجم ${L(big(q.volume))} · قيمة ${L("$" + big(q.value))}${q.vol_ratio != null ? ` · سيولة ${L(fmt(q.vol_ratio, 1) + "×")}` : ""}`}</div></div>
+    <div class="px"><b>$${px(q.price)}</b></div>
+    <span class="chg ${c > 0 ? "u" : c < 0 ? "d" : "z"}">${pct(c)}</span></a>`;
+}
+
+// ===== الشريط العلوي: الجلسة، حالة المصدر، المؤشرات =====
+async function loadTop() {
+  const [t, c] = marketSession();
+  $("sess").textContent = t; $("sess").className = "pill" + (c === "open" ? " ok" : "");
+  try {
+    const st = (await getJSON("/api/status")).stream;
+    const tv = st.installed !== undefined;
+    const ok = st.connected && (!tv || st.state === "connected");
+    $("src").textContent = (tv ? "TradingView " : "ياهو ") + (ok ? "متصل" : st.connected ? "متأخر" : "منقطع");
+    $("src").className = "pill " + (ok ? "ok" : "bad");
+  } catch { $("src").textContent = "الخادم لا يرد"; $("src").className = "pill bad"; }
+}
+async function loadIdx() {
+  try {
+    const list = await getJSON("/api/indices");
+    $("idx").innerHTML = list.map(i => `<a href="#stock/${encodeURIComponent(i.symbol)}"><span class="muted">${esc(i.name)}</span><b class="ltr">${i.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b><span class="ltr ${cls(i.change_pct)}">${pct(i.change_pct)}</span></a>`).join("");
+  } catch {}
+}
+
+// ===== السوق =====
+const TABS = [["gainers", "الأكثر ارتفاعًا"], ["losers", "الأكثر انخفاضًا"], ["active", "الأكثر نشاطًا"], ["value", "الأعلى قيمة"],
+  ["liquidity", "💧 السيولة"], ["momentum", "🚀 الزخم"], ["high", "عند قمة اليوم"], ["lowfloat", "🎯 أسهم حرة قليلة"], ["sharia", "☪️ شرعية"]];
+const METRIC = {
+  liquidity: q => `سيولة <b class="ltr">${fmt(q.vol_ratio, 1)}×</b> المعتاد · حجم ${L(big(q.volume))}`,
+  momentum: q => `سرعة 5 دقائق <b class="ltr ${cls(q.speed)}">${pct(q.speed)}</b> · حجم ${L(big(q.volume))}`,
+  active: q => `حجم <b class="ltr">${big(q.volume)}</b> · قيمة ${L("$" + big(q.value))}`,
+  value: q => `قيمة التداول <b class="ltr">$${big(q.value)}</b> · حجم ${L(big(q.volume))}`,
+  lowfloat: q => `الأسهم الحرة <b class="ltr">${big(q.float)}</b> · حجم ${L(big(q.volume))}`,
+};
+let mTab = store.get("m_tab", "gainers"), mExt = store.get("m_ext", "0"), mVenue = store.get("m_venue", "all"), mLimit = 60;
+$("m-tabs").innerHTML = TABS.map(([k, l]) => `<button class="chip" data-v="${k}">${l}</button>`).join("");
+function syncSeg() {
+  $("m-tabs").querySelectorAll(".chip").forEach(b => b.classList.toggle("on", b.dataset.v === mTab));
+  $("m-ext").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === mExt));
+  $("m-venue").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === mVenue));
+}
+$("m-tabs").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; mTab = b.dataset.v; mLimit = 60; store.set("m_tab", mTab); syncSeg(); loadMarket(); };
+$("m-ext").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; mExt = b.dataset.v; store.set("m_ext", mExt); syncSeg(); loadMarket(); };
+$("m-venue").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; mVenue = b.dataset.v; store.set("m_venue", mVenue); syncSeg(); loadMarket(); };
+async function loadMarket() {
+  try {
+    const d = await getJSON(`/api/m/list?tab=${mTab}&ext=${mExt}&venue=${mVenue}&limit=${mLimit}`);
+    $("m-list").innerHTML = d.rows.length ? d.rows.map(q => rowHtml(q, METRIC[mTab])).join("") +
+      (d.total > d.rows.length ? `<button class="more" id="m-more">المزيد (${d.rows.length} من ${d.total})</button>` : `<div class="note" style="text-align:center">${d.total} سهم</div>`)
+      : `<div class="empty">${mExt === "1" ? "لا أسعار قبل/بعد الجلسة لهذه القائمة الآن" : "لا توجد أسهم في هذه القائمة الآن"}</div>`;
+    const more = $("m-more"); if (more) more.onclick = () => { mLimit += 60; loadMarket(); };
+  } catch { $("m-list").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }
+}
+
+// ===== المفضلة =====
+async function loadFavs() {
+  const list = [...favs];
+  if (!list.length) { $("f-list").innerHTML = `<div class="empty">لا توجد أسهم في المفضلة بعد</div>`; return; }
+  try {
+    const qs = await getJSON("/api/quotes?symbols=" + encodeURIComponent(list.slice(0, 40).join(",")));
+    $("f-list").innerHTML = list.map(s => qs[s] ? rowHtml({ symbol: s, name: qs[s].name || "", ...qs[s] }) :
+      `<a class="row" href="#stock/${encodeURIComponent(s)}"><div class="id"><span class="sym">${esc(s)}</span><div class="nm">لا يوجد سعر الآن</div></div></a>`).join("");
+  } catch { $("f-list").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }
+}
+
+// ===== البحث =====
+let qTimer;
+$("q").oninput = () => { clearTimeout(qTimer); qTimer = setTimeout(doSearch, 250); };
+$("q").onkeydown = e => { if (e.key === "Enter") { const v = $("q").value.trim().toUpperCase(); if (/^[A-Z0-9.\-^]{1,10}$/.test(v)) location.hash = "stock/" + v; } };
+async function doSearch() {
+  const v = $("q").value.trim();
+  if (!v) { $("s-list").innerHTML = `<div class="empty">اكتب رمز السهم مثل TSLA أو اسم الشركة</div>`; return; }
+  try {
+    const d = await getJSON(`/api/m/list?q=${encodeURIComponent(v)}&ext=0&limit=40`);
+    // رمز غير موجود في قائمة السوق (مثل سهم هادئ): يمكن فتحه مباشرة، ويأتي بعد النتائج
+    const open = /^[A-Za-z0-9.\-]{1,6}$/.test(v) && !d.rows.some(r => r.symbol === v.toUpperCase())
+      ? `<a class="row" href="#stock/${encodeURIComponent(v.toUpperCase())}"><div class="id"><span class="sym">${esc(v.toUpperCase())}</span><div class="nm">فتح الرمز مباشرة (غير موجود في قائمة السوق الحالية)</div></div><span class="muted">←</span></a>` : "";
+    $("s-list").innerHTML = d.rows.map(q => rowHtml(q)).join("") + open || `<div class="empty">لا نتائج</div>`;
+  } catch { $("s-list").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }
+}
+
+// ===== قبل الانطلاق (نفس إعدادات صفحة الفلتر الكاملة) =====
+const pbCfg = { target: store.get("pb_target", 0.5), stop: store.get("pb_stop", -0.3), hor: store.get("pb_hor", 180) };
+function outcome(s) {
+  let up = 0, down = 0;
+  for (const [dt, p] of s.path) {
+    if (dt > pbCfg.hor) break;
+    up = Math.max(up, p); down = Math.min(down, p);
+    if (p >= pbCfg.target) return { r: "win", p: pbCfg.target };
+    if (p <= pbCfg.stop) return { r: "loss", p: pbCfg.stop };
+  }
+  const last = s.path.filter(x => x[0] <= pbCfg.hor).pop();
+  if (s.age < pbCfg.hor && s.status === "open") return { r: "open", p: last ? last[1] : 0 };
+  return { r: "timeout", p: last ? last[1] : 0 };
+}
+const RES = { win: "✅ بلغ الهدف", loss: "❌ حد الهبوط", timeout: "⏱️ انتهت المهلة", open: "⏳ قيد المتابعة" };
+async function loadBreak() {
+  try {
+    const d = await getJSON("/api/breakout");
+    const nyDay = t => new Date(t * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
+    const today = nyDay(Date.now() / 1000);
+    $("b-status").innerHTML = (d.in_session ? '<span class="up">● الفلتر يعمل الآن</span>' : '<span class="muted">● خارج وقت التشغيل (9:35 ص – 4:00 م نيويورك)</span>') +
+      (d.coverage ? ` · البث يصل لـ ${d.coverage.live} من ${d.coverage.rows} سهم` : "") + ` · الهدف ${L("+" + pbCfg.target + "%")} والوقف ${L(pbCfg.stop + "%")}`;
+    const sigs = d.signals.filter(s => nyDay(s.t) === today);
+    $("b-sigs").innerHTML = sigs.length ? sigs.map(s => {
+      const o = outcome(s), time = new Date(s.t * 1000).toLocaleTimeString("en-GB", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" });
+      return `<a class="row" href="#stock/${encodeURIComponent(s.symbol)}"><div class="id"><span class="sym">${esc(s.symbol)}</span><div class="nm">${esc(s.name || "")}</div>
+        <div class="sub">${L(time)} (الرياض) · دخول ${L("$" + px(s.entry))}</div></div><span class="res">${RES[o.r]}</span><span class="chg ${o.p > 0 ? "u" : o.p < 0 ? "d" : "z"}">${pct(o.p)}</span></a>`;
+    }).join("") : `<div class="empty">لا إشارات اليوم بعد</div>`;
+    const n = d.rules.length;
+    $("b-cands").innerHTML = d.candidates.slice(0, 25).map(c => `<a class="row" href="#stock/${encodeURIComponent(c.symbol)}"><div class="id"><span class="sym">${esc(c.symbol)}</span><div class="nm">${esc(c.name || "")}</div>
+      <div class="sub">${d.rules.filter(([k]) => c.ok[k] === false).map(([, l]) => "✗ " + esc(l)).slice(0, 2).join(" · ") || "كل الشروط متحققة"}</div></div>
+      <span class="chg ${c.passed === n ? "u" : "z"}">${c.passed}/${n}</span></a>`).join("") || `<div class="empty">${d.in_session ? "جارٍ تجميع بيانات البث…" : "يعمل في الجلسة الرسمية فقط"}</div>`;
+  } catch { $("b-sigs").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }
+}
+
+// ===== الأخبار =====
+const NF = [["imp", "المهمة"], ["pos", "إيجابية"], ["neg", "سلبية"], ["fav", "المفضلة"], ["all", "الكل"]];
+let nf = store.get("m_news", "imp");
+$("n-filter").innerHTML = NF.map(([k, l]) => `<button class="chip" data-v="${k}">${l}</button>`).join("");
+const syncNews = () => $("n-filter").querySelectorAll(".chip").forEach(b => b.classList.toggle("on", b.dataset.v === nf));
+$("n-filter").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; nf = b.dataset.v; store.set("m_news", nf); syncNews(); renderNews(); };
+let newsData = null;
+const scCls = s => s >= 40 ? "p2" : s >= 15 ? "p1" : s <= -40 ? "n2" : s <= -15 ? "n1" : "z";
+function newsHtml(i) {
+  return `<div class="nw"><div class="sc ${scCls(i.score)}">${i.score > 0 ? "+" : ""}${i.score}<small>${esc((i.label || "").replace(/^\S+\s/, ""))}</small></div>
+    <div style="min-width:0;flex:1">${i.symbol ? `<a href="#stock/${encodeURIComponent(i.symbol)}"><b class="ltr">${esc(i.symbol)}</b></a>` : ""}
+      ${i.change_pct != null ? ` <span class="ltr ${cls(i.change_pct)}">${pct(i.change_pct)}</span>` : ""}${i.source === "wire" ? ' <span style="color:var(--warn)">⚡ بيان فوري</span>' : i.source === "8-K" ? ' <span style="color:var(--warn)">⚡ 8-K</span>' : ""}
+      <a class="ttl" href="${esc(i.url)}" target="_blank" rel="noopener" dir="auto">${esc(i.title)}</a>
+      <div class="meta"><span>${i.time ? ago(i.time) : ""}</span><span>${esc(i.publisher || "")}</span></div></div></div>`;
+}
+function renderNews() {
+  if (!newsData) return;
+  const all = newsData.items || [];
+  const rows = all.filter(i => nf === "all" || (nf === "imp" && Math.abs(i.score) >= 15) || (nf === "pos" && i.score >= 15) || (nf === "neg" && i.score <= -15) || (nf === "fav" && favs.has(i.symbol)));
+  $("n-list").innerHTML = rows.slice(0, 80).map(newsHtml).join("") ||
+    `<div class="empty">${all.length ? "لا أخبار بهذا التصنيف" : "⏳ يُفحص السوق الآن، تظهر الأخبار خلال دقائق من تشغيل المنصة"}</div>`;
+}
+async function loadNews() {
+  try { newsData = await getJSON("/api/smart_news?watch=" + encodeURIComponent([...favs].join(","))); renderNews(); }
+  catch { $("n-list").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }
+}
+
+// ===== صفحة السهم =====
+const IVS = [["1m", "1د"], ["5m", "5د"], ["15m", "15د"], ["30m", "30د"], ["1h", "ساعة"], ["1d", "يوم"], ["1w", "أسبوع"], ["1mo", "شهر"]];
+let cur = null, iv = store.get("m_iv", "5m"), chart = null, candles = null, vol = null, bars = [], meta = {};
+$("d-iv").innerHTML = IVS.map(([k, l]) => `<button class="chip" data-v="${k}">${l}</button>`).join("");
+const syncIv = () => $("d-iv").querySelectorAll(".chip").forEach(b => b.classList.toggle("on", b.dataset.v === iv));
+$("d-iv").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; iv = b.dataset.v; store.set("m_iv", iv); syncIv(); loadChart(true); };
+$("back").onclick = () => history.length > 1 ? history.back() : (location.hash = "market");
+$("d-star").onclick = () => {
+  if (!cur) return;
+  favs.has(cur) ? favs.delete(cur) : favs.add(cur);
+  store.set("favs_us", [...favs]); $("d-star").classList.toggle("on", favs.has(cur));
+};
+
+function makeChart() {
+  const el = $("chart");
+  el.innerHTML = "";
+  chart = LightweightCharts.createChart(el, {
+    layout: { background: { color: "#0f1419" }, textColor: "#8b98a5", fontSize: 11 },
+    grid: { vertLines: { color: "#1c242d" }, horzLines: { color: "#1c242d" } },
+    rightPriceScale: { borderColor: "#2a333d" },
+    timeScale: { borderColor: "#2a333d", timeVisible: true, secondsVisible: false },
+    crosshair: { mode: 0 },
+    handleScroll: { vertTouchDrag: false },
+  });
+  candles = chart.addCandlestickSeries({ upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444" });
+  vol = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol" });
+  chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+  chart.subscribeCrosshairMove(p => legend(p.time ? bars.find(b => b.time === p.time) : bars[bars.length - 1]));
+  new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight })).observe(el);
+}
+const volBar = b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,.45)" : "rgba(239,68,68,.45)" });
+function legend(b) {
+  if (!b) { $("d-legend").textContent = ""; return; }
+  $("d-legend").innerHTML = `O ${px(b.open)} H ${px(b.high)} L ${px(b.low)} C ${px(b.close)} · Vol ${big(b.volume)}` +
+    (meta.volume_scope ? ` <span title="حجم شموع ما داخل اليوم من Cboe One وحده في TradingView">(${esc(meta.volume_scope)})</span>` : "") +
+    (b.closed === false ? " · ⏳ جارية" : b.closed === true ? " · ✓ مغلقة" : "");
+}
+async function loadChart(fit) {
+  if (!cur) return;
+  const sym = cur, want = iv;
+  try {
+    const data = await getJSON(`/api/chart/${encodeURIComponent(sym)}?interval=${want}`);
+    try { meta = await getJSON(`/api/chart_meta/${encodeURIComponent(sym)}?interval=${want}`); } catch { meta = {}; }
+    if (sym !== cur || want !== iv) return;
+    if (!chart) makeChart();
+    bars = data;
+    const msg = $("chart").querySelector(".msg"); if (msg) msg.remove();
+    if (!bars.length) {
+      $("chart").insertAdjacentHTML("beforeend", `<div class="msg">لا توجد شموع لهذا الفاصل${meta.error ? " — " + esc(meta.error) : ""}</div>`);
+      candles.setData([]); vol.setData([]); legend(null); return;
+    }
+    candles.applyOptions({ priceFormat: { type: "price", precision: bars[bars.length - 1].close < 1 ? 4 : 2, minMove: bars[bars.length - 1].close < 1 ? 0.0001 : 0.01 } });
+    candles.setData(bars); vol.setData(bars.map(volBar));
+    if (fit) { const n = bars.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 90), to: n + 3 }); }
+    legend(bars[bars.length - 1]);
+  } catch {}
+}
+// تحديث آخر الشموع فقط (الجارية في مكانها، والجديدة تُضاف) دون إعادة تحميل الشارت
+async function tickChart() {
+  if (!cur || !chart || !bars.length) return;
+  const sym = cur, want = iv;
+  try {
+    const tail = await getJSON(`/api/chart/${encodeURIComponent(sym)}?interval=${want}&tail=3`);
+    if (sym !== cur || want !== iv) return;
+    for (const b of tail) {
+      const last = bars[bars.length - 1];
+      if (b.time < last.time) continue;
+      if (b.time === last.time) bars[bars.length - 1] = b; else bars.push(b);
+      candles.update(b); vol.update(volBar(b));
+    }
+    legend(bars[bars.length - 1]);
+  } catch {}
+}
+
+async function loadQuote() {
+  if (!cur) return;
+  const sym = cur;
+  try {
+    const q = (await getJSON("/api/quotes?symbols=" + encodeURIComponent(sym)))[sym];
+    if (sym !== cur) return;
+    if (!q) { $("d-price").textContent = "—"; $("d-src").textContent = "لا يوجد سعر لهذا الرمز"; return; }
+    $("d-name").textContent = q.name || "";
+    // نفس قاعدة الصفحة الكاملة: السعر الكبير = سعر الجلسة الحالية
+    const s = marketSession()[1];
+    const inExt = s !== "open" && (s === "night" ? q.night_price != null : q.ext_price != null);
+    const p = inExt ? (s === "night" ? q.night_price : q.ext_price) : q.price;
+    const c = inExt ? (s === "night" ? q.night_change_pct : q.ext_change_pct) : q.change_pct;
+    $("d-price").textContent = "$" + px(p);
+    $("d-chg").textContent = pct(c); $("d-chg").className = "c " + cls(c);
+    const m = q.source;
+    const ST = { connected: "🟢 متصل", delayed: "🟠 متأخر", disconnected: "🔴 منقطع", unavailable: "⚪ غير متاح", pending: "⏳" };
+    $("d-src").innerHTML = (inExt ? `${s === "night" ? "🌙 التداول الليلي" : "قبل/بعد الجلسة"} · إغلاق الجلسة الرسمية ${L("$" + px(q.price))} <span class="ltr ${cls(q.change_pct)}">${pct(q.change_pct)}</span><br>` : "") +
+      (m ? `المصدر: TradingView (غير رسمي) · ${ST[m.state] || m.state}${m.age != null ? ` · آخر تحديث قبل ${m.age} ث` : ""}${m.delay_s ? ` · متأخر ${Math.round(m.delay_s / 60)} د` : ""}`
+         : `المصدر: ياهو${q.live ? " · ⚡ بث مباشر" : ""}${q.delay_min ? ` · متأخر ${q.delay_min} د` : ""}`);
+    const SH = { ok: '<span class="up">✅ متوافق</span>', no: '<span class="down">❌ غير متوافق</span>', review: '<span style="color:var(--warn)">⚠️ مراجعة</span>' };
+    const cells = [
+      ["افتتاح", "$" + px(q.open)], ["الإغلاق السابق", "$" + px(q.prev_close)],
+      ["أعلى اليوم", "$" + px(q.day_high)], ["أدنى اليوم", "$" + px(q.day_low)],
+      ["الحجم", big(q.volume)], ["السيولة ×", q.vol_ratio != null ? fmt(q.vol_ratio, 2) + "×" : "—"],
+      ["RSI يومي", fmt(q.rsi, 1)], ["متوسط 20 / 50", `${fmt(q.sma20)} / ${fmt(q.sma50)}`],
+      ["القيمة السوقية", big(q.market_cap)], ["الأسهم الحرة", big(q.float)],
+      ["أعلى 52 أسبوع", "$" + px(q.high52)], ["أدنى 52 أسبوع", "$" + px(q.low52)],
+    ];
+    $("d-stats").innerHTML = cells.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("") +
+      `<div style="grid-column:1/-1"><span>الفحص الشرعي (تقريبي، ليس فتوى)</span><b>${SH[q.sharia] || "—"}</b></div>`;
+  } catch {}
+}
+async function loadStockNews() {
+  if (!cur) return;
+  const sym = cur;
+  try {
+    const items = await getJSON("/api/news/" + encodeURIComponent(sym));
+    if (sym !== cur) return;
+    $("d-news").innerHTML = items.slice(0, 15).map(i => newsHtml({ ...i, symbol: null })).join("") || `<div class="empty">لا أخبار حديثة لهذا السهم</div>`;
+  } catch { $("d-news").innerHTML = `<div class="empty">تعذر جلب الأخبار</div>`; }
+}
+function openStock(sym) {
+  cur = sym;
+  $("sheet").classList.add("on"); document.body.style.overflow = "hidden";
+  $("d-sym").textContent = sym; $("d-name").textContent = ""; $("d-price").textContent = "—"; $("d-chg").textContent = ""; $("d-src").textContent = "";
+  $("d-stats").innerHTML = ""; $("d-news").innerHTML = `<div class="empty">جارٍ التحميل…</div>`;
+  $("d-star").classList.toggle("on", favs.has(sym));
+  $("d-full").href = "/stock/" + encodeURIComponent(sym); $("d-opt").href = "/options/" + encodeURIComponent(sym);
+  bars = []; if (chart) { candles.setData([]); vol.setData([]); }
+  syncIv(); loadQuote(); loadChart(true); loadStockNews();
+}
+function closeStock() { cur = null; $("sheet").classList.remove("on"); document.body.style.overflow = ""; }
+
+// ===== التنقل بين الأقسام (زر الرجوع في الجوال يعمل عبر سجل الصفحة) =====
+let view = "market";
+const LOAD = { market: loadMarket, favs: loadFavs, search: doSearch, break: loadBreak, news: loadNews };
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h.startsWith("stock/")) { const s = h.slice(6).toUpperCase(); if (s !== cur) openStock(s); return; }
+  closeStock();
+  view = LOAD[h] ? h : store.get("m_view", "market");
+  store.set("m_view", view);
+  document.querySelectorAll("section.view").forEach(s => s.classList.toggle("on", s.id === "v-" + view));
+  $("tabs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === view));
+  LOAD[view]();
+  if (view === "search") setTimeout(() => $("q").focus(), 50);
+}
+$("tabs").onclick = e => { const b = e.target.closest("[data-v]"); if (b) location.hash = b.dataset.v; };
+window.addEventListener("hashchange", route);
+syncSeg(); syncNews(); route(); loadTop(); loadIdx();
+
+// تحديث تلقائي للقسم الظاهر فقط (ويتوقف حين يكون التطبيق في الخلفية)
+const every = (ms, fn) => setInterval(() => { if (!document.hidden) fn(); }, ms);
+every(1000, () => cur && loadQuote());
+every(3000, () => cur && ["1m", "5m", "15m", "30m", "1h"].includes(iv) && tickChart());
+every(30000, () => cur && loadChart(false));
+every(4000, () => !cur && view === "market" && loadMarket());
+every(3000, () => !cur && view === "favs" && loadFavs());
+every(3000, () => !cur && view === "break" && loadBreak());
+every(60000, () => !cur && view === "news" && loadNews());
+every(15000, loadTop);
+every(10000, loadIdx);
+{% endraw %}
+</script>
+</body>
+</html>
