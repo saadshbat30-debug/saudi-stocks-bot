@@ -223,6 +223,16 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(c["by_status"].get("error"), 1)  # S0013 بسببه
         self.assertIn("رمز غير مدعوم", e.failures()["rows"][0]["why"])
 
+    def test_counts_add_up_to_eligible(self):
+        e, p, _ = self.make(300, matching=("S0100",))
+        p.bars_upto = 60
+        bars, err, asof = p.history(e.symbols[:120], "5m")
+        e.ingest(bars, err, asof, e.symbols[:120])  # دورة غير مكتملة: 120 من 300
+        c = e.counts()
+        self.assertEqual(sum(c["by_status"].values()) + sum(1 for s in e.symbols if s not in e.rows), c["eligible"])
+        self.assertEqual(c["pending"], 300 - 120)
+        self.assertFalse(c["full_cycle_complete"])
+
     def test_12_appear_and_disappear(self):
         e, p, now = self.make(50, matching=("S0010",))
         self.run_cycle(e)

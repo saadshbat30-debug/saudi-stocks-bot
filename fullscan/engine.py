@@ -284,7 +284,8 @@ class Engine:
                 "matched": sum(1 for r in self.rows.values() if r["matched"]),
                 "provisional": sum(1 for r in self.rows.values() if r["provisional"]),
                 "failed": by.get("error", 0) + by.get("insufficient", 0), "by_status": by,
-                "pending": len(self.symbols) - sum(1 for s in self.symbols if s in self.rows),
+                # لم يُفحص بعد: صفه بحالة pending، أو لا صف له أصلًا
+                "pending": by.get("pending", 0) + sum(1 for s in self.symbols if s not in self.rows),
                 "full_cycle_complete": bool(self.cycle["completed"]),
             }
 
