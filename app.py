@@ -107,6 +107,76 @@ def api_scanner():
                                 prepost=interval in PREPOST_INTERVALS, symbols=symbols or None))
 
 
+# ===== الماسح الشامل للأسهم الأمريكية (fullscan/) =====
+_fs = {"engine": None, "prices": {}, "prices_at": 0}
+
+
+def _fs_price(symbol):
+    """السعر من بيانات المنصة الحالية (البث أو الماسح) مع مصدره وعمره — منفصل عن حساب المؤشرات."""
+    if time.time() - _fs["prices_at"] > 5:
+        _fs["prices"] = {r["symbol"]: r for r in get_market("us")}
+        _fs["prices_at"] = time.time()
+    r = _fs["prices"].get(symbol)
+    if not r:
+        return None
+    return {"price": r.get("price"), "change_pct": r.get("change_pct"), "live": bool(r.get("live")),
+            "src": r.get("src") or "yahoo", "delay_min": r.get("delay_min")}
+
+
+def _fs_engine():
+    if _fs["engine"] is None:
+        from fullscan.engine import Engine
+        from fullscan.providers import make
+        from fullscan.store import Store
+        _fs["engine"] = Engine(make(), store=Store(), price_fn=_fs_price)
+    return _fs["engine"]
+
+
+@app.route("/fullscan")
+def fullscan_page():
+    from fullscan import bars
+    return render_template("fullscan.html", markets=MARKETS, market_id=None, intervals=bars.INTERVALS)
+
+
+@app.route("/api/fullscan/status")
+def api_fullscan_status():
+    return jsonify(_fs_engine().status())
+
+
+@app.route("/api/fullscan/config", methods=["POST"])
+def api_fullscan_config():
+    try:
+        return jsonify(_fs_engine().configure(request.get_json(force=True) or {}))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/fullscan/run", methods=["POST"])
+def api_fullscan_run():
+    e = _fs_engine()
+    if (request.get_json(force=True) or {}).get("running"):
+        e.start()
+    else:
+        e.stop()
+    return jsonify({"running": e.running})
+
+
+@app.route("/api/fullscan/changes")
+def api_fullscan_changes():
+    return jsonify(_fs_engine().changes(request.args.get("since", 0, type=int), request.args.get("kind", "matched")))
+
+
+@app.route("/api/fullscan/failures")
+def api_fullscan_failures():
+    return jsonify(_fs_engine().failures(limit=request.args.get("limit", 300, type=int)))
+
+
+@app.route("/api/fullscan/prices")
+def api_fullscan_prices():
+    syms = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()][:500]
+    return jsonify({s: _fs_price(s) for s in syms if valid_symbol(s)})
+
+
 # ===== واجهة الجوال =====
 M_MIN_VALUE = 100000  # نفس حد «نشاط حقيقي» في الصفحة الرئيسية (MIN_VALUE في index.html)
 

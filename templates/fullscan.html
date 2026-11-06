@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}🔭 الماسح الشامل — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  main { max-width:none !important; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; min-width:0; }
+  .card h3 { margin:0 0 6px; font-size:15px; }
+  .muted { color:var(--muted); }
+  .row { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin:8px 0; }
+  .lbl { color:var(--muted); font-size:12.5px; min-width:64px; }
+  .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--bg); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .chip[disabled] { opacity:.4; cursor:not-allowed; }
+  .cond { display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-size:13.5px; }
+  .cond input[type=number] { width:64px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:3px 5px; font:inherit; direction:ltr; }
+  .cond input[type=checkbox], .cond input[type=radio] { width:16px; height:16px; accent-color:var(--accent); }
+  .btn { padding:8px 16px; border-radius:9px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; cursor:pointer; }
+  .btn.go { background:#15803d; border-color:#15803d; color:#fff; font-weight:600; } .btn.stop { background:#b91c1c; border-color:#b91c1c; color:#fff; font-weight:600; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .stat span { color:var(--muted); font-size:12px; } .stat b { display:block; font-size:19px; margin-top:2px; direction:ltr; text-align:right; }
+  .banner { border-radius:10px; padding:8px 12px; font-size:13px; margin-top:8px; }
+  .banner.ok { background:#14321f; color:#86efac; } .banner.warn { background:#3d3315; color:#facc15; } .banner.bad { background:#3d1717; color:#fca5a5; }
+  .wrap { overflow:auto; max-height:70vh; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:start; }
+  th { color:var(--muted); font-weight:500; position:sticky; top:0; background:#1f2831; z-index:1; cursor:pointer; }
+  td.num { font-variant-numeric:tabular-nums; direction:ltr; text-align:end; }
+  tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
+  .up { color:var(--up); } .down { color:var(--down); }
+  .tag { font-size:11px; padding:2px 7px; border-radius:6px; background:#26303b; }
+  .tag.live { background:#14321f; color:#86efac; } .tag.late { background:#3d3315; color:#facc15; } .tag.prov { background:#1e3a5f; color:#93c5fd; }
+  .pager { display:flex; gap:6px; align-items:center; justify-content:center; margin-top:8px; font-size:13px; }
+  @media (max-width:700px) { .lbl { min-width:100%; } .stat b { font-size:16px; } }
+</style>
+
+<div class="card">
+  <h3>🔭 الماسح الشامل للأسهم الأمريكية</h3>
+  <div class="muted" style="font-size:13px;line-height:1.7">
+    يفحص <b>كل</b> الأسهم العادية المدرجة في البورصات الأمريكية (قاعدة الرموز الرسمية من Nasdaq Trader) على الفاصل المختار، ويعرض كل سهم تتحقق فيه
+    الشروط المفعلة معًا (AND). المؤشرات على <b>الشموع المغلقة</b> للجلسة الرسمية، بنفس معادلات نافذة MACD وRSI أسفل الشارت. ليست توصية شراء.</div>
+  <div class="muted" id="src-line" style="font-size:12.5px;margin-top:6px"></div>
+
+  <div class="row"><span class="lbl">الفاصل</span><span id="iv"></span></div>
+  <div class="row"><span class="lbl">الشروط</span>
+    <label class="cond"><input type="checkbox" id="macd_on"> MACD(12,26,9) أكبر من خط الإشارة</label>
+    <label class="cond"><input type="checkbox" id="rsi_on"> RSI(14) بين <input type="number" id="rsi_min" step="1" min="0" max="100"> و <input type="number" id="rsi_max" step="1" min="0" max="100"> شاملًا</label>
+    <label class="cond"><input type="checkbox" id="vol_on"> حجم آخر شمعة مغلقة أكبر من <input type="number" id="vol_mult" step="0.1" min="0.1"> × متوسط <input type="number" id="vol_period" step="1" min="2" max="200"> شمعة سابقة</label>
+  </div>
+  <div class="row"><span class="lbl">الشمعة</span>
+    <label class="cond"><input type="radio" name="mode" value="closed"> مغلقة — مطابقة مؤكدة حسابيًا (الافتراضي)</label>
+    <label class="cond"><input type="radio" name="mode" value="forming"> جارية — مطابقة مؤقتة (قسم منفصل، قد تختفي قبل الإغلاق)</label>
+  </div>
+  <div class="row"><button class="btn go" id="run">▶ تشغيل الفحص</button><button class="btn" id="reset">إعادة ضبط الشروط</button>
+    <span class="muted" id="run-state" style="font-size:12.5px"></span></div>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat"><span>قاعدة الرموز (أسهم عادية مدرجة)</span><b id="c-universe">—</b></div>
+    <div class="stat"><span>المؤهلة للفحص</span><b id="c-eligible">—</b></div>
+    <div class="stat"><span>اكتمل جلبها بعد آخر إغلاق</span><b id="c-fetched">—</b></div>
+    <div class="stat"><span>بيانات محدثة (قُيّمت)</span><b id="c-ok">—</b></div>
+    <div class="stat"><span>المطابقة الآن</span><b id="c-matched" class="up">—</b></div>
+    <div class="stat"><span>تعذر فحصها</span><b id="c-failed">—</b></div>
+    <div class="stat"><span>آخر دورة مكتملة</span><b id="c-cycle" style="font-size:14px">—</b></div>
+    <div class="stat"><span>سرعة الجلب</span><b id="c-speed" style="font-size:14px">—</b></div>
+  </div>
+  <div id="coverage"></div>
+</div>
+
+<div class="card">
+  <h3 id="res-title">الأسهم المطابقة</h3>
+  <div class="wrap"><table>
+    <thead><tr><th data-k="symbol">الرمز</th><th data-k="name">الشركة</th><th data-k="price">السعر</th><th data-k="chg">التغير %</th>
+      <th data-k="macd">MACD</th><th data-k="signal">Signal</th><th data-k="rsi">RSI</th><th data-k="vol_x">Volume ×</th>
+      <th>الفاصل</th><th data-k="bar_t">وقت الشمعة</th><th>المصدر</th><th>الحالة</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="12" class="muted" style="text-align:center;padding:18px">اضغط «تشغيل الفحص» لبدء فحص السوق</td></tr></tbody>
+  </table></div>
+  <div class="pager" id="pager"></div>
+</div>
+
+<div class="card" id="prov-card" hidden>
+  <h3>⏳ مطابقات مؤقتة (الشمعة الجارية) — غير مؤكدة وقد تختفي قبل إغلاق الشمعة</h3>
+  <div class="wrap"><table><thead><tr><th>الرمز</th><th>الشركة</th><th>MACD</th><th>Signal</th><th>RSI</th><th>Volume ×</th><th>بداية الشمعة الجارية</th></tr></thead>
+    <tbody id="prov-rows"></tbody></table></div>
+</div>
+
+<div class="card">
+  <details><summary class="muted" style="cursor:pointer" id="fail-sum">الأسهم التي لم تُقيَّم وأسبابها</summary>
+    <div id="fail-reasons" style="margin-top:8px;font-size:13px"></div>
+    <div id="fail-list" class="muted" style="margin-top:6px;font-size:12px;line-height:1.8"></div></details>
+</div>
+
+<script>
+const INTERVALS = {{ intervals|tojson }};
+const IV_NAME = { "1m": "1 دقيقة", "3m": "3 دقائق", "5m": "5 دقائق", "15m": "15 دقيقة", "30m": "30 دقيقة", "1h": "ساعة", "1D": "يوم" };
+const DEF = { interval: "5m", mode: "closed", macd_on: true, rsi_on: true, rsi_min: 50, rsi_max: 70, vol_on: true, vol_mult: 1.5, vol_period: 20 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const px = n => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: n < 1 ? 4 : 2, maximumFractionDigits: n < 1 ? 4 : 2 });
+const mv = n => n == null ? "—" : Math.abs(n) >= 1 ? n.toFixed(3) : Math.abs(n) >= 0.01 ? n.toFixed(4) : n.toFixed(6);
+const load = () => { try { return { ...DEF, ...(JSON.parse(localStorage.getItem("fs_cfg")) || {}) }; } catch { return { ...DEF }; } };
+const save = c => { try { localStorage.setItem("fs_cfg", JSON.stringify(c)); } catch {} };
+let cfg = load(), rows = new Map(), prov = new Map(), seq = 0, pseq = 0, prices = {}, status = null, page = 0, sortK = "vol_x", sortAsc = false;
+const PAGE = 100;
+
+$("iv").innerHTML = INTERVALS.map(k => `<button class="chip" data-iv="${k}">${IV_NAME[k]}</button>`).join(" ");
+function syncForm() {
+  document.querySelectorAll("[data-iv]").forEach(b => b.classList.toggle("active", b.dataset.iv === cfg.interval));
+  for (const k of ["macd_on", "rsi_on", "vol_on"]) $(k).checked = !!cfg[k];
+  for (const k of ["rsi_min", "rsi_max", "vol_mult", "vol_period"]) $(k).value = cfg[k];
+  document.querySelectorAll('[name="mode"]').forEach(r => r.checked = r.value === cfg.mode);
+}
+async function push(changed) {
+  save(cfg);
+  try {
+    const r = await (await fetch("/api/fullscan/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) })).json();
+    if (!r.error) { cfg = { ...cfg, ...r }; save(cfg); }
+  } catch {}
+  if (changed) { rows.clear(); prov.clear(); seq = 0; pseq = 0; page = 0; }  // نتائج جديدة كاملة بعد أي تغيير
+  syncForm(); poll();
+}
+$("iv").onclick = e => { const b = e.target.closest("[data-iv]"); if (!b || b.disabled) return; cfg.interval = b.dataset.iv; push(true); };
+document.querySelectorAll("#macd_on,#rsi_on,#vol_on,#rsi_min,#rsi_max,#vol_mult,#vol_period").forEach(x => x.onchange = () => {
+  cfg[x.id] = x.type === "checkbox" ? x.checked : +x.value; push(true);
+});
+document.querySelectorAll('[name="mode"]').forEach(r => r.onchange = () => { cfg.mode = r.value; push(true); });
+$("reset").onclick = () => { cfg = { ...DEF, interval: cfg.interval }; push(true); };
+$("run").onclick = async () => {
+  const want = !(status && status.running);
+  try { await fetch("/api/fullscan/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ running: want }) }); } catch {}
+  poll();
+};
+document.querySelector("thead").onclick = e => { const th = e.target.closest("th[data-k]"); if (!th) return; const k = th.dataset.k; sortAsc = sortK === k ? !sortAsc : k === "symbol"; sortK = k; render(); };
+
+const ts = t => t ? new Date(t * 1000).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", hour12: false, month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " الرياض" : "—";
+const barTime = t => !t ? "—" : cfg.interval === "1D" ? new Date(t * 1000).toLocaleDateString("en-GB", { timeZone: "America/New_York" }) : ts(t);
+
+function renderStatus() {
+  const s = status; if (!s) return;
+  const c = s.counts, p = s.provider, u = s.universe || {};
+  $("c-universe").textContent = (u.eligible ?? c.universe ?? "—").toLocaleString?.("en-US") ?? "—";
+  $("c-eligible").textContent = c.eligible.toLocaleString("en-US");
+  $("c-fetched").textContent = `${c.fetched_this_cycle.toLocaleString("en-US")} / ${c.eligible.toLocaleString("en-US")}`;
+  $("c-ok").textContent = c.evaluated_current.toLocaleString("en-US");
+  $("c-matched").textContent = c.matched.toLocaleString("en-US");
+  $("c-failed").textContent = c.failed.toLocaleString("en-US");  // تعذر الجلب + بيانات غير كافية
+  const lc = s.cycle.last_completed;
+  $("c-cycle").textContent = lc ? `${ts(lc.completed)} (${Math.round(lc.duration / 60)} د بعد الإغلاق)` : "لم تكتمل دورة بعد";
+  $("c-speed").textContent = p.symbols_per_min ? `${p.symbols_per_min.toLocaleString("en-US")} سهم/دقيقة` : "—";
+  $("run").textContent = s.running ? "■ إيقاف الفحص" : "▶ تشغيل الفحص"; $("run").className = "btn " + (s.running ? "stop" : "go");
+  $("run-state").textContent = s.running ? (p.rate_limited_for ? `⏸ المصدر يحد الطلبات — استئناف بعد ${p.rate_limited_for} ث` : p.last_error ? "⚠ " + p.last_error : "● يعمل") : "متوقف";
+  $("src-line").innerHTML = `المصدر: <b>${esc(p.label)}</b>${p.licensed ? "" : " — غير مرخص رسميًا"} · ${esc(p.license_note)}` +
+    ` · قاعدة الرموز: ${esc(u.source || "—")}${u.file_created ? " (ملف " + esc(u.file_created) + ")" : ""}`;
+  document.querySelectorAll("[data-iv]").forEach(b => { b.title = ""; });
+  if (p.supported && p.supported[0] === false) { $("run-state").textContent = "⚠ " + (p.supported[1] || "الفاصل غير متاح من هذا المصدر"); }
+  // التغطية: «فُحص السوق بالكامل» فقط إذا أثبتت الأرقام ذلك
+  const cov = $("coverage");
+  if (c.full_cycle_complete) cov.innerHTML = `<div class="banner ok">✔ فُحصت كل الأسهم المؤهلة (${c.eligible.toLocaleString("en-US")}) بعد إغلاق آخر شمعة ${IV_NAME[cfg.interval]}: محدثة ${c.evaluated_current.toLocaleString("en-US")}، لا صفقات ${(c.by_status.no_trade || 0)}، بيانات غير كافية ${(c.by_status.insufficient || 0)}، تعذر جلبها ${(c.by_status.error || 0)}.</div>`;
+  else if (s.running) cov.innerHTML = `<div class="banner warn">⏳ الدورة الحالية لم تكتمل: جُلب ${c.fetched_this_cycle.toLocaleString("en-US")} من ${c.eligible.toLocaleString("en-US")} سهمًا بعد إغلاق آخر شمعة. المطابقات المعروضة من الأسهم التي اكتمل فحصها فقط.${p.live_market_wide ? "" : " هذا المصدر لا يبث شموع السوق كله، فزمن الدورة يعتمد على سرعة الجلب."}</div>`;
+  else cov.innerHTML = "";
+  $("prov-card").hidden = cfg.mode !== "forming";
+}
+
+function cellPrice(r) {
+  const p = prices[r.symbol] || r.price || null;
+  return { v: p ? p.price : r.close, chg: p ? p.change_pct : null, live: p ? p.live : false, src: p ? p.src : null };
+}
+function render() {
+  const list = [...rows.values()].map(r => ({ r, p: cellPrice(r) }));
+  const key = x => sortK === "price" ? x.p.v : sortK === "chg" ? x.p.chg : sortK === "name" ? (x.r.name || "") : x.r[sortK];
+  list.sort((a, b) => { const x = key(a) ?? -Infinity, y = key(b) ?? -Infinity; const c = typeof x === "string" ? x.localeCompare(y) : x - y; return sortAsc ? c : -c; });
+  const pages = Math.max(1, Math.ceil(list.length / PAGE)); page = Math.min(page, pages - 1);
+  $("res-title").textContent = `الأسهم المطابقة الآن (${list.length.toLocaleString("en-US")})`;
+  $("rows").innerHTML = list.slice(page * PAGE, page * PAGE + PAGE).map(({ r, p }) => `<tr onclick="location.href='/stock/${encodeURIComponent(r.symbol)}'">
+    <td><b>${esc(r.symbol)}</b></td><td class="muted">${esc((r.name || "").slice(0, 30))}</td>
+    <td class="num">$${px(p.v)}</td><td class="num ${p.chg > 0 ? "up" : p.chg < 0 ? "down" : ""}">${p.chg == null ? "—" : (p.chg > 0 ? "+" : "") + p.chg.toFixed(2) + "%"}</td>
+    <td class="num">${mv(r.macd)}</td><td class="num">${mv(r.signal)}</td><td class="num">${r.rsi == null ? "—" : r.rsi.toFixed(1)}</td>
+    <td class="num">${r.vol_x == null ? "—" : r.vol_x.toFixed(2) + "×"}</td><td>${IV_NAME[cfg.interval]}</td><td class="num">${barTime(r.bar_t)}</td>
+    <td class="muted" style="font-size:12px">${p.src === "tradingview" ? "السعر: TradingView" : "السعر: ياهو"} · الشموع: ${esc(status?.provider?.name === "alpaca" ? "Alpaca" : "ياهو")}</td>
+    <td><span class="tag ${p.live ? "live" : "late"}">${p.live ? "مباشر" : "متأخر"}</span> <span class="muted" style="font-size:11px">${r.fetched_age != null ? "جُلبت قبل " + Math.round(r.fetched_age / 60) + " د" : ""}</span></td></tr>`).join("") ||
+    `<tr><td colspan="12" class="muted" style="text-align:center;padding:18px">${status?.running ? "لا يوجد سهم يحقق كل الشروط المفعلة بين الأسهم التي اكتمل فحصها حتى الآن" : "اضغط «تشغيل الفحص» لبدء فحص السوق"}</td></tr>`;
+  $("pager").innerHTML = pages > 1 ? `<button class="chip" ${page ? "" : "disabled"} onclick="page--;render()">السابق</button> صفحة ${page + 1} من ${pages} <button class="chip" ${page < pages - 1 ? "" : "disabled"} onclick="page++;render()">التالي</button>` : "";
+  $("prov-rows").innerHTML = [...prov.values()].map(r => `<tr onclick="location.href='/stock/${encodeURIComponent(r.symbol)}'"><td><b>${esc(r.symbol)}</b> <span class="tag prov">مؤقت</span></td>
+    <td class="muted">${esc((r.name || "").slice(0, 30))}</td><td class="num">${mv(r.p?.macd)}</td><td class="num">${mv(r.p?.signal)}</td>
+    <td class="num">${r.p?.rsi == null ? "—" : r.p.rsi.toFixed(1)}</td><td class="num">${r.p?.vol_x == null ? "—" : r.p.vol_x.toFixed(2) + "×"}</td><td class="num">${barTime(r.p?.bar_t)}</td></tr>`).join("") ||
+    `<tr><td colspan="7" class="muted" style="text-align:center;padding:12px">لا مطابقات مؤقتة الآن</td></tr>`;
+}
+
+async function poll() {
+  try { status = await (await fetch("/api/fullscan/status")).json(); renderStatus(); } catch {}
+  try {
+    const d = await (await fetch(`/api/fullscan/changes?since=${seq}`)).json();
+    if (d.full) rows.clear();
+    d.upsert.forEach(r => rows.set(r.symbol, r)); d.removed.forEach(s => rows.delete(s)); seq = d.seq;
+    if (cfg.mode === "forming") {
+      const q = await (await fetch(`/api/fullscan/changes?since=${pseq}&kind=provisional`)).json();
+      if (q.full) prov.clear();
+      q.upsert.forEach(r => prov.set(r.symbol, r)); q.removed.forEach(s => prov.delete(s)); pseq = q.seq;
+    }
+    render();
+  } catch {}
+}
+async function pollPrices() {  // السعر منفصل عن المؤشرات: يتحدث كلما وصل جديد في المنصة
+  const syms = [...rows.keys()].slice(0, 500);
+  if (!syms.length) return;
+  try { prices = await (await fetch("/api/fullscan/prices?symbols=" + encodeURIComponent(syms.join(",")))).json(); render(); } catch {}
+}
+async function loadFailures() {
+  try {
+    const f = await (await fetch("/api/fullscan/failures?limit=200")).json();
+    $("fail-sum").textContent = `الأسهم التي لم تُقيَّم الآن وأسبابها (${f.total.toLocaleString("en-US")})`;
+    $("fail-reasons").innerHTML = Object.entries(f.reasons).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div>${esc(k)}: <b>${n.toLocaleString("en-US")}</b></div>`).join("");
+    $("fail-list").innerHTML = f.rows.map(r => `<span title="${esc(r.why || "")}">${esc(r.symbol)}</span>`).join(" · ");
+  } catch {}
+}
+syncForm(); push(false); setInterval(poll, 2000); setInterval(pollPrices, 3000); setInterval(loadFailures, 15000); loadFailures();
+</script>
+{% endblock %}
