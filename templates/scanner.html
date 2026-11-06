@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}📶 الزخم والماكد — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  main { max-width:none !important; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; min-width:0; }
+  .card h3 { margin:0 0 8px; font-size:15px; }
+  .muted { color:var(--muted); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .lbl { color:var(--muted); font-size:12.5px; margin-inline-end:4px; min-width:70px; }
+  .chip { padding:5px 11px; border-radius:999px; border:1px solid var(--line); background:var(--bg); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .conds { display:flex; flex-wrap:wrap; gap:6px 14px; }
+  .conds label { display:flex; align-items:center; gap:6px; font-size:13.5px; cursor:pointer; padding:4px 0; }
+  .conds input { width:16px; height:16px; accent-color:var(--accent); }
+  .wrap { overflow:auto; max-height:72vh; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:start; }
+  th { color:var(--muted); font-weight:500; position:sticky; top:0; background:#1f2831; z-index:1; }
+  td.num { font-variant-numeric:tabular-nums; direction:ltr; text-align:end; }
+  tbody tr { cursor:pointer; } tbody tr:hover { background:#222b35; }
+  .ok { color:var(--up); } .no { color:var(--down); } .na { color:#4b5563; }
+  .score { display:inline-block; min-width:44px; text-align:center; border-radius:6px; padding:2px 6px; background:#26303b; font-weight:600; }
+  .score.full { background:#14532d; color:#86efac; }
+  .up { color:var(--up); } .down { color:var(--down); }
+  select { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:2px 4px; font:inherit; }
+</style>
+
+<div class="card">
+  <h3>📶 ماسح الزخم والماكد</h3>
+  <div class="muted" style="font-size:13px">
+    يفحص أنشط 30 سهمًا صاعدًا من قائمة السوق (المدرجة فقط) على الفاصل الذي تختاره، ويعرض المؤشرات على <b>آخر شمعة مغلقة</b>؛ الشمعة الجارية لا تُحسب حتى تُغلق.
+    المعادلات نفسها في نافذة MACD وRSI أسفل الشارت (MACD 12/26/9، وRSI 14). يتحدث كل دقيقة. ليس توصية شراء.</div>
+  <div class="toolbar" style="margin-top:10px"><span class="lbl">الفاصل</span><span id="iv"></span></div>
+  <div class="toolbar"><span class="lbl">المجموعة</span><span id="pool"></span></div>
+  <div class="toolbar" style="align-items:flex-start"><span class="lbl" style="padding-top:5px">المؤشرات</span><div class="conds" id="conds"></div></div>
+  <div class="toolbar"><span class="lbl">العرض</span>
+    <button class="chip" data-show="match">المطابقة لكل الشروط المختارة</button><button class="chip" data-show="all">الكل مرتبًا بعدد الشروط</button></div>
+  <div class="muted" id="status" style="font-size:12.5px">—</div>
+</div>
+
+<div class="card">
+  <div class="wrap"><table>
+    <thead><tr><th>السهم</th><th>السعر</th><th>التغير</th><th title="تغير السعر خلال آخر 5 دقائق">سرعة 5د</th>
+      <th>MACD</th><th>الإشارة</th><th>الهيستوجرام</th><th title="منذ كم شمعة عبر الماكد فوق خط الإشارة (آخر 10 شموع)">التقاطع الصاعد</th>
+      <th>RSI</th><th>EMA 9 / 21</th><th>EMA 20</th><th>VWAP</th><th title="حجم آخر شمعة مغلقة ÷ متوسط آخر 20 شمعة">الحجم ×</th><th>الشروط</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="14" class="muted">جارٍ الفحص… (أول مرة تأخذ بضع ثوانٍ لجلب شموع 30 سهمًا)</td></tr></tbody>
+  </table></div>
+  <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12.5px" id="skip-sum"></summary><div class="muted" id="skipped" style="font-size:12.5px;margin-top:6px"></div></details>
+</div>
+
+<script>
+const INTERVALS = {{ intervals|tojson }}, POOLS = {{ pools|tojson }};
+const IV_NAME = { "1m": "1 دقيقة", "5m": "5 دقائق", "15m": "15 دقيقة", "30m": "30 دقيقة", "1h": "ساعة", "1d": "يوم" };
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const px = n => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: n < 1 ? 4 : 2, maximumFractionDigits: n < 1 ? 4 : 2 });
+const f = (n, d = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const sg = n => n == null ? "—" : (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+// قيم الماكد صغيرة في الأسهم الرخيصة: عدد خانات حسب حجمها
+const mv = n => n == null ? "—" : Math.abs(n) >= 1 ? n.toFixed(2) : Math.abs(n) >= 0.01 ? n.toFixed(3) : n.toFixed(5);
+
+// الشروط: كل شرط يُقرأ من قيم آخر شمعة مغلقة كما أرسلها الخادم (null = لا تكفي البيانات)
+const COND = {
+  macd_above: { label: "الماكد فوق خط الإشارة", test: i => i.hist == null ? null : i.hist > 0 },
+  hist_up: { label: "الهيستوجرام يتزايد", test: i => i.hist == null || i.hist_prev == null ? null : i.hist > i.hist_prev },
+  cross: { label: "تقاطع صاعد حديث", test: i => i.cross_bars_ago != null && i.cross_bars_ago < crossN, extra: true },
+  macd_zero: { label: "الماكد فوق الصفر", test: i => i.macd == null ? null : i.macd > 0 },
+  rsi: { label: "RSI بين 50 و70", test: i => i.rsi == null ? null : i.rsi >= 50 && i.rsi <= 70 },
+  ema_cross: { label: "EMA 9 فوق EMA 21", test: i => i.ema9 == null || i.ema21 == null ? null : i.ema9 > i.ema21 },
+  above_ema20: { label: "السعر فوق EMA 20", test: i => i.ema20 == null ? null : i.close > i.ema20 },
+  vwap: { label: "السعر فوق VWAP (داخل اليوم)", test: i => i.vwap == null ? null : i.close > i.vwap },
+  vol: { label: "حجم الشمعة ≥ 1.5× المتوسط", test: i => i.vol_x == null ? null : i.vol_x >= 1.5 },
+};
+let iv = store.get("sc_iv", "5m"), poolName = store.get("sc_pool", "momentum"), show = store.get("sc_show", "match");
+let on = new Set(store.get("sc_conds", ["macd_above", "hist_up", "above_ema20"])), crossN = store.get("sc_cross", 3), data = null;
+
+document.getElementById("iv").innerHTML = INTERVALS.map(k => `<button class="chip" data-iv="${k}">${IV_NAME[k]}</button>`).join(" ");
+document.getElementById("pool").innerHTML = Object.entries(POOLS).map(([k, l]) => `<button class="chip" data-pool="${k}">${l}</button>`).join(" ") +
+  ` <button class="chip" data-pool="favs">★ المفضلة</button>`;
+document.getElementById("conds").innerHTML = Object.entries(COND).map(([k, c]) => `<label><input type="checkbox" data-c="${k}">${c.label}${k === "cross" ?
+  ` خلال <select id="cross-n">${[1, 2, 3, 5, 10].map(n => `<option value="${n}">${n}</option>`).join("")}</select> شموع` : ""}</label>`).join("");
+document.getElementById("cross-n").value = crossN;
+function sync() {
+  document.querySelectorAll("[data-iv]").forEach(b => b.classList.toggle("active", b.dataset.iv === iv));
+  document.querySelectorAll("[data-pool]").forEach(b => b.classList.toggle("active", b.dataset.pool === poolName));
+  document.querySelectorAll("[data-show]").forEach(b => b.classList.toggle("active", b.dataset.show === show));
+  document.querySelectorAll("[data-c]").forEach(x => x.checked = on.has(x.dataset.c));
+}
+document.getElementById("iv").onclick = e => { const b = e.target.closest("[data-iv]"); if (!b) return; iv = b.dataset.iv; store.set("sc_iv", iv); sync(); load(); };
+document.getElementById("pool").onclick = e => { const b = e.target.closest("[data-pool]"); if (!b) return; poolName = b.dataset.pool; store.set("sc_pool", poolName); sync(); load(); };
+document.querySelectorAll("[data-show]").forEach(b => b.onclick = () => { show = b.dataset.show; store.set("sc_show", show); sync(); render(); });
+document.getElementById("conds").onchange = e => {
+  if (e.target.id === "cross-n") { crossN = +e.target.value; store.set("sc_cross", crossN); }
+  else if (e.target.dataset.c) { e.target.checked ? on.add(e.target.dataset.c) : on.delete(e.target.dataset.c); store.set("sc_conds", [...on]); }
+  render();
+};
+
+const mark = v => v == null ? '<span class="na">—</span>' : v ? '<span class="ok">✓</span>' : '<span class="no">✗</span>';
+function render() {
+  if (!data) return;
+  const chosen = [...on].filter(k => COND[k]);
+  const list = data.rows.map(r => {
+    const res = Object.fromEntries(Object.keys(COND).map(k => [k, COND[k].test(r.ind)]));
+    return { r, res, passed: chosen.filter(k => res[k]).length };
+  }).filter(x => show === "all" || (chosen.length && x.passed === chosen.length));
+  list.sort((a, b) => b.passed - a.passed || (b.r.ind.hist ?? -1e9) - (a.r.ind.hist ?? -1e9));
+  const n = chosen.length;
+  document.getElementById("rows").innerHTML = list.map(({ r, res, passed }) => {
+    const i = r.ind, c = (k, html) => `<td class="num" ${on.has(k) ? 'style="background:#18212b"' : ""}>${html} ${mark(res[k])}</td>`;
+    return `<tr onclick="location.href='/stock/${encodeURIComponent(r.symbol)}'">
+      <td><b>${esc(r.symbol)}</b> <span class="muted">${esc((r.name || "").slice(0, 22))}</span></td>
+      <td class="num">$${px(i.close)}</td><td class="num ${r.change_pct >= 0 ? "up" : "down"}">${sg(r.change_pct)}</td>
+      <td class="num ${r.speed > 0 ? "up" : r.speed < 0 ? "down" : ""}">${sg(r.speed)}</td>
+      ${c("macd_zero", mv(i.macd))}<td class="num">${mv(i.signal)}</td>
+      <td class="num ${i.hist >= 0 ? "up" : "down"}" ${on.has("macd_above") || on.has("hist_up") ? 'style="background:#18212b"' : ""}>${mv(i.hist)} ${i.hist_prev != null && i.hist != null ? (i.hist > i.hist_prev ? "▲" : "▼") : ""} ${mark(res.macd_above)}</td>
+      ${c("cross", i.cross_bars_ago == null ? "—" : i.cross_bars_ago === 0 ? "آخر شمعة" : `قبل ${i.cross_bars_ago}`)}
+      ${c("rsi", f(i.rsi, 1))}${c("ema_cross", `${px(i.ema9)} / ${px(i.ema21)}`)}${c("above_ema20", px(i.ema20))}
+      ${c("vwap", i.vwap == null ? (iv === "1d" ? "لا ينطبق" : "—") : px(i.vwap))}${c("vol", i.vol_x == null ? "—" : f(i.vol_x) + "×")}
+      <td><span class="score ${n && passed === n ? "full" : ""}">${passed}/${n}</span></td></tr>`;
+  }).join("") || `<tr><td colspan="14" class="muted" style="text-align:center;padding:18px">${data.note ? esc(data.note) : !n ? "اختر مؤشرًا واحدًا على الأقل" :
+    `لا يوجد سهم يحقق كل الشروط المختارة على فاصل ${IV_NAME[iv]} الآن — جرّب «الكل مرتبًا بعدد الشروط» أو قلّل الشروط`}</td></tr>`;
+  const last = data.rows.length ? Math.max(...data.rows.map(r => r.ind.bar_time)) : null;
+  // الأوقات مزاحة لتوقيت الرياض؛ الشمعة اليومية تُعرض بتاريخها في نيويورك فقط
+  const t = !last ? "—" : iv === "1d" ? new Date((last - 3 * 3600) * 1000).toLocaleDateString("en-GB", { timeZone: "America/New_York" }) + " (يوم نيويورك)"
+    : new Date((last - 3 * 3600) * 1000).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", hour12: false, month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " (الرياض)";
+  document.getElementById("status").innerHTML = `فاصل <b>${IV_NAME[iv]}</b> · آخر شمعة مغلقة ${t} · فُحص ${data.rows.length} من ${data.count} سهمًا · ` +
+    `يحقق كل الشروط: <b>${data.rows.filter(r => n && chosen.every(k => COND[k].test(r.ind))).length}</b> · آخر فحص ${new Date(data.at * 1000).toLocaleTimeString("en-GB", { timeZone: "Asia/Riyadh" })}`;
+  document.getElementById("skip-sum").textContent = data.skipped.length ? `${data.skipped.length} سهم لم يُفحص (اضغط للتفاصيل)` : "";
+  document.getElementById("skipped").innerHTML = data.skipped.map(s => `${esc(s.symbol)}: ${esc(s.why)}`).join(" · ");
+}
+let seq = 0;
+async function load() {
+  const my = ++seq;
+  const favs = store.get("favs_us", []);
+  if (poolName === "favs" && !favs.length) { data = { rows: [], skipped: [], count: 0, at: Date.now() / 1000 }; render(); document.getElementById("rows").innerHTML = '<tr><td colspan="14" class="muted" style="text-align:center;padding:18px">لا توجد أسهم في المفضلة (★ في الصفحة الرئيسية أو صفحة السهم)</td></tr>'; return; }
+  const q = poolName === "favs" ? `symbols=${encodeURIComponent(favs.slice(0, 30).join(","))}` : `pool=${poolName}`;
+  try {
+    const d = await (await fetch(`/api/scanner?interval=${iv}&${q}`)).json();
+    if (my !== seq) return;
+    data = d; render();
+  } catch { document.getElementById("status").textContent = "تعذر الفحص — الخادم لا يرد"; }
+}
+sync(); load(); setInterval(load, 60000);
+</script>
+{% endblock %}

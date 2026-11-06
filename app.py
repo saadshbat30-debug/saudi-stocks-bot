@@ -86,6 +86,27 @@ def api_chart(symbol):
     return jsonify(bars[-tail:] if tail and tail > 0 else bars)
 
 
+# ===== ماسح الزخم والماكد =====
+@app.route("/scanner")
+def scanner_page():
+    import scanner
+    return render_template("scanner.html", markets=MARKETS, market_id=None, intervals=scanner.INTERVALS,
+                           pools={k: v[0] for k, v in scanner.POOLS.items()})
+
+
+@app.route("/api/scanner")
+def api_scanner():
+    """?interval=5m&pool=momentum (أو symbols=A,B للمفضلة) — المؤشرات على آخر شمعة مغلقة لكل سهم."""
+    import scanner
+    interval = request.args.get("interval", "5m")
+    if interval not in scanner.INTERVALS:
+        abort(404)
+    symbols = [s.strip().upper() for s in request.args.get("symbols", "").split(",") if s.strip()]
+    symbols = list(dict.fromkeys(s for s in symbols if valid_symbol(s)))[:scanner.POOL_SIZE]
+    return jsonify(scanner.scan(interval, request.args.get("pool", "momentum"), get_market("us"), get_chart,
+                                prepost=interval in PREPOST_INTERVALS, symbols=symbols or None))
+
+
 # ===== واجهة الجوال =====
 M_MIN_VALUE = 100000  # نفس حد «نشاط حقيقي» في الصفحة الرئيسية (MIN_VALUE في index.html)
 
