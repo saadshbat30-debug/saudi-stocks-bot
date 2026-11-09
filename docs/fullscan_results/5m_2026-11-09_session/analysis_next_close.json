@@ -1,0 +1,35 @@
+{
+ "note": "إعادة حساب «قُيّم قبل إغلاق الشمعة التالية» لكل سهم من شمعته المغلقة الأخيرة (المقياس الأصلي في stage_N.json استخدم إغلاقًا ثابتًا من بداية المرحلة، فأعطى 0 للمرحلة 1000 لأن شمعة جديدة أُغلقت أثناءها). لا جلب جديد.",
+ "stages": [
+  {
+   "stage": 100,
+   "evaluated_current": 79,
+   "evaluated_before_next_5m_close": 79,
+   "last_closed_bar_end_ny": "10:05:00",
+   "finished_ny": "10:08:52",
+   "seconds_after_candle_close_to_finish": 232,
+   "requests": 2,
+   "extra_refetch_requests": 0
+  },
+  {
+   "stage": 500,
+   "evaluated_current": 376,
+   "evaluated_before_next_5m_close": 376,
+   "last_closed_bar_end_ny": "10:05:00",
+   "finished_ny": "10:09:52",
+   "seconds_after_candle_close_to_finish": 292,
+   "requests": 10,
+   "extra_refetch_requests": 0
+  },
+  {
+   "stage": 1000,
+   "evaluated_current": 710,
+   "evaluated_before_next_5m_close": 710,
+   "last_closed_bar_end_ny": "10:10:00",
+   "finished_ny": "10:12:27",
+   "seconds_after_candle_close_to_finish": 147,
+   "requests": 26,
+   "extra_refetch_requests": 6
+  }
+ ]
+}

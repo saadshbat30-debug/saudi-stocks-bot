@@ -99,7 +99,8 @@ def run_stage(n, out_dir):
                      "macd": r.get("macd"), "signal": r.get("signal"), "rsi": r.get("rsi"), "vol_x": r.get("vol_x"),
                      "last_closed_bar_start_ny": ny(bar_t), "last_closed_bar_end_ny": ny(bar_end),
                      "fetched_at_ny": ny(e.fetched.get(s)), "data_age_at_end_s": round(t1 - bar_end) if bar_end else None,
-                     "evaluated_before_next_close": bool(next_close and e.fetched.get(s, 1e18) <= next_close and r["status"] == "ok"),
+                     # قُيّم على آخر شمعة مغلقة قبل أن تُغلق الشمعة التي تليها (نهاية شمعته + 5 دقائق)
+                     "evaluated_before_next_close": bool(bar_end and r["status"] == "ok" and e.fetched.get(s, 1e18) <= bar_end + 300),
                      "why": r.get("why")})
     ages = sorted(x["data_age_at_end_s"] for x in rows if x["data_age_at_end_s"] is not None)
     errors_yahoo = sum(1 for x in rows if x["status"] == "error")

@@ -1,0 +1,857 @@
+{
+ "meta": {
+  "git_commit": "f7b09b7",
+  "run_started_ny": "2026-11-09 10:08:34",
+  "python": "3.13.16",
+  "yfinance": "1.7.0",
+  "run_finished_ny": "2026-11-09 10:12:29"
+ },
+ "stages": [
+  {
+   "stage": 100,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 100",
+    "pool_size": 5906,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1109202610:01"
+   },
+   "started_ny": "2026-11-09 10:08:40",
+   "finished_ny": "2026-11-09 10:08:52",
+   "regular_session_at_start": true,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-09 10:00:00",
+   "next_5m_close_ny": "2026-11-09 10:10:00",
+   "requested": 100,
+   "fetched": 100,
+   "with_bars": 100,
+   "evaluated_current": 79,
+   "matched": 4,
+   "insufficient": 3,
+   "no_trade": 18,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 0,
+   "rate_limited_events": 0,
+   "requests": 2,
+   "fetch_s": 6.15,
+   "compute_s": 0.058,
+   "wait_between_batches_s": 6.0,
+   "cycle_s": 12.2,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 232,
+    "median": 232,
+    "max": 2032
+   },
+   "evaluated_before_next_5m_close": 79,
+   "reference_bar_ny": "2026-11-09 10:00:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "DRD",
+     "engine": {
+      "macd": 0.2574740997171858,
+      "signal": 0.19659098199395478,
+      "rsi": 68.05986688894865,
+      "vol_x": 1.524085222799246
+     },
+     "pandas": {
+      "macd": 0.2574740997313292,
+      "signal": 0.19659098201475603,
+      "rsi": 68.05986688514477,
+      "vol_x": 1.524085222799246
+     },
+     "diff": {
+      "macd": 1.4143353155304794e-11,
+      "signal": 2.0801249611679395e-11,
+      "rsi": 3.803876325036981e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "YTRA",
+     "engine": {
+      "macd": 0.0074321094134023324,
+      "signal": 0.0009711680737383359,
+      "rsi": 64.65289097392957,
+      "vol_x": 2.222866251267932
+     },
+     "pandas": {
+      "macd": 0.0074321094134023324,
+      "signal": 0.0009711680737383359,
+      "rsi": 64.65289097392956,
+      "vol_x": 2.222866251267932
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 1.4210854715202004e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "KRUS",
+     "engine": {
+      "macd": 0.2346317135382492,
+      "signal": 0.11645151250014138,
+      "rsi": 62.83270244726364,
+      "vol_x": 1.5174318589653535
+     },
+     "pandas": {
+      "macd": 0.2346317135382492,
+      "signal": 0.11645151250014138,
+      "rsi": 62.83270244726363,
+      "vol_x": 1.5174318589653535
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 1.4210854715202004e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "SUPX",
+     "engine": {
+      "macd": 0.06687047954558434,
+      "signal": 0.061145800189902816,
+      "rsi": 57.65138189358861,
+      "vol_x": 4.125933518816811
+     },
+     "pandas": {
+      "macd": 0.06687047954558434,
+      "signal": 0.061145800189902816,
+      "rsi": 57.651381893588635,
+      "vol_x": 4.125933518816811
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 2.1316282072803006e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PRGO",
+     "engine": {
+      "macd": 0.04455159948059517,
+      "signal": 0.04072912379048385,
+      "rsi": 50.98584743503069,
+      "vol_x": 0.2361036649160156
+     },
+     "pandas": {
+      "macd": 0.04455159949243104,
+      "signal": 0.04072912380788754,
+      "rsi": 50.985847438907854,
+      "vol_x": 0.2361036649160156
+     },
+     "diff": {
+      "macd": 1.1835865620923869e-11,
+      "signal": 1.740368960057026e-11,
+      "rsi": 3.877161702803278e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PCOR",
+     "engine": {
+      "macd": 0.4230558678987677,
+      "signal": 0.28410749651229794,
+      "rsi": 76.39457219781085,
+      "vol_x": 0.517578309629184
+     },
+     "pandas": {
+      "macd": 0.4230558680545329,
+      "signal": 0.2841074967413699,
+      "rsi": 76.39457220390698,
+      "vol_x": 0.517578309629184
+     },
+     "diff": {
+      "macd": 1.5576517853332916e-10,
+      "signal": 2.2907198360400116e-10,
+      "rsi": 6.09612982316321e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NRIX",
+     "engine": {
+      "macd": 0.12185405520409276,
+      "signal": 0.04713297556725295,
+      "rsi": 83.28646243171914,
+      "vol_x": 1.0124818667379119
+     },
+     "pandas": {
+      "macd": 0.12185405522734527,
+      "signal": 0.047132975601445457,
+      "rsi": 83.28646243740977,
+      "vol_x": 1.0124818667379119
+     },
+     "diff": {
+      "macd": 2.325251102774928e-11,
+      "signal": 3.419250993452749e-11,
+      "rsi": 5.690623083864921e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "SABR",
+     "engine": {
+      "macd": 0.036021417681628254,
+      "signal": 0.03332660707301462,
+      "rsi": 67.85459612444436,
+      "vol_x": 1.181134355310942
+     },
+     "pandas": {
+      "macd": 0.03602141768645373,
+      "signal": 0.03332660708011096,
+      "rsi": 67.85459612670516,
+      "vol_x": 1.181134355310942
+     },
+     "diff": {
+      "macd": 4.82547335423078e-12,
+      "signal": 7.096337406586883e-12,
+      "rsi": 2.2608048766414868e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "OLP",
+     "engine": {
+      "macd": 0.04961224229804273,
+      "signal": 0.021355249807238436,
+      "rsi": 51.0820408850529,
+      "vol_x": 0.0
+     },
+     "pandas": {
+      "macd": 0.04961224229804273,
+      "signal": 0.021355249807238436,
+      "rsi": 51.0820408850529,
+      "vol_x": 0.0
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "DGXX",
+     "engine": {
+      "macd": 0.003964914960815857,
+      "signal": 0.0026599478764103273,
+      "rsi": 51.85935515656084,
+      "vol_x": 0.6504991674008005
+     },
+     "pandas": {
+      "macd": 0.003964914961728017,
+      "signal": 0.0026599478777518636,
+      "rsi": 51.85935516244599,
+      "vol_x": 0.6504991674008005
+     },
+     "diff": {
+      "macd": 9.121592370320286e-13,
+      "signal": 1.341536257082332e-12,
+      "rsi": 5.885155474061321e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  },
+  {
+   "stage": 500,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 500",
+    "pool_size": 5906,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1109202610:01"
+   },
+   "started_ny": "2026-11-09 10:08:54",
+   "finished_ny": "2026-11-09 10:09:52",
+   "regular_session_at_start": true,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-09 10:00:00",
+   "next_5m_close_ny": "2026-11-09 10:10:00",
+   "requested": 500,
+   "fetched": 500,
+   "with_bars": 498,
+   "evaluated_current": 376,
+   "matched": 18,
+   "insufficient": 40,
+   "no_trade": 82,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 2,
+   "rate_limited_events": 0,
+   "requests": 10,
+   "fetch_s": 28.33,
+   "compute_s": 0.355,
+   "wait_between_batches_s": 30.0,
+   "cycle_s": 58.7,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 293,
+    "median": 293,
+    "max": 249293
+   },
+   "evaluated_before_next_5m_close": 376,
+   "reference_bar_ny": "2026-11-09 10:00:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "DRD",
+     "engine": {
+      "macd": 0.2574740997171858,
+      "signal": 0.19659098199395478,
+      "rsi": 68.05986688894865,
+      "vol_x": 1.524085222799246
+     },
+     "pandas": {
+      "macd": 0.2574740997313292,
+      "signal": 0.19659098201475603,
+      "rsi": 68.05986688514477,
+      "vol_x": 1.5180848872764146
+     },
+     "diff": {
+      "macd": 1.4143353155304794e-11,
+      "signal": 2.0801249611679395e-11,
+      "rsi": 3.803876325036981e-09,
+      "vol_x": 0.006000335522831524
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "YTRA",
+     "engine": {
+      "macd": 0.0074321094134023324,
+      "signal": 0.0009711680737383359,
+      "rsi": 64.65289097392957,
+      "vol_x": 2.222866251267932
+     },
+     "pandas": {
+      "macd": 0.0074321094134023324,
+      "signal": 0.0009711680737383359,
+      "rsi": 64.65289097392956,
+      "vol_x": 2.222866251267932
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 1.4210854715202004e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "KRUS",
+     "engine": {
+      "macd": 0.2346317135382492,
+      "signal": 0.11645151250014138,
+      "rsi": 62.83270244726364,
+      "vol_x": 1.5174318589653535
+     },
+     "pandas": {
+      "macd": 0.2346317135382492,
+      "signal": 0.11645151250014138,
+      "rsi": 62.83270244726363,
+      "vol_x": 1.5174318589653535
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 1.4210854715202004e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "SUPX",
+     "engine": {
+      "macd": 0.06687047954558434,
+      "signal": 0.061145800189902816,
+      "rsi": 57.65138189358861,
+      "vol_x": 4.125933518816811
+     },
+     "pandas": {
+      "macd": 0.06687047954558434,
+      "signal": 0.061145800189902816,
+      "rsi": 57.651381893588635,
+      "vol_x": 4.125933518816811
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 2.1316282072803006e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NVTS",
+     "engine": {
+      "macd": 0.175378233152923,
+      "signal": 0.11152771262507417,
+      "rsi": 68.37050571503815,
+      "vol_x": 1.5947404584880047
+     },
+     "pandas": {
+      "macd": 0.17537823316391865,
+      "signal": 0.1115277126412424,
+      "rsi": 68.37050571953164,
+      "vol_x": 1.5947404584880047
+     },
+     "diff": {
+      "macd": 1.099564883588755e-11,
+      "signal": 1.6168219540979578e-11,
+      "rsi": 4.493486471801589e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PRGO",
+     "engine": {
+      "macd": 0.04455159948059517,
+      "signal": 0.04072912379048385,
+      "rsi": 50.98584743503069,
+      "vol_x": 0.2361036649160156
+     },
+     "pandas": {
+      "macd": 0.04455159949243104,
+      "signal": 0.04072912380788754,
+      "rsi": 50.985847438907854,
+      "vol_x": 0.23546242723556934
+     },
+     "diff": {
+      "macd": 1.1835865620923869e-11,
+      "signal": 1.740368960057026e-11,
+      "rsi": 3.877161702803278e-09,
+      "vol_x": 0.0006412376804462439
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PCOR",
+     "engine": {
+      "macd": 0.4230558678987677,
+      "signal": 0.28410749651229794,
+      "rsi": 76.39457219781085,
+      "vol_x": 0.517578309629184
+     },
+     "pandas": {
+      "macd": 0.4230558680545329,
+      "signal": 0.2841074967413699,
+      "rsi": 76.39457220390698,
+      "vol_x": 0.5197530853543508
+     },
+     "diff": {
+      "macd": 1.5576517853332916e-10,
+      "signal": 2.2907198360400116e-10,
+      "rsi": 6.09612982316321e-09,
+      "vol_x": 0.0021747757251667776
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NRIX",
+     "engine": {
+      "macd": 0.12185405520409276,
+      "signal": 0.04713297556725295,
+      "rsi": 83.28646243171914,
+      "vol_x": 1.0124818667379119
+     },
+     "pandas": {
+      "macd": 0.12185405522734527,
+      "signal": 0.047132975601445457,
+      "rsi": 83.28646243740977,
+      "vol_x": 1.0124818667379119
+     },
+     "diff": {
+      "macd": 2.325251102774928e-11,
+      "signal": 3.419250993452749e-11,
+      "rsi": 5.690623083864921e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "SABR",
+     "engine": {
+      "macd": 0.036021417681628254,
+      "signal": 0.03332660707301462,
+      "rsi": 67.85459612444436,
+      "vol_x": 1.181134355310942
+     },
+     "pandas": {
+      "macd": 0.03602141768645373,
+      "signal": 0.03332660708011096,
+      "rsi": 67.85459612670516,
+      "vol_x": 1.181134355310942
+     },
+     "diff": {
+      "macd": 4.82547335423078e-12,
+      "signal": 7.096337406586883e-12,
+      "rsi": 2.2608048766414868e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "OLP",
+     "engine": {
+      "macd": 0.04961224229804273,
+      "signal": 0.021355249807238436,
+      "rsi": 51.0820408850529,
+      "vol_x": 0.0
+     },
+     "pandas": {
+      "macd": 0.04961224229804273,
+      "signal": 0.021355249807238436,
+      "rsi": 51.0820408850529,
+      "vol_x": 0.0
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  },
+  {
+   "stage": 1000,
+   "interval": "5m",
+   "sample": {
+    "method": "sorted eligible symbols shuffled with random.Random(20261106), first 1000",
+    "pool_size": 5906,
+    "universe_source": "Nasdaq Trader Symbol Directory",
+    "universe_file_created": "1109202610:01"
+   },
+   "started_ny": "2026-11-09 10:09:55",
+   "finished_ny": "2026-11-09 10:12:27",
+   "regular_session_at_start": true,
+   "latest_closed_5m_bar_at_start_ny": "2026-11-09 10:00:00",
+   "next_5m_close_ny": "2026-11-09 10:10:00",
+   "requested": 1000,
+   "fetched": 1000,
+   "with_bars": 997,
+   "evaluated_current": 710,
+   "matched": 21,
+   "insufficient": 88,
+   "no_trade": 199,
+   "stale": 0,
+   "pending": 0,
+   "yahoo_symbol_errors": 3,
+   "rate_limited_events": 0,
+   "requests": 26,
+   "fetch_s": 73.0,
+   "compute_s": 0.849,
+   "wait_between_batches_s": 78.0,
+   "cycle_s": 151.9,
+   "cycle_complete": true,
+   "data_age_at_end_s": {
+    "min": 148,
+    "median": 148,
+    "max": 249448
+   },
+   "evaluated_before_next_5m_close": 0,
+   "reference_bar_ny": "2026-11-09 10:05:00",
+   "provider_last_error": null,
+   "independent_check": [
+    {
+     "symbol": "SUPX",
+     "engine": {
+      "macd": 0.0728269991488606,
+      "signal": 0.06348203998169438,
+      "rsi": 63.89884815068228,
+      "vol_x": 3.075058457696216
+     },
+     "pandas": {
+      "macd": 0.0728269991488606,
+      "signal": 0.06348203998169438,
+      "rsi": 63.89884815068228,
+      "vol_x": 3.075058457696216
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "XMAX",
+     "engine": {
+      "macd": 0.06886498322754164,
+      "signal": 0.049363153565132815,
+      "rsi": 69.19535475446106,
+      "vol_x": 2.2199923099286325
+     },
+     "pandas": {
+      "macd": 0.06886498319958356,
+      "signal": 0.04936315352401733,
+      "rsi": 69.19535474936521,
+      "vol_x": 2.2199923099286325
+     },
+     "diff": {
+      "macd": 2.7958080295320542e-11,
+      "signal": 4.111548601581916e-11,
+      "rsi": 5.095856181469571e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "RLTY",
+     "engine": {
+      "macd": 0.028026787424378696,
+      "signal": 0.014281227714036362,
+      "rsi": 66.3370750812291,
+      "vol_x": 1.5557284142682521
+     },
+     "pandas": {
+      "macd": 0.028026787424378696,
+      "signal": 0.014281227714036362,
+      "rsi": 66.3370750812291,
+      "vol_x": 1.5557284142682521
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 0.0,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PROF",
+     "engine": {
+      "macd": 0.07151304219497856,
+      "signal": 0.056482914414266366,
+      "rsi": 68.67686519346327,
+      "vol_x": 2.5003532903104246
+     },
+     "pandas": {
+      "macd": 0.07151304219497856,
+      "signal": 0.056482914414266366,
+      "rsi": 68.67686519346326,
+      "vol_x": 2.5003532903104246
+     },
+     "diff": {
+      "macd": 0.0,
+      "signal": 0.0,
+      "rsi": 1.4210854715202004e-14,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NVTS",
+     "engine": {
+      "macd": 0.1803947935352621,
+      "signal": 0.12530112880966685,
+      "rsi": 69.90871373561313,
+      "vol_x": 1.599933842060832
+     },
+     "pandas": {
+      "macd": 0.18039479354343335,
+      "signal": 0.1253011288216806,
+      "rsi": 69.90871373909805,
+      "vol_x": 1.599933842060832
+     },
+     "diff": {
+      "macd": 8.171241461241152e-12,
+      "signal": 1.2013751105044435e-11,
+      "rsi": 3.484913690954272e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PRGO",
+     "engine": {
+      "macd": 0.047488766694568696,
+      "signal": 0.04208105237238128,
+      "rsi": 57.01456300095005,
+      "vol_x": 0.6561981881044132
+     },
+     "pandas": {
+      "macd": 0.04748876670467794,
+      "signal": 0.042081052387245625,
+      "rsi": 57.01456300424146,
+      "vol_x": 0.6582027303459816
+     },
+     "diff": {
+      "macd": 1.0109246773026825e-11,
+      "signal": 1.486434586528418e-11,
+      "rsi": 3.291411587724724e-09,
+      "vol_x": 0.00200454224156843
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "PCOR",
+     "engine": {
+      "macd": 0.42591038737184306,
+      "signal": 0.3127032770682549,
+      "rsi": 66.30360556265549,
+      "vol_x": 0.6418265300561338
+     },
+     "pandas": {
+      "macd": 0.4259103875036061,
+      "signal": 0.31270327726202474,
+      "rsi": 66.30360556952034,
+      "vol_x": 0.6426589018728444
+     },
+     "diff": {
+      "macd": 1.3176304491935298e-10,
+      "signal": 1.9376983351193644e-10,
+      "rsi": 6.864851798127347e-09,
+      "vol_x": 0.0008323718167105865
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "NRIX",
+     "engine": {
+      "macd": 0.14201287329777657,
+      "signal": 0.06610895511783663,
+      "rsi": 80.21578757219828,
+      "vol_x": 0.7625856355945747
+     },
+     "pandas": {
+      "macd": 0.14201287331577994,
+      "signal": 0.06610895514431236,
+      "rsi": 80.2157875809109,
+      "vol_x": 0.7625856355945747
+     },
+     "diff": {
+      "macd": 1.800337656732154e-11,
+      "signal": 2.647573826841665e-11,
+      "rsi": 8.712618182471488e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "SABR",
+     "engine": {
+      "macd": 0.03525931990605846,
+      "signal": 0.033713149639800655,
+      "rsi": 69.92253635797908,
+      "vol_x": 0.12995363804212193
+     },
+     "pandas": {
+      "macd": 0.03525931991038678,
+      "signal": 0.033713149646166125,
+      "rsi": 69.92253636073444,
+      "vol_x": 0.12995363804212193
+     },
+     "diff": {
+      "macd": 4.328315483803635e-12,
+      "signal": 6.365470650582239e-12,
+      "rsi": 2.7553568315852317e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    },
+    {
+     "symbol": "DGXX",
+     "engine": {
+      "macd": 0.006192959729736547,
+      "signal": 0.0033665502481198253,
+      "rsi": 59.52178112686513,
+      "vol_x": 0.8573183381908124
+     },
+     "pandas": {
+      "macd": 0.006192959729759195,
+      "signal": 0.00336655024815333,
+      "rsi": 59.521781124136226,
+      "vol_x": 0.8573183381908124
+     },
+     "diff": {
+      "macd": 2.2648549702353193e-14,
+      "signal": 3.3504882895885046e-14,
+      "rsi": 2.728903325532883e-09,
+      "vol_x": 0.0
+     },
+     "same_last_bar": true,
+     "last_bar_closed_before_fetch": true,
+     "conditions_hold_independently": true
+    }
+   ]
+  }
+ ]
+}
