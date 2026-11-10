@@ -962,6 +962,16 @@ function fillChart() {
 new ResizeObserver(() => requestAnimationFrame(fillChart)).observe(el);
 
 // تحديث آخر شمعة (أو فتح شمعة جديدة) من السعر اللحظي
+// هل آخر شمعة (يوم/أسبوع/شهر) تخص الفترة الحالية بتوقيت نيويورك؟ (أوقات الشموع مزاحة +3 ساعات للرياض)
+function lastBarIsCurrent(last) {
+  const ny = t => new Date(new Date(t).toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const b = ny((last.time - 3 * 3600) * 1000), n = ny(Date.now());
+  if (interval === "1mo") return b.getFullYear() === n.getFullYear() && b.getMonth() === n.getMonth();
+  const day = d => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  if (interval === "1w") return day(n) - day(b) >= 0 && day(n) - day(b) < 7 && n.getDay() >= b.getDay();
+  return day(b) === day(n);
+}
+
 function applyLive(q) {
   // آخر شمعة تتبع نفس السعر المعروض أعلى الصفحة (من البث أو الماسح) حسب الجلسة الحالية،
   // حتى لا يختلف سعر الشارت عن السعر المعروض عندما لا يصل البث المباشر للسهم
@@ -983,6 +993,9 @@ function applyLive(q) {
     bars.push({ time: t, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0, built: session });
   } else {
     if (last.closed === true) return;  // شمعة مغلقة من المصدر (مثل اليومية بعد الإغلاق) لا يغيّرها سعر ما بعد الجلسة
+    // اليومية والأسبوعية والشهرية شموع الجلسة الرسمية: لا يغيّرها سعر ما قبل/بعد الجلسة أو الليلي،
+    // ولا تُحدَّث إلا إذا كانت آخر شمعة هي شمعة الفترة الحالية (لا شمعة أمس قبل وصول شمعة اليوم)
+    if (["1d", "1w", "1mo"].includes(interval) && !(session === "open" && lastBarIsCurrent(last))) return;
     last.close = q.price;
     last.high = Math.max(last.high, q.price);
     last.low = Math.min(last.low, q.price);

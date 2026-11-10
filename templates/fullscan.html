@@ -102,7 +102,7 @@ const px = n => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionD
 const mv = n => n == null ? "—" : Math.abs(n) >= 1 ? n.toFixed(3) : Math.abs(n) >= 0.01 ? n.toFixed(4) : n.toFixed(6);
 const load = () => { try { return { ...DEF, ...(JSON.parse(localStorage.getItem("fs_cfg")) || {}) }; } catch { return { ...DEF }; } };
 const save = c => { try { localStorage.setItem("fs_cfg", JSON.stringify(c)); } catch {} };
-let cfg = load(), rows = new Map(), prov = new Map(), seq = 0, pseq = 0, prices = {}, status = null, page = 0, sortK = "vol_x", sortAsc = false;
+let cfg = load(), rows = new Map(), prov = new Map(), seq = 0, pseq = 0, epoch = -1, pepoch = -1, prices = {}, status = null, page = 0, sortK = "vol_x", sortAsc = false;
 const PAGE = 100;
 
 $("iv").innerHTML = INTERVALS.map(k => `<button class="chip" data-iv="${k}">${IV_NAME[k]}</button>`).join(" ");
@@ -155,11 +155,15 @@ function renderStatus() {
     ` · قاعدة الرموز: ${esc(u.source || "—")}${u.file_created ? " (ملف " + esc(u.file_created) + ")" : ""}`;
   document.querySelectorAll("[data-iv]").forEach(b => { b.title = ""; });
   if (p.supported && p.supported[0] === false) { $("run-state").textContent = "⚠ " + (p.supported[1] || "الفاصل غير متاح من هذا المصدر"); }
+  const fz = p.feasibility || [true];
+  if (fz[0] === false) $("run-state").textContent = "⚠ " + fz[2];
   // التغطية: «فُحص السوق بالكامل» فقط إذا أثبتت الأرقام ذلك
   const cov = $("coverage");
   if (c.full_cycle_complete) cov.innerHTML = `<div class="banner ok">✔ فُحصت كل الأسهم المؤهلة (${c.eligible.toLocaleString("en-US")}) بعد إغلاق آخر شمعة ${IV_NAME[cfg.interval]}: محدثة ${c.evaluated_current.toLocaleString("en-US")}، لا صفقات ${(c.by_status.no_trade || 0)}، بيانات غير كافية ${(c.by_status.insufficient || 0)}، تعذر جلبها ${(c.by_status.error || 0)}.</div>`;
   else if (s.running) cov.innerHTML = `<div class="banner warn">⏳ الدورة الحالية لم تكتمل: جُلب ${c.fetched_this_cycle.toLocaleString("en-US")} من ${c.eligible.toLocaleString("en-US")} سهمًا بعد إغلاق آخر شمعة. المطابقات المعروضة من الأسهم التي اكتمل فحصها فقط.${p.live_market_wide ? "" : " هذا المصدر لا يبث شموع السوق كله، فزمن الدورة يعتمد على سرعة الجلب."}</div>`;
   else cov.innerHTML = "";
+  if (fz[0] === false) cov.innerHTML = `<div class="banner bad">⛔ ${esc(fz[2])}</div>`;
+  else if (fz[1] && s.running && !c.full_cycle_complete) cov.innerHTML += `<div class="muted" style="font-size:12.5px;margin-top:4px">الزمن المقدر لدورة كاملة بهذا المصدر: نحو ${Math.max(1, Math.round(fz[1] / 60))} دقيقة.</div>`;
   $("prov-card").hidden = cfg.mode !== "forming";
 }
 
@@ -191,13 +195,13 @@ function render() {
 async function poll() {
   try { status = await (await fetch("/api/fullscan/status")).json(); renderStatus(); } catch {}
   try {
-    const d = await (await fetch(`/api/fullscan/changes?since=${seq}`)).json();
+    const d = await (await fetch(`/api/fullscan/changes?since=${seq}&epoch=${epoch}`)).json();
     if (d.full) rows.clear();
-    d.upsert.forEach(r => rows.set(r.symbol, r)); d.removed.forEach(s => rows.delete(s)); seq = d.seq;
+    d.upsert.forEach(r => rows.set(r.symbol, r)); d.removed.forEach(s => rows.delete(s)); seq = d.seq; epoch = d.epoch;
     if (cfg.mode === "forming") {
-      const q = await (await fetch(`/api/fullscan/changes?since=${pseq}&kind=provisional`)).json();
+      const q = await (await fetch(`/api/fullscan/changes?since=${pseq}&kind=provisional&epoch=${pepoch}`)).json();
       if (q.full) prov.clear();
-      q.upsert.forEach(r => prov.set(r.symbol, r)); q.removed.forEach(s => prov.delete(s)); pseq = q.seq;
+      q.upsert.forEach(r => prov.set(r.symbol, r)); q.removed.forEach(s => prov.delete(s)); pseq = q.seq; pepoch = q.epoch;
     }
     render();
   } catch {}

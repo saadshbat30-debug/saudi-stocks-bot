@@ -290,6 +290,48 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(e.store.revisions, 1)
         self.assertEqual(e.store.load("5m")["S0002"][-5]["c"], 999.0)
 
+    def test_interval_switch_during_fetch_discards_old_batch(self):
+        e, p, _ = self.make(40, matching=("S0003",))
+        orig = p.history
+
+        def switching(symbols, iv):
+            out = orig(symbols, iv)
+            e.configure({"interval": "1D"})  # المستخدم بدّل الفاصل قبل وصول الرد
+            return out
+        p.history = switching
+        self.assertEqual(e.step(), 0)
+        self.assertEqual(len(e.closed), 0)   # شموع 5 دقائق لم تُحفظ تحت اليومي
+        self.assertEqual(len(e.fetched), 0)  # ولم تُعد الأسهم «مجلوبة» في دورة اليومي
+
+    def test_old_epoch_client_gets_full_results_after_switch(self):
+        e, p, now = self.make(30, matching=("S0003",))
+        self.run_cycle(e)
+        first = e.changes(0, epoch=-1)
+        e.configure({"interval": "15m"})
+        p.step = 900
+        now[0] = p.start + p.bars_upto * p.step + 20
+        self.run_cycle(e)
+        d = e.changes(first["seq"], epoch=first["epoch"])  # صفحة ما زالت تحمل رقم الفاصل السابق
+        self.assertTrue(d["full"])
+        self.assertEqual([r["symbol"] for r in d["upsert"]], ["S0003"])
+        again = e.changes(d["seq"], epoch=d["epoch"])       # بعدها تغيرات فقط
+        self.assertFalse(again["full"])
+        self.assertEqual(again["upsert"], [])
+
+    def test_infeasible_interval_stops_with_reason(self):
+        e, p, _ = self.make(6000)
+        p.symbols_per_s, p.label = 8.5, "مزود اختبار"
+        e.configure({"interval": "1m"})
+        e.running = True
+        self.assertEqual(e.step(), 0)
+        self.assertFalse(e.running)
+        self.assertEqual(p.calls, 0)  # لم يُرسل أي طلب للمصدر
+        self.assertIn("غير متاح", e.provider_state["last_error"])
+        e.configure({"interval": "5m"})
+        self.assertTrue(e.feasibility()[0])   # 6000 ÷ 8.5 ≈ 706 ث ≤ 3 شموع من 5 دقائق
+        e.configure({"interval": "1D"})
+        self.assertTrue(e.feasibility()[0])
+
     def test_conditions_change_without_refetch(self):
         e, p, _ = self.make(30, matching=("S0003",))
         self.run_cycle(e)

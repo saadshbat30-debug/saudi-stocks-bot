@@ -259,7 +259,8 @@ async function loadFavs() {
   const list = [...favs];
   if (!list.length) { $("f-list").innerHTML = `<div class="empty">لا توجد أسهم في المفضلة بعد</div>`; return; }
   try {
-    const qs = await getJSON("/api/quotes?symbols=" + encodeURIComponent(list.slice(0, 40).join(",")));
+    const qs = {};  // الخادم يقبل 40 رمزًا في الطلب: المفضلة الأكثر تُطلب على دفعات
+    for (let i = 0; i < list.length; i += 40) Object.assign(qs, await getJSON("/api/quotes?symbols=" + encodeURIComponent(list.slice(i, i + 40).join(","))));
     $("f-list").innerHTML = list.map(s => qs[s] ? rowHtml({ symbol: s, name: qs[s].name || "", ...qs[s] }) :
       `<a class="row" href="#stock/${encodeURIComponent(s)}"><div class="id"><span class="sym">${esc(s)}</span><div class="nm">لا يوجد سعر الآن</div></div></a>`).join("");
   } catch { $("f-list").innerHTML = `<div class="empty">تعذر الاتصال بخادم المنصة</div>`; }

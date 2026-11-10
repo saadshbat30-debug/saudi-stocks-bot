@@ -102,9 +102,14 @@ def _download_yf(symbols, period):
     return frames
 
 
+_missing = {}  # (المخزن، الرمز) ← وقت آخر طلب لم يُرجع بيانات
+MISSING_SECONDS = 120  # رمز خاطئ أو بلا بيانات: لا يُعاد طلبه قبل دقيقتين (كان يُطلب مع كل تحديث للصفحة)
+
+
 def _refresh(cache, symbols, period, max_age, build):
     now = time.time()
-    stale = [s for s in symbols if s not in cache or now - cache[s]["at"] > max_age]
+    stale = [s for s in symbols if (s not in cache or now - cache[s]["at"] > max_age)
+             and now - _missing.get((id(cache), s), 0) > MISSING_SECONDS]
     if not stale:
         return
     try:
@@ -114,6 +119,10 @@ def _refresh(cache, symbols, period, max_age, build):
         return
     for symbol, df in frames.items():
         cache[symbol] = {**build(df), "at": now}
+        _missing.pop((id(cache), symbol), None)
+    for symbol in stale:
+        if symbol not in frames:
+            _missing[(id(cache), symbol)] = now
 
 
 def _snapshot(df):

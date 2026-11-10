@@ -122,6 +122,8 @@ def chain(symbol, date=None, spot=None):
     if not (c and now - c["at"] < CHAIN_SECONDS):
         try:
             oc = yf.Ticker(symbol).option_chain(date)
+            if getattr(oc, "calls", None) is None or getattr(oc, "puts", None) is None:
+                raise ValueError("رد ياهو بلا جدول عقود")  # فشل صامت في المكتبة: لا يُحفظ
             c = {"oc": oc, "at": now}
             with _lock:
                 _chain[key] = c

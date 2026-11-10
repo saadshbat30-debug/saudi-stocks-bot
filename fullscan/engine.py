@@ -51,6 +51,9 @@ class Engine:
 
     # ===== الإعداد =====
     def _reset_interval(self):
+        # رقم الدورة الزمنية: يتغير مع كل تبديل للفاصل، فتُرفض دفعة جُلبت للفاصل السابق،
+        # وتعرف الصفحة التي تحمل رقمًا قديمًا أن عليها استلام النتائج كاملة
+        self.gen = getattr(self, "gen", 0) + 1
         self.closed = {}      # الرمز ← الشموع المغلقة (الوقت، الإغلاق، الحجم) مصفوفات
         self.forming = {}     # الرمز ← الشمعة الجارية (آخر جلب)
         self.fetched = {}     # الرمز ← لحظة آخر جلب (asof)
@@ -117,6 +120,20 @@ class Engine:
                 self.provider_state["last_error"] = f"{type(e).__name__}: {str(e)[:160]}"
                 self.sleep(5)
 
+    def feasibility(self):
+        """هل تكتمل دورة السوق كله ضمن 3 شموع من هذا الفاصل بهذا المصدر؟ (مكتملة؟، زمن الدورة المقدر، السبب)
+        غير ذلك يبقى المحرك يطلب بلا توقف ولا تكتمل دورة، ويستهلك حصة المصدر المشتركة مع باقي المنصة."""
+        iv = self.cfg["interval"]
+        rate = getattr(self.provider, "symbols_per_s", None)
+        n = len(self.symbols)
+        if iv == "1D" or not rate or not n:
+            return True, None, None
+        est = n / rate
+        if est <= 3 * B.STEP[iv]:
+            return True, round(est), None
+        return False, round(est), (f"فاصل {iv} غير متاح للسوق كله مع {self.provider.label}: دورة {n:,} سهمًا تحتاج نحو "
+                                   f"{round(est / 60)} دقيقة، أي أكثر من 3 شموع. اختر فاصلًا أطول، أو مصدرًا يبث شموع السوق كله.")
+
     def target_time(self, now=None):
         """لحظة لازم أن يُجلب السهم بعدها حتى تكون بياناته شاملة لآخر شمعة كان يجب أن تُغلق."""
         now = now or self.clock()
@@ -148,6 +165,11 @@ class Engine:
             self.provider_state["last_error"] = why
             self.sleep(10)
             return 0
+        feasible, _, reason = self.feasibility()
+        if not feasible:  # إيقاف تلقائي بسبب واضح
+            self.provider_state["last_error"] = reason
+            self.running = False
+            return 0
         if now < self.provider_state["rate_limited_until"]:
             self.sleep(min(5, self.provider_state["rate_limited_until"] - now))
             return 0
@@ -157,11 +179,12 @@ class Engine:
             self.sleep(1)
             return 0
         batch = need[:self.provider.batch_size]
+        gen, interval = self.gen, self.cfg["interval"]
         if not self.provider_state["started"]:
             self.provider_state["started"] = self.clock()
         t0 = time.time()
         try:
-            bars, errors, asof = self.provider.history(batch, self.cfg["interval"])
+            bars, errors, asof = self.provider.history(batch, interval)
         except Exception as e:
             from fullscan.providers import RateLimited
             if isinstance(e, RateLimited):
@@ -176,7 +199,10 @@ class Engine:
             st["symbols_fetched"] += len(batch)
             st["batches_ms"] = (st["batches_ms"] + [ms])[-50:]
             st["last_error"] = None
-        self.ingest(bars, errors, asof, batch)
+        with self.lock:
+            if gen != self.gen:  # بُدّل الفاصل أثناء الجلب: هذه شموع الفاصل السابق، تُهمل
+                return 0
+            self.ingest(bars, errors, asof, batch)
         self._check_cycle(self.clock())
         self.sleep(self.provider.min_gap)
         return len(batch)
@@ -304,7 +330,8 @@ class Engine:
                              "symbols_per_min": thr, "last_error": st["last_error"],
                              "rate_limited_for": max(0, round(st["rate_limited_until"] - now)),
                              "batch_ms_median": sorted(st["batches_ms"])[len(st["batches_ms"]) // 2] if st["batches_ms"] else None,
-                             "supported": self.provider.supported(self.cfg["interval"])},
+                             "supported": self.provider.supported(self.cfg["interval"]),
+                             "feasibility": self.feasibility()},
                 "universe": {k: self.universe_info.get(k) for k in ("source", "eligible", "nasdaq_rows", "other_rows", "etf", "test",
                                                                     "not_common", "preferred_symbol", "file_created", "at", "error")},
                 "reference_bar": self.reference, "cycle": dict(self.cycle), "seq": self.seq,
@@ -323,10 +350,13 @@ class Engine:
                 r["price"] = p
         return r
 
-    def changes(self, since=0, kind="matched"):
-        """التغيرات منذ since: الصفوف المطابقة (أو المؤقتة) الجديدة/المحدثة، والرموز التي خرجت."""
+    def changes(self, since=0, kind="matched", epoch=None):
+        """التغيرات منذ since: الصفوف المطابقة (أو المؤقتة) الجديدة/المحدثة، والرموز التي خرجت.
+        epoch: رقم الدورة الزمنية الذي يحمله الطالب؛ إن اختلف عن الحالي (بُدّل الفاصل) تُرسل النتائج كاملة."""
         key = "provisional" if kind == "provisional" else "matched"
         with self.lock:
+            if (epoch is not None and epoch != self.gen) or since > self.seq:
+                since = 0
             upsert, removed = [], []
             for s, q in self.changed.items():
                 if q <= since:
@@ -335,7 +365,7 @@ class Engine:
                     upsert.append(self._row_out(s))
                 else:
                     removed.append(s)
-            return {"seq": self.seq, "upsert": upsert, "removed": removed, "full": since == 0}
+            return {"seq": self.seq, "epoch": self.gen, "upsert": upsert, "removed": removed, "full": since == 0}
 
     def failures(self, limit=500):
         with self.lock:

@@ -163,7 +163,8 @@ def api_fullscan_run():
 
 @app.route("/api/fullscan/changes")
 def api_fullscan_changes():
-    return jsonify(_fs_engine().changes(request.args.get("since", 0, type=int), request.args.get("kind", "matched")))
+    return jsonify(_fs_engine().changes(request.args.get("since", 0, type=int), request.args.get("kind", "matched"),
+                                        request.args.get("epoch", type=int)))
 
 
 @app.route("/api/fullscan/failures")
