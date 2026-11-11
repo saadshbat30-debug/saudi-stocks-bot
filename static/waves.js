@@ -72,7 +72,8 @@
         if (lastP.type === "H" ? b[i].low < b[ext].low : b[i].high > b[ext].high) ext = i;
       const up = lastP.type === "L", endP = up ? b[ext].high : b[ext].low;
       if ((up ? endP > lastP.p : endP < lastP.p))
-        current = { from: lastP.i, to: ext, up, lo: Math.min(lastP.p, endP), hi: Math.max(lastP.p, endP), pct: (endP / lastP.p - 1) * 100, bars: ext - lastP.i, last: b.length - 1 };
+        current = { from: lastP.i, to: ext, up, lo: Math.min(lastP.p, endP), hi: Math.max(lastP.p, endP), pct: (endP / lastP.p - 1) * 100, bars: ext - lastP.i, last: b.length - 1,
+                    nowPct: (b[b.length - 1].close / lastP.p - 1) * 100 };  // من آخر نقطة مؤكدة حتى السعر الحالي
     }
     // الاتجاه من آخر قمة وآخر قاع
     const tH = lastH?.tag, tL = lastL?.tag;
@@ -127,7 +128,7 @@
       const col = up => up ? cfg.colorUp : cfg.colorDn;
       panel.innerHTML = `${t ? `<b style="color:${res.trend === "up" ? cfg.colorUp : res.trend === "down" ? cfg.colorDn : "#facc15"}">${t[0]}</b> <span class="muted">${t[1]}</span>` : "<b>📘 الموجات</b>"}
         <div>آخر قمة <b>${TAGS[res.tH] || "—"}</b> · آخر قاع <b>${TAGS[res.tL] || "—"}</b> · متوسط الصاعدة ${res.avgUp != null ? res.avgUp.toFixed(1) + "%" : "—"} والهابطة ${res.avgDn != null ? res.avgDn.toFixed(1) + "%" : "—"}</div>
-        <div>آخر موجة (${w.n}) <b style="color:${col(w.up)}">${w.up ? "صاعدة" : "هابطة"} ${pct(w.pct)}</b> في ${w.bars} شمعة${c ? ` · الجارية <b style="color:${col(c.up)}">${c.up ? "صاعدة" : "هابطة"} ${pct(c.pct)}</b> (لم تكتمل)` : ""}</div>
+        <div>آخر موجة (${w.n}) <b style="color:${col(w.up)}">${w.up ? "صاعدة" : "هابطة"} ${pct(w.pct)}</b> في ${w.bars} شمعة${c ? ` · الجارية <b style="color:${col(c.up)}">${c.up ? "صعدت حتى" : "هبطت حتى"} ${pct(c.pct)}</b>، الآن <b style="color:${col(c.nowPct >= 0)}">${pct(c.nowPct)}</b> من آخر ${c.up ? "قاع" : "قمة"}${(c.up ? c.nowPct < 0 : c.nowPct > 0) ? ` <b style="color:#facc15" title="السعر الحالي تجاوز آخر ${c.up ? "قاع" : "قمة"} مؤكد${c.up ? "" : "ة"}: الموجة الجارية انعكست، والنقطة الجديدة لم تتأكد بعد">— كسر ${c.up ? "القاع" : "القمة"}</b>` : ""} (لم تكتمل)` : ""}</div>
         ${cfg.confirm ? [res.lastH, res.lastL].filter(Boolean).map(v => `<div>${v.type === "H" ? "آخر قمة" : "آخر قاع"} ${fp(v.p)} تأكد بعد ${waitTxt(res.len, res.stepSec)} عند ${fp(v.cp)}: فات <b>${v.delay.toFixed(2)}%</b></div>`).join("") +
           `<div class="muted">متوسط ما يفوت قبل التأكيد: القمم ${res.delayH != null ? res.delayH.toFixed(2) + "%" : "—"} · القيعان ${res.delayL != null ? res.delayL.toFixed(2) + "%" : "—"}${res.dropped.length ? ` · ${res.dropped.length} نقطة تأكدت ثم نُقلت (✕)` : ""}</div>` : ""}`;
     }

@@ -859,6 +859,8 @@ applyOverlays();
 // شريط المعلومات: افتتاح/أعلى/أدنى/إغلاق/تغير/حجم للشمعة تحت المؤشر (أو آخر شمعة)
 const fmtP = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2);
 const fmtV = v => v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? (v / 1e3).toFixed(1) + "K" : String(v ?? 0);
+// حجم غير معروف (وليس صفرًا): شمعة مبنية في الصفحة، أو آخر شمعة جارية داخل اليوم وصلت بحجم 0
+const volUnknown = b => !!b.built || !!b.vol_unknown || (b === bars[bars.length - 1] && !b.volume && !!SPAN[interval]);
 function showLegend(b, prev) {
   const lg = document.getElementById("legend");
   if (!b) { lg.innerHTML = ""; return; }
@@ -869,7 +871,7 @@ function showLegend(b, prev) {
     <span>O <b>${fmtP(b.open)}</b></span><span>H <b style="color:#22c55e">${fmtP(b.high)}</b></span>
     <span>L <b style="color:#ef4444">${fmtP(b.low)}</b></span><span>C <b>${fmtP(b.close)}</b></span>
     <span style="color:${c}">${ch >= 0 ? "+" : ""}${fmtP(ch)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)</span>
-    <span>Vol <b>${fmtV(b.volume)}</b>${chartMeta.volume_scope ? ` <span class="muted" title="${chartMeta.volume_scope === "Cboe One فقط" ? "في الدخول المجهول لـ TradingView حجم شموع ما داخل اليوم من بورصات Cboe وحدها (قِيس: نحو 5–15% من حجم السوق الموحد في ياهو). الشموع اليومية فما فوق حجمها كامل" : chartMeta.volume_scope}">(${chartMeta.volume_scope})</span>` : ""}</span>${b.closed === false ? `<span style="color:#facc15" title="الشمعة لم تُغلق بعد: أعلاها وأدناها وإغلاقها وحجمها ما زالت تتغير">⏳ جارية</span>` : b.closed === true ? `<span class="muted">✓ مغلقة</span>` : ""}${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
+    <span>Vol <b ${volUnknown(b) ? 'title="حجم الشمعة غير معروف: ياهو يرسل الشمعة الجارية بحجم صفر حتى تكتمل، أو أرسل حجم اليوم التراكمي بدل حجمها، أو الشمعة مبنية من السعر اللحظي"' : ""}>${volUnknown(b) ? "—" : fmtV(b.volume)}</b>${chartMeta.volume_scope ? ` <span class="muted" title="${chartMeta.volume_scope === "Cboe One فقط" ? "في الدخول المجهول لـ TradingView حجم شموع ما داخل اليوم من بورصات Cboe وحدها (قِيس: نحو 5–15% من حجم السوق الموحد في ياهو). الشموع اليومية فما فوق حجمها كامل" : chartMeta.volume_scope}">(${chartMeta.volume_scope})</span>` : ""}</span>${b.closed === false ? `<span style="color:#facc15" title="الشمعة لم تُغلق بعد: أعلاها وأدناها وإغلاقها وحجمها ما زالت تتغير">⏳ جارية</span>` : b.closed === true ? `<span class="muted">✓ مغلقة</span>` : ""}${b.built === "night" ? `<span style="color:#a5b4fc" title="ياهو لا يرسل شموع التداول الليلي ولا حجمه: الشمعة مبنية من سعر التداول الليلي الذي يتحدث كل دقيقة، فالأعلى والأدنى تقريبيان والحجم غير معروف">🌙 شمعة من سعر التداول الليلي (بلا حجم)</span>` : ""}${vw ? `<span style="color:#06b6d4">VWAP ${fmtP(vw.value)}</span>` : ""}` +
     (bad => bad ? `<span style="color:#facc15">⚠ قيمة شاذة: ${bad.bad.map(([k, v]) => `${k} ${fmtP(v)}`).join(" ")}${overlays.includes("clean") ? " (مستبعدة من المؤشرات)" : ""}</span>` : "")(badTicks().map.get(bars.indexOf(b))) +
     (setTimeout(() => window.positionDayBox && positionDayBox(), 0), "") +
     (overlays.includes("bb") && bbMap.has(b.time) ? (p => `<span style="color:#a78bfa">BB ${fmtP(p.u)} / ${fmtP(p.m)} / ${fmtP(p.l)}</span>`)(bbMap.get(b.time)) : "");
@@ -904,7 +906,7 @@ window.openingCandle = initOpeningCandle({
 
 // مؤشرات MACD و RSI أسفل الشارت (متزامنة معه)
 const indicators = initIndicators({
-  mainChart: chart, getBars: () => indBars(), container: document.getElementById("ind-panes"),
+  mainChart: chart, getBars: () => indBars(), getMinuteBars: () => minuteBars, container: document.getElementById("ind-panes"),
   buttons: [...document.querySelectorAll("[data-ind]")], storageKey: "indicators",
 });
 
@@ -1716,6 +1718,7 @@ document.getElementById("dd-close").onclick = () => { ddPop.hidden = true; };
 document.addEventListener("keydown", e => { if (e.key === "Escape") ddPop.hidden = true; });
 async function loadLadder() {
   try { minuteBars = await (await fetch(`/api/chart/${encodeURIComponent(SYMBOL)}?interval=1m`)).json(); } catch { return; }
+  try { indicators.update(); } catch {}  // صافي الجلسة في المؤشر السفلي يُحسب من شموع الدقيقة
   renderLadder(); renderDayBox();
 }
 function renderLadder() {

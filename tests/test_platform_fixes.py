@@ -45,3 +45,43 @@ class TestMissingSymbolNotRefetched(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCumulativeVolumeGlitch(unittest.TestCase):
+    """ياهو يرسل أحيانًا شمعة دقيقة حجمها = حجم اليوم التراكمي (قِيس على TSLA وNVDA في 2026-11-10/11)."""
+    from datetime import date, datetime
+    from zoneinfo import ZoneInfo
+    DAY = date(2026, 11, 11)
+    NY = ZoneInfo("America/New_York")
+
+    def bars(self, vols, start=(9, 31)):
+        t0 = int(self.datetime(2026, 11, 11, *start, tzinfo=self.NY).timestamp()) + market.RIYADH_OFFSET
+        return [{"time": t0 + 60 * i, "open": 10, "high": 10.1, "low": 9.9, "close": 10, "volume": v}
+                for i, v in enumerate(vols)]
+
+    def test_glitch_bars_are_unknown_not_counted(self):
+        vols = [1000] * 20
+        bars = self.bars(vols[:10] + [10_400] + vols[10:] + [21_500])  # حجمان تراكميان ≈ مجموع ما قبلهما
+        n = market.drop_cumulative_volume(bars, {self.DAY: 20_000})
+        self.assertEqual(n, 2)
+        self.assertEqual(sum(b["volume"] for b in bars), 20_000)
+        self.assertTrue(bars[10]["vol_unknown"] and bars[-1]["vol_unknown"])
+
+    def test_real_spike_on_clean_day_is_kept(self):
+        bars = self.bars([1000] * 20 + [30_000] + [1000] * 5)  # قفزة حجم حقيقية يؤكدها حجم اليوم
+        n = market.drop_cumulative_volume(bars, {self.DAY: 55_000})
+        self.assertEqual(n, 0)
+        self.assertEqual(bars[20]["volume"], 30_000)
+
+    def test_no_reference_volume_means_untouched(self):
+        bars = self.bars([1000] * 10 + [10_400])
+        self.assertEqual(market.drop_cumulative_volume(bars, {}), 0)
+        self.assertEqual(bars[-1]["volume"], 10_400)
+
+    def test_active_minutes_right_after_open_are_kept(self):
+        # شمعة افتتاح كبيرة ثم دقائق نشطة (ربع حجمها) ثم يوم هادئ؛ المرجع متأخر قليلًا فاليوم يبدو أكبر منه
+        bars = self.bars([1_400_000, 400_000, 350_000] + [40_000] * 30 + [3_500_000], start=(9, 30))
+        n = market.drop_cumulative_volume(bars, {self.DAY: 2_900_000})
+        self.assertEqual(n, 1)
+        self.assertEqual([b["volume"] for b in bars[:3]], [1_400_000, 400_000, 350_000])
+        self.assertTrue(bars[-1]["vol_unknown"])

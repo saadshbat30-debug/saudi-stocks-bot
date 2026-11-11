@@ -42,7 +42,35 @@
   }
 
   // السيولة لكل شمعة: قيمة الشمعة مقسومة حسب موقع الإغلاق داخل مداها (مثل لوحة السيولة)
-  function flow(bars) {
+  // صافي الجلسة من شموع الدقيقة دائمًا (مثل لوحة السيولة وسلّم السيولة) حتى لا يتغير الرقم بتغير فاصل الشارت:
+  // لكل شمعة في الشارت = مجموع صافي دقائق يومها حتى نهايتها. لا خط للأيام التي لا شموع دقيقة لها.
+  function sessionCum(bars, minute) {
+    const dayOf = t => Math.floor((t - 7 * 3600) / 86400);
+    const pts = []; let day = null, total = 0;
+    const days = new Set();
+    minute.forEach((b, i) => {
+      const value = (b.high + b.low + b.close) / 3 * b.volume;
+      let share;
+      if (b.high > b.low) share = (b.close - b.low) / (b.high - b.low);
+      else { const ref = i ? minute[i - 1].close : b.open; share = b.close > ref ? 1 : b.close < ref ? 0 : 0.5; }
+      const d = dayOf(b.time);
+      if (d !== day) { day = d; total = 0; days.add(d); }
+      total += value * (2 * share - 1);
+      pts.push([b.time, total, d]);
+    });
+    let j = 0;
+    return bars.map((b, i) => {
+      const span = i + 1 < bars.length ? bars[i + 1].time - b.time : i ? b.time - bars[i - 1].time : 0;
+      const d = dayOf(b.time);
+      if (!days.has(d) || span > 4 * 86400) return null;  // يوم بلا شموع دقيقة، أو شمعة أسبوع/شهر
+      const end = i + 1 < bars.length ? bars[i + 1].time : Infinity;
+      while (j < pts.length && pts[j][0] < end) j++;
+      const last = j ? pts[j - 1] : null;
+      return last && last[2] === d ? last[1] : 0;
+    });
+  }
+
+  function flow(bars, minute) {
     const net = [], cum = []; let day = null, total = 0;
     bars.forEach((b, i) => {
       const value = (b.high + b.low + b.close) / 3 * b.volume;
@@ -55,13 +83,14 @@
       total += n;
       net.push({ in: value * share, out: value * (1 - share), net: n }); cum.push(total);
     });
+    if (minute && minute.length) return { net, cum: sessionCum(bars, minute) };
     return { net, cum };
   }
   const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return s + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0)); };
 
   const series = (bars, values) => values.map((v, i) => v == null ? { time: bars[i].time } : { time: bars[i].time, value: v });
 
-  window.initIndicators = function ({ mainChart, getBars, container, buttons, storageKey }) {
+  window.initIndicators = function ({ mainChart, getBars, getMinuteBars, container, buttons, storageKey }) {
     const opts = {
       autoSize: true,
       layout: { background: { color: "transparent" }, textColor: "#8b98a5", attributionLogo: false },
@@ -100,7 +129,7 @@
     // ===== السيولة =====
     const q = makePane("liq", "السيولة");
     const qHist = q.chart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "volume" } });
-    const qCum = q.chart.addLineSeries({ color: "#facc15", lineWidth: 1.5, priceLineVisible: false, priceFormat: { type: "volume" }, title: "صافي الجلسة" });
+    const qCum = q.chart.addLineSeries({ color: "#facc15", lineWidth: 1.5, priceLineVisible: false, priceFormat: { type: "volume" }, title: "صافي الجلسة (من شموع الدقيقة)" });
 
     const panes = [m, r, q];
     let data = { macd: null, rsi: null, liq: null };
@@ -137,7 +166,7 @@
       if (data.liq && data.liq.net[i]) {
         const n = data.liq.net[i], c = data.liq.cum[i];
         const part = (name, v, col) => `<bdi dir="rtl" style="color:${col}">${name} <bdi dir="ltr">${v < 0 ? "-" : ""}$${money(Math.abs(v))}</bdi></bdi>`;
-        q.label.innerHTML = `${part("داخلة", n.in, UP)} · ${part("خارجة", n.out, DOWN)} · ${part("الصافي", n.net, n.net >= 0 ? UP : DOWN)} · ${part("صافي الجلسة", c, "#facc15")}`;
+        q.label.innerHTML = `${part("داخلة", n.in, UP)} · ${part("خارجة", n.out, DOWN)} · ${part("الصافي", n.net, n.net >= 0 ? UP : DOWN)} · ${c == null ? '<span style="color:#facc15" title="لا شموع دقيقة لهذا اليوم (ياهو يوفرها لآخر يومين)">صافي الجلسة —</span>' : part("صافي الجلسة", c, "#facc15")}`;
       }
     }
     mainChart.subscribeCrosshairMove(p => {
@@ -173,9 +202,11 @@
         rLine.setData(series(bars, data.rsi));
       }
       if (!q.box.hidden) {
-        data.liq = flow(bars);
+        let minute = null;
+        try { minute = getMinuteBars ? getMinuteBars() : null; } catch { minute = null; }
+        data.liq = flow(bars, minute);
         qHist.setData(bars.map((b, i) => ({ time: b.time, value: data.liq.net[i].net, color: data.liq.net[i].net >= 0 ? "rgba(34,197,94,.7)" : "rgba(239,68,68,.7)" })));
-        qCum.setData(bars.map((b, i) => ({ time: b.time, value: data.liq.cum[i] })));
+        qCum.setData(series(bars, data.liq.cum));
       }
       const range = mainChart.timeScale().getVisibleLogicalRange();
       if (range) panes.forEach(p => p.chart.timeScale().setVisibleLogicalRange(range));
