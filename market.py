@@ -832,7 +832,8 @@ def get_chart(symbol, interval, prepost=False, verify=True):
     if not bars:
         return cached["bars"] if cached else []
     meta = {"src": "ياهو (yfinance)"}
-    if verify and interval in VERIFY_WITH:
+    # المطابقة مبنية على جلسات السوق الأمريكي (9:30–16:00 نيويورك) والعطب المرصود في أسهمه: لا تُطبَّق على غيره
+    if verify and interval in VERIFY_WITH and "." not in symbol:
         raw, oldest = {interval: bars}, at
         for other in VERIFY_WITH[interval]:
             b, a = _yahoo_raw(symbol, other, prepost, keep=120)  # لا يضاعف الطلبات في كل تحديث

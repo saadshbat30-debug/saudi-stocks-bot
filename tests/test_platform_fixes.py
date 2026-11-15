@@ -43,5 +43,47 @@ class TestMissingSymbolNotRefetched(unittest.TestCase):
             self.assertEqual(dl.call_count, 1)  # بعد المهلة يُعاد الطلب
 
 
+
+class TestChartVolumeVerification(unittest.TestCase):
+    """get_chart يطابق أحجام الأسهم الأمريكية بفواصل ياهو الأخرى، ولا يلمس غيرها ولا الشموع اليومية."""
+
+    def setUp(self):
+        market._charts.clear()
+        market._raw_charts.clear()
+        self.calls = []
+
+    def fake_raw(self, symbol, interval, prepost, keep=0):
+        self.calls.append(interval)
+        t0 = 1794407400 + market.RIYADH_OFFSET  # 2026-11-11 09:30 نيويورك
+        step = {"1m": 60, "5m": 300, "1h": 3600, "1d": 86400}[interval]
+        n = {"1m": 60, "5m": 12, "1h": 1, "1d": 1}[interval]
+        vol = {"1m": 1000, "5m": 5000, "1h": 60000, "1d": 400000}[interval]
+        bars = [{"time": t0 + step * i, "open": 10, "high": 10.1, "low": 9.9, "close": 10, "volume": vol} for i in range(n)]
+        if interval == "1m":
+            bars[47]["volume"] = 48000  # حجم اليوم التراكمي بدل حجم الدقيقة
+        return bars, 1794420000
+
+    def chart(self, symbol, interval):
+        with mock.patch.object(market, "_tv_us", return_value=[]), mock.patch.object(market, "_yahoo_raw", self.fake_raw):
+            return market.get_chart(symbol, interval, prepost=True)
+
+    def test_us_minute_bars_are_checked_against_5m_and_hour(self):
+        bars = self.chart("TSLA", "1m")
+        self.assertEqual((bars[47]["volume"], bars[47]["vol_derived"]), (1000, "5m"))
+        self.assertEqual(set(self.calls), {"1m", "5m", "1h", "1d"})
+        check = market.chart_meta("TSLA", "1m", True)["volume_check"]
+        self.assertEqual((check["derived"], check["unknown"], check["missing_sources"]), (1, 0, []))
+
+    def test_non_us_symbol_is_left_as_yahoo_sent_it(self):
+        bars = self.chart("2222.SR", "1m")
+        self.assertEqual(bars[47]["volume"], 48000)
+        self.assertEqual(self.calls, ["1m"])  # بلا طلبات إضافية
+        self.assertNotIn("volume_check", market.chart_meta("2222.SR", "1m", True))
+
+    def test_daily_bars_need_no_extra_requests(self):
+        self.chart("TSLA", "1d")
+        self.assertEqual(self.calls, ["1d"])
+
+
 if __name__ == "__main__":
     unittest.main()
