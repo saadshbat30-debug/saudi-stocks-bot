@@ -8,6 +8,7 @@ import yfinance as yf
 import breakout
 import extras
 import stream
+import volfix
 from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
 
 SYMBOL_RE = re.compile(r"^[A-Z0-9.\-^=]{1,15}$")
@@ -813,8 +814,11 @@ def get_chart(symbol, interval, prepost=False):
         except Exception:
             truth = {}
         bad = drop_cumulative_volume(bars, truth)
-        if bad:
-            meta["vol_unknown"] = bad
+        post = volfix.fix_post_close_total(bars, truth)  # شمعة بعد الإغلاق تحمل حجم اليوم كله
+        if bad + post["fixed"]:
+            meta["vol_unknown"] = bad + post["fixed"]
+        if post["unverifiable"]:
+            meta["vol_unverifiable"] = post["unverifiable"]
     _charts[key] = {"bars": bars, "at": time.time(), "meta": meta}
     return bars
 
