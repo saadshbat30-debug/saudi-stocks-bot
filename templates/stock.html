@@ -473,8 +473,8 @@
   </div>
   <div class="flow-rows">
     <span class="h">الفترة</span><span class="h">داخلة</span><span class="h">خارجة</span><span class="h">الصافي</span>
-    <span>آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
-    <span>آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
+    <span title="الدقائق الخمس المكتملة قبل الدقيقة الجارية، بالتوقيت الفعلي. «—» حين لا تداول فيها">آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
+    <span title="الدقائق الخمس عشرة المكتملة قبل الدقيقة الجارية، بالتوقيت الفعلي. «—» حين لا تداول فيها">آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
     <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
   </div>
   <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ · ليس دليلًا على شراء أو بيع مبادر<span id="f-scope"></span></div>
@@ -1254,7 +1254,8 @@ async function loadFlow() {
     inBar.style.width = pct + "%"; outBar.style.width = (100 - pct) + "%";
     inBar.textContent = f.inflow_pct == null ? "" : pct.toFixed(0) + "%";
     outBar.textContent = f.inflow_pct == null ? "" : (100 - pct).toFixed(0) + "%";
-    for (const [p, d] of [["f5", f.m5], ["f15", f.m15], ["fd", f]]) {
+    // m5/m15: null حين لا تقع أي شمعة دقيقة مكتملة في النافذة الزمنية (السوق مغلق أو لا تداول)
+    for (const [p, d] of [["f5", f.m5 || {}], ["f15", f.m15 || {}], ["fd", f]]) {
       setText(p + "-in", money(d.inflow));
       setText(p + "-out", money(d.outflow));
       setText(p + "-net", netText(d.net), netCls(d.net));

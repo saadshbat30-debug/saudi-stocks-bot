@@ -77,5 +77,37 @@ class TestServerBrowserParity(unittest.TestCase):
             self.assertAlmostEqual(got[idx[-1]][2], sum(p[0] - p[1] for p in parts), places=4)
 
 
+
+class TestRecentWindowByTimestamps(unittest.TestCase):
+    """«آخر 5 دقائق» بالوقت الفعلي لا بعدد الشموع."""
+    NOW = 1794420000 + 37  # 37 ثانية داخل دقيقة
+
+    def bars_at(self, minutes_ago):
+        """شموع تبدأ قبل بداية الدقيقة الحالية بهذه الدقائق (0 = الدقيقة الجارية)."""
+        base = self.NOW // 60 * 60 + market.RIYADH_OFFSET
+        return [{"time": base - 60 * m, "open": 10, "high": 11, "low": 9, "close": 11, "volume": 100}
+                for m in sorted(minutes_ago, reverse=True)]
+
+    def window(self, minutes_ago, n=5):
+        b = self.bars_at(minutes_ago)
+        return market.flow_window(b, market._flow_parts(b), n, self.NOW)
+
+    def test_only_complete_minutes_inside_the_window_count(self):
+        w = self.window([0, 1, 2, 3, 4, 5, 6, 7])  # الجارية + 7 قبلها
+        self.assertEqual(w["bars"], 5)             # الدقائق 1..5 فقط
+        self.assertAlmostEqual(w["inflow"], 5 * 100 * (11 + 9 + 11) / 3, delta=1)
+
+    def test_gaps_are_not_filled_with_older_bars(self):
+        w = self.window([2, 4, 30, 31, 32])        # سهم متقطع التداول: شمعتان فقط في آخر 5 دقائق
+        self.assertEqual(w["bars"], 2)
+
+    def test_closed_market_gives_no_window(self):
+        self.assertIsNone(self.window([600, 601, 602, 603, 604]))  # آخر الشموع قبل 10 ساعات
+        self.assertIsNone(market.flow_window([], [], 5, self.NOW))
+
+    def test_fifteen_minutes(self):
+        self.assertEqual(self.window(range(0, 40), 15)["bars"], 15)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -945,6 +945,19 @@ def _flow_dict(inflow, outflow):
     }
 
 
+def flow_window(bars, parts, minutes, now):
+    """ضغط آخر N دقيقة مكتملة بالطوابع الزمنية: الشموع التي تبدأ في [بداية الدقيقة الحالية − N دقيقة، بداية
+    الدقيقة الحالية). الدقيقة الجارية لا تدخل (ياهو يرسل حجمها صفرًا حتى تكتمل). ترجع None إن لم تقع أي شمعة في
+    النافذة (السوق مغلق، أو السهم لم يتداول) — لا تُستعار شموع أقدم كما كان يحدث بأخذ آخر N شمعة."""
+    end = int(now) // 60 * 60 + RIYADH_OFFSET  # أوقات الشموع مزاحة لتوقيت الرياض
+    start = end - minutes * 60
+    hit = [p for b, p in zip(bars, parts) if start <= b["time"] < end]
+    if not hit:
+        return None
+    return {**_flow_dict(sum(p[0] for p in hit), sum(p[1] for p in hit)), "bars": len(hit),
+            "from": start, "to": end}
+
+
 def get_flow(symbol):
     """ضغط الشراء/البيع التقديري لآخر يوم تداول من شموع الدقيقة (ما توفر حجمه منها في كل الجلسات).
 
@@ -972,10 +985,8 @@ def get_flow(symbol):
     parts = _flow_parts(bars)
     inflow, outflow = sum(p[0] for p in parts), sum(p[1] for p in parts)
 
-    recent = {}
-    for minutes in (5, 15):
-        last = parts[-minutes:]
-        recent[f"m{minutes}"] = _flow_dict(sum(p[0] for p in last), sum(p[1] for p in last))
+    now = time.time()
+    recent = {f"m{minutes}": flow_window(bars, parts, minutes, now) for minutes in (5, 15)}
 
     return {
         "price": price,
