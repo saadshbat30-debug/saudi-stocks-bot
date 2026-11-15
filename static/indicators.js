@@ -42,7 +42,7 @@
   }
 
   // السيولة لكل شمعة: قيمة الشمعة مقسومة حسب موقع الإغلاق داخل مداها (مثل لوحة السيولة)
-  // صافي الجلسة من شموع الدقيقة دائمًا (مثل لوحة السيولة وسلّم السيولة) حتى لا يتغير الرقم بتغير فاصل الشارت:
+  // صافي اليوم من شموع الدقيقة دائمًا (مثل اللوحة والسلّم) حتى لا يتغير الرقم بتغير فاصل الشارت:
   // لكل شمعة في الشارت = مجموع صافي دقائق يومها حتى نهايتها. لا خط للأيام التي لا شموع دقيقة لها.
   function sessionCum(bars, minute) {
     const dayOf = pressure.dayOf, days = new Set();
@@ -107,9 +107,9 @@
     r.chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: 0.06 } });
 
     // ===== السيولة =====
-    const q = makePane("liq", "السيولة");
+    const q = makePane("liq", "ضغط تقديري (من الشموع، لا من التنفيذات)");
     const qHist = q.chart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "volume" } });
-    const qCum = q.chart.addLineSeries({ color: "#facc15", lineWidth: 1.5, priceLineVisible: false, priceFormat: { type: "volume" }, title: "صافي الجلسة (من شموع الدقيقة)" });
+    const qCum = q.chart.addLineSeries({ color: "#facc15", lineWidth: 1.5, priceLineVisible: false, priceFormat: { type: "volume" }, title: "صافي اليوم ≈ (من شموع الدقيقة)" });
 
     const panes = [m, r, q];
     let data = { macd: null, rsi: null, liq: null };
@@ -146,7 +146,7 @@
       if (data.liq && data.liq.net[i]) {
         const n = data.liq.net[i], c = data.liq.cum[i];
         const part = (name, v, col) => `<bdi dir="rtl" style="color:${col}">${name} <bdi dir="ltr">${v < 0 ? "-" : ""}$${money(Math.abs(v))}</bdi></bdi>`;
-        q.label.innerHTML = `${part("داخلة", n.in, UP)} · ${part("خارجة", n.out, DOWN)} · ${part("الصافي", n.net, n.net >= 0 ? UP : DOWN)} · ${c == null ? '<span style="color:#facc15" title="لا شموع دقيقة لهذا اليوم (ياهو يوفرها لآخر يومين)">صافي الجلسة —</span>' : part("صافي الجلسة", c, "#facc15")}`;
+        q.label.innerHTML = `${part("شراء ≈", n.in, UP)} · ${part("بيع ≈", n.out, DOWN)} · ${part("الصافي ≈", n.net, n.net >= 0 ? UP : DOWN)} · ${c == null ? '<span style="color:#facc15" title="لا شموع دقيقة لهذا اليوم (ياهو يوفرها لآخر يومين)">صافي اليوم —</span>' : part("صافي اليوم ≈", c, "#facc15")}`;
       }
     }
     mainChart.subscribeCrosshairMove(p => {

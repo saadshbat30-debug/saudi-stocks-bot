@@ -357,7 +357,7 @@ const COLUMNS = [
   { key: "speed", label: "سرعة 5د", title: "نسبة تغير السعر خلال آخر 5 دقائق",
     cell: (q, ctx) => `<td class="num ${cls(q.speed)}"><bdi dir="ltr">${signed(q.speed)}</bdi>${q.speed ? `<span class="bar" style="width:${Math.round(Math.abs(q.speed) / ctx.maxSpeed * 30)}px;background:${q.speed > 0 ? "var(--up)" : "var(--down)"}"></span>` : ""}</td>` },
   { key: "volume", label: "الحجم", cell: q => `<td class="num"><bdi dir="ltr">${fmtBig(q.volume)}</bdi></td>` },
-  { key: "value", label: "القيمة", title: "قيمة التداول بالدولار", cell: q => `<td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>` },
+  { key: "value", label: "القيمة", title: "قيمة التداول بالدولار — تقدير: (أعلى + أدنى + السعر) ÷ 3 × الحجم", cell: q => `<td class="num"><bdi dir="ltr">$${fmtBig(q.value)}</bdi></td>` },
   { key: "vol_ratio", label: "السيولة ×", title: "حجم اليوم مقارنة بمتوسط 3 أشهر",
     cell: q => `<td class="num" ${q.vol_ratio >= 2 ? "style='color:var(--up)'" : ""}><bdi dir="ltr">${q.vol_ratio == null ? "—" : fmt(q.vol_ratio, 2) + "×"}</bdi></td>` },
   { key: "turnover", label: "التدوير %", title: "الحجم ÷ الأسهم الحرة (أو القائمة إن لم تتوفر)", cell: q => `<td class="num"><bdi dir="ltr">${q.turnover == null ? "—" : fmt(q.turnover) + "%"}</bdi></td>` },

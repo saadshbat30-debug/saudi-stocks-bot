@@ -201,7 +201,7 @@
   .pn .ws-body table { font-size:12px; }
   .pn .ws-body td, .pn .ws-body th { padding:4px 7px; }
   .pn .news-list { max-height:none; }
-  /* السيولة اللحظية مضغوطة */
+  /* لوحة الحجم والضغط التقديري مضغوطة */
   .pn .flow-grid { grid-template-columns:repeat(2, 1fr); gap:5px; }
   .pn .flow-grid div { padding:5px 7px; }
   .pn .flow-grid b { font-size:14px; }
@@ -299,7 +299,7 @@
   <span id="ind-buttons" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0">
     <span class="sep"></span>
     <span class="muted">مؤشرات:</span>
-    <button class="chip" data-ind="liq">السيولة</button>
+    <button class="chip" data-ind="liq" title="ضغط الشراء/البيع التقديري من شموع OHLCV — ليس تدفق أموال مثبتًا من التنفيذات">ضغط تقديري</button>
     <button class="chip" data-ind="macd">MACD</button>
     <button class="chip" data-ind="rsi">RSI</button>
     <span class="sep"></span>
@@ -434,14 +434,14 @@
     <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
   </header>
   <div class="pn-b"><div class="d-tabs" id="d-tabs">
-    <button class="active" data-d="ladder">🪜 سلم السيولة</button><button data-d="news">📰 الأخبار</button>
+    <button class="active" data-d="ladder">🪜 سلّم الضغط التقديري</button><button data-d="news">📰 الأخبار</button>
     <span id="d-tools" style="margin-inline-start:auto"><div id="ladder-int">
         <button class="mini-chip" data-m="1">1د</button><button class="mini-chip active" data-m="5">5د</button>
         <button class="mini-chip" data-m="15">15د</button><button class="mini-chip" data-m="30">30د</button><button class="mini-chip" data-m="60">ساعة</button>
       </div></span>
   </div>
   <div data-dpanel="ladder" class="d-fill"><div class="ws-body"><table>
-      <thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th><th>داخلة</th><th>خارجة</th><th>الصافي</th><th>صافي الجلسة</th><th>الحجم</th></tr></thead>
+      <thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th><th title="تقدير من موقع إغلاق كل شمعة دقيقة داخل مداها — ليس صفقات شراء مثبتة">ضغط شراء ≈</th><th title="تقدير من موقع إغلاق كل شمعة دقيقة داخل مداها — ليس صفقات بيع مثبتة">ضغط بيع ≈</th><th>الصافي ≈</th><th title="مجموع الصافي التقديري منذ أول شمعة في يوم التداول">صافي اليوم ≈</th><th>الحجم</th></tr></thead>
       <tbody id="ladder"><tr><td colspan="8" class="muted">جارٍ التحميل…</td></tr></tbody>
     </table></div>
     <div class="ws-foot">من شموع الدقيقة لآخر يوم تداول (شاملة ما قبل الافتتاح وما بعد الإغلاق) · الأحدث أولًا</div>
@@ -453,31 +453,38 @@
 </div>
 </section><section class="pn" data-panel="flow">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
-    <span class="grip">⠿</span><b>💧 السيولة اللحظية</b><div class="pn-tools"><span class="muted" id="f-updated"></span></div>
+    <span class="grip">⠿</span><b>💧 الحجم والضغط التقديري</b><div class="pn-tools"><span class="muted" id="f-updated"></span></div>
     <span class="pn-btns"><button data-act="min" title="تصغير">_</button><button data-act="max" title="تكبير (Esc للرجوع)">⛶</button><button data-act="close" title="إغلاق">×</button></span>
   </header>
   <div class="pn-b"><div class="pad">
   <div class="flow-grid">
     <div><span class="muted">حجم اليوم</span><b id="f-volume">—</b></div>
-    <div><span class="muted">قيمة التداول</span><b id="f-value">—</b></div>
+    <div><span class="muted" title="تقدير: متوسط السعر المرجّح من شموع الدقيقة × حجم اليوم. سعر كل صفقة غير متاح في المصدر">قيمة التداول ≈</span><b id="f-value">—</b></div>
     <div><span class="muted">متوسط السعر (VWAP)</span><b id="f-vwap">—</b></div>
     <div><span class="muted">السيولة × المعتاد</span><b id="f-ratio">—</b></div>
     <div><span class="muted">التدوير %</span><b id="f-turnover">—</b></div>
     <div><span class="muted">سرعة 5 دقائق</span><b id="f-speed">—</b></div>
-    <div><span class="muted">صافي السيولة</span><b id="f-net">—</b></div>
+    <div><span class="muted" title="ضغط الشراء التقديري − ضغط البيع التقديري لشموع دقيقة اليوم. تقدير من OHLCV وليس أموالًا دخلت السهم أو خرجت منه">صافي الضغط ≈</span><b id="f-net">—</b></div>
   </div>
   <div class="flow-bar"><span id="f-in-bar" style="background:#15803d;width:50%"></span><span id="f-out-bar" style="background:#b91c1c;width:50%"></span></div>
   <div style="display:flex;justify-content:space-between;font-size:13px">
-    <span class="up">▲ داخلة <bdi dir="ltr" id="f-in">—</bdi></span>
-    <span class="down">▼ خارجة <bdi dir="ltr" id="f-out">—</bdi></span>
+    <span class="up">▲ ضغط شراء ≈ <bdi dir="ltr" id="f-in">—</bdi></span>
+    <span class="down">▼ ضغط بيع ≈ <bdi dir="ltr" id="f-out">—</bdi></span>
   </div>
   <div class="flow-rows">
-    <span class="h">الفترة</span><span class="h">داخلة</span><span class="h">خارجة</span><span class="h">الصافي</span>
+    <span class="h">الفترة</span><span class="h">شراء ≈</span><span class="h">بيع ≈</span><span class="h">الصافي ≈</span>
     <span title="الدقائق الخمس المكتملة قبل الدقيقة الجارية، بالتوقيت الفعلي. «—» حين لا تداول فيها">آخر 5 دقائق</span><bdi dir="ltr" class="up" id="f5-in">—</bdi><bdi dir="ltr" class="down" id="f5-out">—</bdi><bdi dir="ltr" id="f5-net">—</bdi>
     <span title="الدقائق الخمس عشرة المكتملة قبل الدقيقة الجارية، بالتوقيت الفعلي. «—» حين لا تداول فيها">آخر 15 دقيقة</span><bdi dir="ltr" class="up" id="f15-in">—</bdi><bdi dir="ltr" class="down" id="f15-out">—</bdi><bdi dir="ltr" id="f15-net">—</bdi>
     <span>اليوم</span><bdi dir="ltr" class="up" id="fd-in">—</bdi><bdi dir="ltr" class="down" id="fd-out">—</bdi><bdi dir="ltr" id="fd-net">—</bdi>
   </div>
-  <div class="muted" style="margin-top:8px">تقدير من شموع الدقيقة شاملة ما قبل الافتتاح وما بعد الإغلاق: كل شمعة تُقسم حسب موقع إغلاقها (قرب القمة = داخلة، قرب القاع = خارجة) · السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ · ليس دليلًا على شراء أو بيع مبادر<span id="f-scope"></span></div>
+  <div class="muted" style="margin-top:8px"><b>تقدير من شموع الدقيقة (OHLCV)، لا من تنفيذات مصنفة شراءً وبيعًا.</b> كل صفقة فيها مشترٍ وبائع، فهذه الأرقام ليست أموالًا دخلت السهم أو خرجت منه، وتتغير لو حُسبت بفاصل آخر. <span id="f-cover"></span><span id="f-scope"></span><span id="f-check"></span>
+    <details style="margin-top:4px"><summary style="cursor:pointer">كيف يُحسب؟</summary>
+      <div style="margin-top:4px;line-height:1.9">لكل شمعة دقيقة في آخر يوم تداول:<br>
+      <bdi dir="ltr">قيمة الشمعة = (الأعلى + الأدنى + الإغلاق) ÷ 3 × الحجم</bdi><br>
+      <bdi dir="ltr">حصة الشراء = (الإغلاق − الأدنى) ÷ (الأعلى − الأدنى)</bdi><br>
+      <bdi dir="ltr">ضغط الشراء = القيمة × الحصة</bdi> · <bdi dir="ltr">ضغط البيع = القيمة × (1 − الحصة)</bdi> · <bdi dir="ltr">الصافي = الشراء − البيع</bdi><br>
+      الشمعة التي يتساوى أعلاها وأدناها تُحسب شراءً كلها إن أغلقت فوق إغلاق الشمعة السابقة، وبيعًا كلها إن أغلقت تحته، ومناصفة إن ساوته. الأرقام مجموع مباشر للشموع بلا تحجيم، وهي نفسها في السلّم والمؤشر السفلي. شموع ما قبل الافتتاح في ياهو بلا حجم فلا تدخل، وشمعة حجمها غير معروف لا تُحسب. السعر فوق VWAP أخضر وتحته أحمر · يتحدث كل 5 ثوانٍ.</div>
+    </details></div>
 </div></div>
 </section><section class="pn" data-panel="trades">
   <header class="pn-h" draggable="true" title="اسحب العنوان وأفلته على لوحة أخرى لتبديل مكانهما">
@@ -1220,7 +1227,7 @@ document.querySelectorAll("[data-interval]").forEach(b => b.onclick = () => {
   loadChart(true);
 });
 
-// ===== السيولة اللحظية =====
+// ===== الحجم والضغط التقديري =====
 const money = v => {
   if (v == null) return "—";
   const a = Math.abs(v), sign = v < 0 ? "-" : "";
@@ -1241,7 +1248,18 @@ async function loadFlow() {
     const f = await (await fetch(`/api/flow/${encodeURIComponent(SYMBOL)}`)).json();
     setText("f-volume", qty(f.volume));
     setText("f-value", money(f.value));
-    document.getElementById("f-scope").textContent = f.volume_scope === "Cboe One فقط" ? " · حجم شموع الدقيقة من Cboe One فقط (النسب منه، والإجمالي من حجم اليوم الكامل)" : "";
+    document.getElementById("f-scope").textContent = f.volume_scope === "Cboe One فقط" ? " حجم شموع الدقيقة من Cboe One فقط (جزء صغير من السوق)." : "";
+    document.getElementById("f-cover").textContent = f.coverage == null ? "" : `الشموع تغطي ${Math.min(999, f.coverage * 100).toFixed(0)}% من حجم اليوم${f.coverage < 0.999 ? "، والباقي (أغلبه مزاد الإغلاق) بلا اتجاه مقدَّر" : ""}.`;
+    const vc = f.volume_check, notes = [];
+    if (vc) {
+      if (vc.derived) notes.push(`${vc.derived} شمعة أرسلها ياهو بحجم اليوم التراكمي فاستُخرج حجمها من شموع 5 دقائق/الساعة`);
+      if (vc.unknown) notes.push(`${vc.unknown} شمعة حجمها غير معروف ولم تُحسب`);
+      if (vc.conflict) notes.push(`${vc.conflict} تعارض بين فواصل ياهو لم يثبت`);
+      if (vc.inconsistent_days) notes.push("فواصل ياهو غير متطابقة في بعض الأيام فلم تُفحص أحجامها");
+      if (vc.days_over_daily && vc.days_over_daily.length) notes.push("مجموع الشموع أكبر من حجم اليوم: الأحجام غير مؤكدة");
+      if (vc.missing_sources && vc.missing_sources.length) notes.push("تعذر جلب فاصل المطابقة: الأحجام غير مفحوصة");
+    }
+    document.getElementById("f-check").textContent = notes.length ? " فحص الأحجام: " + notes.join("، ") + "." : "";
     setText("f-vwap", f.vwap == null ? "—" : "$" + f.vwap.toFixed(f.vwap < 1 ? 4 : 2), f.vwap && f.price ? (f.price >= f.vwap ? "up" : "down") : "");
     setText("f-ratio", f.vol_ratio == null ? "—" : f.vol_ratio.toFixed(2) + "×", f.vol_ratio >= 2 ? "up" : "");
     setText("f-turnover", f.turnover == null ? "—" : f.turnover.toFixed(2) + "%");
@@ -1608,7 +1626,7 @@ window.addEventListener("blur", () => { ctxMenu.hidden = true; });
 document.getElementById("sig-legend").innerHTML = Object.values(SIGNALS).map(s => `<span><b style="color:${s.color}">${s === SIGNALS.drop ? "⬇" : "⬆"}</b> ${s.label}</span>`).join("");
 applyOverlays();
 
-// ===== سلم السيولة: تجميع شموع الدقيقة حسب الفاصل =====
+// ===== سلّم الضغط التقديري: تجميع شموع الدقيقة حسب الفاصل =====
 const moneyS = v => { if (v == null) return "—"; const a = Math.abs(v), s = v < 0 ? "-" : ""; return s + "$" + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0)); };
 const hhmm = t => new Date(t * 1000).toISOString().slice(11, 16);  // أوقات الشموع مزاحة لتوقيت الرياض
 let ladderMin = 5, minuteBars = [];
