@@ -912,11 +912,13 @@ def row_for(symbol):
     return None
 
 
-def _flow(bars):
-    """يقسم قيمة كل شمعة بين داخلة وخارجة حسب موقع الإغلاق داخل مدى الشمعة
-    (مثل Chaikin Money Flow): الإغلاق عند القمة = داخلة بالكامل، عند القاع = خارجة بالكامل.
-    الشمعة بلا مدى تُصنَّف حسب تغيرها عن الشمعة السابقة."""
-    inflow = outflow = 0.0
+def _flow_parts(bars):
+    """ضغط الشراء/البيع التقديري لكل شمعة: [(شراء، بيع)] بالدولار — المعادلة نفسها في static/pressure.js.
+
+    قيمة الشمعة = (الأعلى + الأدنى + الإغلاق) ÷ 3 × الحجم، تُقسم حسب موقع الإغلاق داخل مدى الشمعة
+    (مثل Chaikin Money Flow): الإغلاق عند القمة = شراء كلها، عند القاع = بيع كلها. الشمعة بلا مدى تُصنَّف حسب
+    اتجاه إغلاقها عن إغلاق الشمعة السابقة (أو عن افتتاحها إن كانت الأولى). تقدير من OHLCV، لا تنفيذات مصنفة."""
+    out = []
     for prev, b in zip([None] + bars[:-1], bars):
         value = (b["high"] + b["low"] + b["close"]) / 3 * b["volume"]
         if b["high"] > b["low"]:
@@ -924,9 +926,13 @@ def _flow(bars):
         else:
             ref = prev["close"] if prev else b["open"]
             share = 1.0 if b["close"] > ref else 0.0 if b["close"] < ref else 0.5
-        inflow += value * share
-        outflow += value * (1 - share)
-    return inflow, outflow
+        out.append((value * share, value * (1 - share)))
+    return out
+
+
+def _flow(bars):
+    parts = _flow_parts(bars)
+    return sum(p[0] for p in parts), sum(p[1] for p in parts)
 
 
 def _flow_dict(inflow, outflow):
@@ -940,13 +946,13 @@ def _flow_dict(inflow, outflow):
 
 
 def get_flow(symbol):
-    """السيولة الداخلة/الخارجة لليوم من شموع الدقيقة.
+    """ضغط الشراء/البيع التقديري لآخر يوم تداول من شموع الدقيقة (ما توفر حجمه منها في كل الجلسات).
 
-    شموع ياهو لا تسجل كل الحجم في الأسهم الصغيرة، لذلك تُؤخذ منها النسبة فقط
-    وتُطبَّق على القيمة الكلية (متوسط السعر × حجم اليوم اللحظي).
-    المنصات المدفوعة تحسبها من كل صفقة (هل نُفذت عند سعر الطلب أو العرض)، فالأرقام تقريبية.
+    الأرقام مجموع مباشر لشموع الدقيقة بمعادلة _flow_parts، بلا تحجيم — نفس ما يحسبه السلّم والمؤشر السفلي
+    (static/pressure.js)، فتتطابق الثلاثة. coverage = نسبة حجم اليوم الذي تغطيه الشموع (الباقي أغلبه مزاد
+    الإغلاق وتداول لا تسجله شموع ياهو)؛ ما لم تغطه الشموع لا يُفترض له اتجاه.
+    المنصات المدفوعة تحسب الضغط من كل صفقة (هل نُفذت عند سعر الطلب أو العرض)؛ هذا تقدير من OHLCV.
     """
-    # تشمل ما قبل الافتتاح وما بعد الإغلاق، لأن جزءًا كبيرًا من تداول الأسهم الصغيرة يحدث فيها
     bars = get_chart(symbol, "1m", prepost=True)
     if bars:
         # شموع آخر يوم تداول فقط (الأوقات مزاحة لتوقيت الرياض)
@@ -957,32 +963,36 @@ def get_flow(symbol):
     quote = row or get_quotes([symbol]).get(symbol) or {}
     price, volume = quote.get("price"), quote.get("volume") or 0
 
-    # متوسط سعر الصفقات (VWAP) من السعر النموذجي لكل شمعة
+    # متوسط السعر المرجّح بالحجم (VWAP) من السعر النموذجي لكل شمعة
     bars_volume = sum(b["volume"] for b in bars)
     vwap = (sum((b["high"] + b["low"] + b["close"]) / 3 * b["volume"] for b in bars) / bars_volume
             if bars_volume else price)
     value = vwap * volume if vwap else None
 
-    inflow, outflow = _flow(bars)
-    scale = value / (inflow + outflow) if value and inflow + outflow else 0
+    parts = _flow_parts(bars)
+    inflow, outflow = sum(p[0] for p in parts), sum(p[1] for p in parts)
 
     recent = {}
     for minutes in (5, 15):
-        i, o = _flow(bars[-minutes:]) if bars else (0, 0)
-        recent[f"m{minutes}"] = _flow_dict(i * scale, o * scale)
+        last = parts[-minutes:]
+        recent[f"m{minutes}"] = _flow_dict(sum(p[0] for p in last), sum(p[1] for p in last))
 
     return {
         "price": price,
         "volume": volume,
         "vwap": _price_round(vwap) if vwap else None,
-        "value": round(value) if value else None,
+        "value": round(value) if value else None,  # تقدير: VWAP × حجم اليوم
+        "bars_volume": bars_volume,
+        "coverage": round(bars_volume / volume, 3) if volume else None,
         "vol_ratio": quote.get("vol_ratio"),
         "turnover": quote.get("turnover"),
         "speed": quote.get("speed"),
         "live": bool(quote.get("live")),
-        # تقدير من موقع إغلاق كل شمعة، وليس صفقات شراء/بيع مبادرة. حجم شموع TradingView من Cboe One فقط
+        "estimated": True,  # من موقع إغلاق كل شمعة، وليس صفقات شراء/بيع مبادرة
+        # حجم شموع TradingView من Cboe One فقط
         "volume_scope": chart_meta(symbol, "1m", True).get("volume_scope"),
-        **_flow_dict(inflow * scale, outflow * scale),
+        "volume_check": chart_meta(symbol, "1m", True).get("volume_check"),
+        **_flow_dict(inflow, outflow),
         **recent,
     }
 

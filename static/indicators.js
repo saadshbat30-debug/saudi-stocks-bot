@@ -45,19 +45,8 @@
   // صافي الجلسة من شموع الدقيقة دائمًا (مثل لوحة السيولة وسلّم السيولة) حتى لا يتغير الرقم بتغير فاصل الشارت:
   // لكل شمعة في الشارت = مجموع صافي دقائق يومها حتى نهايتها. لا خط للأيام التي لا شموع دقيقة لها.
   function sessionCum(bars, minute) {
-    const dayOf = t => Math.floor((t - 7 * 3600) / 86400);
-    const pts = []; let day = null, total = 0;
-    const days = new Set();
-    minute.forEach((b, i) => {
-      const value = (b.high + b.low + b.close) / 3 * b.volume;
-      let share;
-      if (b.high > b.low) share = (b.close - b.low) / (b.high - b.low);
-      else { const ref = i ? minute[i - 1].close : b.open; share = b.close > ref ? 1 : b.close < ref ? 0 : 0.5; }
-      const d = dayOf(b.time);
-      if (d !== day) { day = d; total = 0; days.add(d); }
-      total += value * (2 * share - 1);
-      pts.push([b.time, total, d]);
-    });
+    const dayOf = pressure.dayOf, days = new Set();
+    const pts = pressure.series(minute).map(x => { days.add(x.day); return [x.time, x.cum, x.day]; });
     let j = 0;
     return bars.map((b, i) => {
       const span = i + 1 < bars.length ? bars[i + 1].time - b.time : i ? b.time - bars[i - 1].time : 0;
@@ -70,21 +59,12 @@
     });
   }
 
+  // المعادلة في static/pressure.js (واحدة للّوحة والسلّم وهذا المؤشر)
   function flow(bars, minute) {
-    const net = [], cum = []; let day = null, total = 0;
-    bars.forEach((b, i) => {
-      const value = (b.high + b.low + b.close) / 3 * b.volume;
-      let share;
-      if (b.high > b.low) share = (b.close - b.low) / (b.high - b.low);
-      else { const ref = i ? bars[i - 1].close : b.open; share = b.close > ref ? 1 : b.close < ref ? 0 : 0.5; }
-      const n = value * (2 * share - 1);
-      const d = Math.floor((b.time - 7 * 3600) / 86400);  // صافي الجلسة يبدأ من جديد كل يوم
-      if (d !== day) { day = d; total = 0; }
-      total += n;
-      net.push({ in: value * share, out: value * (1 - share), net: n }); cum.push(total);
-    });
+    const all = pressure.series(bars);
+    const net = all.map(x => ({ in: x.buy, out: x.sell, net: x.net }));
     if (minute && minute.length) return { net, cum: sessionCum(bars, minute) };
-    return { net, cum };
+    return { net, cum: all.map(x => x.cum) };
   }
   const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return s + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : a.toFixed(0)); };
 
