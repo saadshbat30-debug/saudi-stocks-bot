@@ -5,3 +5,5 @@ yfinance==1.7.0
 # مصدر الأسعار والشموع للأسهم الأمريكية: TradingView عبر tvscraper (غير رسمي، رخصة MIT) — نسخة مثبتة بالرقم
 websocket-client>=1.7.0
 tvscraper @ git+https://github.com/Tekyyy/tvscraper@0334d701386a80cf467a0b4b56d11c3f9045f088
+# رادار الزخم: ماسح TradingView (غير رسمي)؛ يجلب pandas معه
+tradingview-screener>=3.0

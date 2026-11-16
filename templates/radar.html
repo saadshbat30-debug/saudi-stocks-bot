@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}📡 رادار الزخم — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  main { max-width:none !important; }
+  .rd-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; padding:14px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  .rd-head h3 { margin:0; font-size:18px; }
+  .rd-info { font-size:13px; color:var(--muted); margin-top:4px; }
+  .rd-count { background:var(--accent); color:#fff; padding:6px 16px; border-radius:30px; font-weight:800; font-size:14px; }
+  .rd-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:12px; }
+  .chip { padding:5px 11px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
+  .chip.active { background:#2b3340; border-color:#64748b; color:#f1f5f9; font-weight:600; }
+  .rd-note { font-size:12px; color:var(--muted); margin-bottom:12px; }
+  .rd-warn { background:#3d3315; color:#facc15; border:1px solid #6b5a1a; border-radius:10px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
+  #rd-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:14px; }
+  .rd-card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; transition:transform .2s, border-color .2s; }
+  .rd-card:hover { transform:translateY(-4px); border-color:var(--accent); }
+  .rd-ticker { font-size:24px; font-weight:900; color:var(--accent); }
+  .rd-sub { font-size:11px; color:var(--muted); }
+  .rd-lbl { font-size:10px; color:var(--muted); font-weight:bold; }
+  .rd-val { font-size:22px; font-weight:800; line-height:1; }
+  .rd-price { display:flex; justify-content:space-between; align-items:center; margin:12px 0; padding:10px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .rd-price .p { font-size:20px; font-weight:700; } .rd-price .c { font-size:20px; font-weight:800; }
+  .rd-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .rd-stat { background:var(--bg); padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:13px; }
+  .rd-stat span:first-child { color:var(--muted); }
+  .rd-sigs { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .rd-sig { font-size:11px; padding:3px 9px; border-radius:6px; font-weight:700; }
+  .rd-sig.early { background:#1e40af33; color:#60a5fa; border:1px solid #1e40af; }
+  .rd-sig.acc { background:#064e3b33; color:#34d399; border:1px solid #064e3b; }
+  .rd-sig.brk { background:#7c2d1233; color:#fb923c; border:1px solid #7c2d12; }
+  .rd-bar { background:var(--bg); border-radius:99px; height:4px; overflow:hidden; flex:1; }
+  .rd-bar.main { height:10px; }
+  .rd-fill { height:100%; border-radius:99px; transition:width .4s; }
+  .rd-meta { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin:6px 0 10px; }
+  .rd-parts { display:grid; gap:5px; }
+  .rd-part { display:flex; align-items:center; gap:8px; }
+  .rd-part span { font-size:10px; color:var(--muted); width:48px; }
+  .rd-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+  .rd-btn { text-align:center; padding:9px; border-radius:10px; font-size:13px; font-weight:bold; color:#fff; }
+  .rd-btn.pri { background:var(--accent); } .rd-btn.sec { background:#334155; }
+  .rd-empty { grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--muted); font-size:16px; }
+</style>
+
+<div class="rd-head">
+  <div>
+    <h3>📡 رادار الزخم — Elite Radar Pro</h3>
+    <div class="rd-info">الحالة: <span id="rd-session" style="color:var(--accent)">جاري الفحص...</span> · تحديث (نيويورك): <bdi dir="ltr" id="rd-updated">--:--:--</bdi><span id="rd-matched"></span></div>
+  </div>
+  <div class="rd-count" id="rd-count">0 سهم</div>
+</div>
+
+<div class="rd-controls">
+  <button class="chip active" data-f="ALL">الكل</button>
+  <button class="chip" data-f="STRONG">🔥 زخم قوي</button>
+  <button class="chip" data-f="ACCEL">🚀 يتسارع</button>
+  <button class="chip" data-f="BREAKOUT">💥 اختراق</button>
+  <a class="chip" href="/" style="margin-inline-start:auto">← جدول الأسهم</a>
+</div>
+<div class="rd-warn" id="rd-warn" hidden></div>
+<div class="rd-note">المصدر: ماسح TradingView<span id="rd-delay"></span> · أسهم NASDAQ وNYSE وAMEX بسعر ${{ cfg.min_price }}–${{ cfg.max_price }}، تغير ≥ {{ cfg.min_change }}%، حجم ≥ {{ "{:,}".format(cfg.min_volume) }}، حجم نسبي ≥ {{ cfg.min_rvol }}× · يُعرض أعلى {{ cfg.top }} بسكور ≥ {{ cfg.min_score }} بعد استبعاد الحركات المتأخرة · يتحدث كل 20 ثانية · ليس توصية شراء أو بيع</div>
+
+<div id="rd-grid"><div class="rd-empty">بانتظار وصول البيانات...</div></div>
+
+<script>
+let rdStocks = [], rdFilter = "ALL", rdState = {};
+const RD_PARTS = { speed: "السرعة", rsi: "RSI", macd: "MACD", trend: "الاتجاه", volume: "الحجم" };
+const RD_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const rdEsc = v => String(v ?? "").replace(/[&<>"']/g, c => RD_ESC[c]);
+const rdColor = v => v >= 75 ? "#10b981" : v >= 55 ? "#34d399" : v >= 35 ? "#f59e0b" : "#94a3b8";
+const rdVol = v => v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : v;
+
+document.querySelectorAll(".rd-controls [data-f]").forEach(b => b.onclick = () => {
+  rdFilter = b.dataset.f;
+  document.querySelectorAll(".rd-controls [data-f]").forEach(x => x.classList.toggle("active", x === b));
+  rdRender();
+});
+
+function rdRender() {
+  const grid = document.getElementById("rd-grid");
+  const list = rdStocks.filter(s => {
+    const m = s.momentum || {};
+    if (rdFilter === "STRONG") return m.value >= 55;
+    if (rdFilter === "ACCEL") return m.trend === "يتسارع";
+    if (rdFilter === "BREAKOUT") return s.pass_breakout;
+    return true;
+  });
+  document.getElementById("rd-count").textContent = list.length + " سهم";
+  if (!list.length) {
+    const why = rdState.ok === false ? "تعذر جلب البيانات" : !rdStocks.length && rdState.session && !rdState.session.is_live
+      ? "السوق مغلق: شروط الرادار تخصم 15 نقطة خارج الجلسات فلا يبلغ أي سهم حد العرض. يعود عند ما قبل الافتتاح (4:00 صباحًا بتوقيت نيويورك)"
+      : "لا أسهم تطابق الفلتر حاليًا";
+    grid.innerHTML = `<div class="rd-empty">🔭 ${rdEsc(why)}</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(s => {
+    const m = s.momentum || { value: 0, label: "—", trend: "—", parts: {} };
+    const color = rdColor(m.value), icon = m.trend === "يتسارع" ? "▲" : m.trend === "يتراجع" ? "▼" : "●";
+    const parts = Object.entries(m.parts || {}).map(([k, v]) => `<div class="rd-part"><span>${rdEsc(RD_PARTS[k] || k)}</span><div class="rd-bar"><div class="rd-fill" style="width:${Number(v)}%;background:${color}"></div></div></div>`).join("");
+    let sigs = `<span class="rd-sig early">${rdEsc(s.setup)}</span>`;
+    if (s.pass_rvol) sigs += '<span class="rd-sig acc">💰 حجم</span>';
+    if (s.pass_breakout) sigs += '<span class="rd-sig brk">💥 اختراق</span>';
+    const sym = s.name || s.symbol;
+    return `<div class="rd-card" data-symbol="${rdEsc(sym)}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><a class="rd-ticker" href="/stock/${encodeURIComponent(sym)}">${rdEsc(sym)}</a><div class="rd-sub">${rdEsc(s.exchange)}</div></div>
+        <div style="text-align:left"><div class="rd-lbl">مؤشر الزخم</div><div class="rd-val" style="color:${color}">${Number(m.value)}</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="rd-bar main"><div class="rd-fill" style="width:${Number(m.value)}%;background:${color}"></div></div>
+        <div class="rd-meta"><span style="color:${color};font-weight:bold">${rdEsc(m.label)}</span><span>${icon} ${rdEsc(m.trend)}</span></div>
+        <div class="rd-parts">${parts}</div>
+      </div>
+      <div class="rd-price">
+        <div class="p"><bdi dir="ltr">$${Number(s.price)}</bdi></div>
+        <div style="text-align:left"><div class="rd-lbl">تغير اليوم</div><div class="c" style="color:${s.change_pct >= 0 ? "var(--up)" : "var(--down)"}"><bdi dir="ltr">${s.change_pct >= 0 ? "+" : ""}${Number(s.change_pct)}%</bdi></div></div>
+      </div>
+      <div class="rd-stats">
+        <div class="rd-stat"><span>RVOL</span><b><bdi dir="ltr">×${Number(s.rvol)}</bdi></b></div>
+        <div class="rd-stat"><span>RSI</span><span>${rdEsc(s.rsi ?? "—")}</span></div>
+        <div class="rd-stat"><span>السكور</span><b style="color:#fb923c">${Number(s.score)}</b></div>
+        <div class="rd-stat"><span>الحجم</span><span>${rdEsc(rdVol(s.volume))}</span></div>
+      </div>
+      <div class="rd-sigs">${sigs}</div>
+      <div class="rd-btns">
+        <a href="/stock/${encodeURIComponent(sym)}" class="rd-btn pri">صفحة السهم</a>
+        <a href="${rdEsc(s.tv_link)}" target="_blank" rel="noopener" class="rd-btn sec">TradingView ↗</a>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function rdLoad() {
+  const warn = document.getElementById("rd-warn");
+  try {
+    const data = await (await fetch("/api/momentum-radar")).json();
+    rdState = data;
+    document.getElementById("rd-updated").textContent = (data.updated_at || "").split(" ")[1] || "--:--:--";
+    document.getElementById("rd-session").textContent = (data.session && data.session.label_ar) || "—";
+    document.getElementById("rd-matched").textContent = data.matched != null ? ` · ${data.matched} سهم اجتاز الشروط` : "";
+    const delayed = (data.stocks || []).some(s => String(s.update_mode || "").startsWith("delayed"));
+    document.getElementById("rd-delay").textContent = delayed ? " (بيانات متأخرة 15 دقيقة)" : "";
+    warn.hidden = !data.error; warn.textContent = data.error ? "⚠️ " + data.error : "";
+    rdStocks = data.stocks || [];
+  } catch (e) {
+    rdState = { ok: false };
+    warn.hidden = false; warn.textContent = "⚠️ تعذر الاتصال بخادم المنصة";
+  }
+  rdRender();
+}
+setInterval(rdLoad, 20000);
+rdLoad();
+</script>
+{% endblock %}

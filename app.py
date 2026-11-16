@@ -294,6 +294,21 @@ def api_breakout():
     return jsonify(breakout.snapshot())
 
 
+# ===== رادار الزخم (Elite Radar Pro) — نفس آلية «قبل الانطلاق»: صفحة داخل قالب المنصة + مسار بيانات =====
+@app.route("/radar")
+def radar_page():
+    import momentum_radar as mr
+    cfg = {"min_price": mr.MIN_PRICE, "max_price": mr.MAX_PRICE, "min_change": mr.MIN_CHANGE_PCT, "min_volume": mr.MIN_VOLUME,
+           "min_rvol": mr.MIN_RVOL, "top": mr.TOP_RESULTS, "min_score": mr.MIN_SCORE_TO_SHOW}
+    return render_template("radar.html", markets=MARKETS, market_id=None, cfg=cfg)
+
+
+@app.route("/api/momentum-radar")
+def api_momentum_radar():
+    import momentum_radar
+    return jsonify(momentum_radar.snapshot())
+
+
 @app.route("/saudi")
 def saudi_page():
     """منصة أبو طلال للسوق السعودي داخل نفس الصفحة (تعمل كخادم مستقل على SAUDI_URL)."""
