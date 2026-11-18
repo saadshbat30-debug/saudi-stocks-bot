@@ -11,3 +11,5 @@ tradingview-screener>=3.0
 python-dotenv>=1.0
 # بث Alpaca: ضغط permessage-deflate (يقلل حجم بيانات SIP نحو 4×)
 websockets>=15
+# بث Alpaca بترميز msgpack (نصف حجم JSON)
+msgpack>=1.0

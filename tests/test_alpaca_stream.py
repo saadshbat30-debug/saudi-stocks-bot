@@ -34,7 +34,7 @@ class FakeAlpaca:
 
     def __init__(self, mode="ok"):
         self.mode, self.sessions, self.auth_msgs, self.subs = mode, 0, [], []
-        self.conns, self.drop_data = [], False
+        self.conns, self.drop_data, self.formats = [], False, []
         s = socket.socket(); s.bind(("127.0.0.1", 0)); self.port = s.getsockname()[1]; s.close()
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
@@ -47,6 +47,18 @@ class FakeAlpaca:
     async def _handler(self, ws):
         self.sessions += 1
         self.conns.append(ws)
+        mp = ws.request.headers.get("Content-Type") == "application/msgpack"
+        self.formats.append("msgpack" if mp else "json")
+        import msgpack
+        real_send, real_recv = ws.send, ws.recv
+
+        async def send(text):  # الرسائل مكتوبة JSON في الاختبار وتُرسل بالترميز الذي طلبه العميل
+            await real_send(msgpack.packb(json.loads(text)) if mp else text)
+
+        async def recv():
+            data = await real_recv()
+            return json.dumps(msgpack.unpackb(data)) if mp else data
+        ws.send, ws.recv = send, recv
         await ws.send('[{"T":"success","msg":"connected"}]')
         if self.mode == "limit":
             await ws.send('[{"T":"error","code":406,"msg":"connection limit exceeded"}]')
@@ -92,7 +104,7 @@ class FakeAlpaca:
 
 def cfg(port, **kw):
     c = {"key": KEY, "secret": SECRET, "feed": "sip", "url": f"ws://127.0.0.1:{port}", "trading_url": al.PAPER_TRADING_URL,
-         "trades": ["*"], "quotes": ["*"], "bars": ["*"], "stale_seconds": 1.0, "bars_keep": 30}
+         "trades": ["*"], "quotes": ["*"], "bars": ["*"], "stale_seconds": 1.0, "bars_keep": 30, "format": "msgpack"}
     c.update(kw)
     return c
 
@@ -163,6 +175,7 @@ class TestStream(Base):
         self.assertGreater(st["msgs_per_s_10s"], 0)
         self.assertEqual(st["transport"], "websockets")
         self.assertIn("permessage-deflate", st["compression"])
+        self.assertEqual((st["format"], s.formats[0]), ("msgpack", "msgpack"))
 
     def test_reconnects_after_server_drops_and_resubscribes(self):
         s = self.server()
@@ -276,6 +289,15 @@ class TestConfig(unittest.TestCase):
 
 
 
+class TestJsonFormat(Base):
+    def test_json_format_still_works(self):
+        s = self.server()
+        c = self.run_client(s, format="json")
+        self.assertTrue(wait(lambda: c.counts["bars"] >= 1 and c.counts["trades"] >= 20))
+        self.assertEqual((c.format, s.formats[0]), ("json", "json"))
+        self.assertGreater(c.status()["latency"]["trades"]["p50_ms"], 19)
+
+
 class TestThroughputSettings(unittest.TestCase):
     def test_compression_is_requested_and_large_frames_allowed(self):
         """فحص 2026-11-18 على الجهاز: كل الصفقات دون ضغط لم تلحق بالبث فقطع الخادم الاتصال."""
@@ -310,6 +332,21 @@ class TestThroughputSettings(unittest.TestCase):
             c._run()
         self.assertEqual(list(c.errors), [])
         self.assertEqual(c.gaps[-1][2], "اختبار إعادة الاتصال")
+
+class TestMsgpackDecoding(unittest.TestCase):
+    def test_msgpack_timestamps_become_seconds(self):
+        import msgpack
+        c = al.AlpacaStream(cfg(1))
+        now = time.time()
+        raw = msgpack.packb([{"T": "t", "S": "AAPL", "i": 1, "x": "D", "p": 190.5, "s": 100, "c": ["@"],
+                              "t": msgpack.Timestamp.from_unix(now - 0.25), "z": "C"},
+                             {"T": "b", "S": "AAPL", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 9, "n": 3, "vw": 1.1,
+                              "t": msgpack.Timestamp.from_unix(int(now // 60 * 60) - 60)}])
+        c._handle(raw)
+        self.assertAlmostEqual(c.trades["AAPL"]["t"], now - 0.25, places=3)
+        self.assertGreaterEqual(c.status()["latency"]["trades"]["p50_ms"], 249)
+        self.assertEqual(c.bars["AAPL"][-1][5], 9)
+
 
 class TestTimestamps(unittest.TestCase):
     def test_nanosecond_rfc3339(self):

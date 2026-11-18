@@ -167,7 +167,7 @@ def run_stream(cfg, seconds, test_stream):
             loads.append((st["cpu_busy_pct"], st["rx_kb_s"]))
     st = c.status()
     c.stop()
-    print(f"  الاتصال: {st['transport']} · الضغط: {st['compression'] or 'غير مفعّل (الخادم أو الشبكة لم يقبله)'}")
+    print(f"  الاتصال: {st['transport']} · الترميز: {st['format']} · الضغط: {st['compression'] or 'غير مفعّل (الخادم لم يقبله)'}")
     print(json.dumps({k: st[k] for k in ("state", "fatal", "subscription", "counts", "symbols", "latency", "errors")},
                      ensure_ascii=False, indent=1, default=str)[:3000])
 
@@ -239,6 +239,7 @@ def main():
     ap.add_argument("--symbols", default="")
     ap.add_argument("--no-quotes", action="store_true")
     ap.add_argument("--test-stream", action="store_true")
+    ap.add_argument("--json", action="store_true", help="الاستقبال بـ JSON بدل msgpack (للمقارنة)")
     a = ap.parse_args()
     try:
         cfg = al.config()
@@ -248,6 +249,8 @@ def main():
     if a.symbols:
         syms = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
         cfg.update(trades=syms, quotes=syms, bars=syms)
+    if a.json:
+        cfg["format"] = "json"
     if a.no_quotes:
         cfg["quotes"] = []
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")

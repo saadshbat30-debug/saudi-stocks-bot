@@ -78,6 +78,8 @@ def config():
         "trades": symbols("ALPACA_TRADES"), "quotes": symbols("ALPACA_QUOTES"), "bars": symbols("ALPACA_BARS"),
         "stale_seconds": float(os.environ.get("ALPACA_STALE_SECONDS", "30")),
         "bars_keep": int(os.environ.get("ALPACA_BARS_KEEP", "30")),
+        # msgpack: نصف حجم JSON تقريبًا (قيس 368 مقابل 733 KB لـ 6000 صفقة)، وAlpaca يدعمه بترويسة Content-Type
+        "format": os.environ.get("ALPACA_FORMAT", "msgpack").strip().lower(),
     }
 
 
@@ -137,6 +139,8 @@ _base_cache = {}
 
 
 def ts(rfc3339):
+    if isinstance(rfc3339, (int, float)):  # msgpack: الوقت يصل ثواني جاهزة
+        return float(rfc3339)
     """RFC-3339 بدقة النانوثانية ← ثوانٍ (float). البداية حتى الثانية تُخزَّن لأنها تتكرر آلاف المرات."""
     base, _, frac = rfc3339.rstrip("Z").partition(".")
     sec = _base_cache.get(base)
@@ -219,6 +223,14 @@ class AlpacaStream:
             except Exception:
                 pass
 
+    format = "json"
+
+    def _encode(self, obj):
+        if self.format == "msgpack":
+            import msgpack
+            return msgpack.packb(obj)
+        return json.dumps(obj)
+
     def _default_connect(self):
         """websockets (يطلب ضغط permessage-deflate الذي يدعمه Alpaca) وإلا websocket-client بلا ضغط.
 
@@ -230,12 +242,21 @@ class AlpacaStream:
         except ImportError:
             connect = None
         if connect is not None:
-            ws = connect(self.cfg["url"], compression="deflate", max_size=None, open_timeout=15,
+            headers = {}
+            self.format = "json"
+            if self.cfg.get("format") == "msgpack":
+                try:
+                    import msgpack  # noqa: F401
+                    headers, self.format = {"Content-Type": "application/msgpack"}, "msgpack"
+                except ImportError:
+                    log.warning("مكتبة msgpack غير مثبتة: الاستقبال بـ JSON (ضعف الحجم) — py -m pip install -r requirements.txt")
+            ws = connect(self.cfg["url"], compression="deflate", max_size=None, open_timeout=15, additional_headers=headers,
                          ping_interval=20, ping_timeout=20, close_timeout=2)
             self.transport = "websockets"
             self.compression = ws.response.headers.get("Sec-WebSocket-Extensions") or None
             return ws
         import websocket
+        self.format = "json"
         # skip_utf8_validation: تحقق websocket-client من UTF-8 مكتوب بـ Python وبطيء جدًا (50 ألف رسالة/ث مقابل 1.5 مليون)
         kw = {"timeout": 15, "enable_multithread": True, "skip_utf8_validation": True}
         px = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
@@ -289,7 +310,7 @@ class AlpacaStream:
         self.connects += 1
         self._handle(self._recv(ws))  # [{"T":"success","msg":"connected"}]
         try:
-            ws.send(json.dumps({"action": "auth", "key": self.cfg["key"], "secret": self.cfg["secret"]}))
+            ws.send(self._encode({"action": "auth", "key": self.cfg["key"], "secret": self.cfg["secret"]}))
         except Exception:
             pass  # الخادم أغلق بعد رسالة خطأ (406 مثلًا): الرسالة ما زالت في المخزن وتُقرأ الآن
         self._handle(self._recv(ws))
@@ -301,7 +322,7 @@ class AlpacaStream:
                 sub[ch] = self.cfg[ch]
         if self.cfg["bars"]:
             sub["updatedBars"] = self.cfg["bars"]
-        ws.send(json.dumps(sub))
+        ws.send(self._encode(sub))
         self.state, self.connected_at = "streaming", time.time()
         if self.gaps and self.gaps[-1][1] is None:
             self.gaps[-1][1] = self.connected_at
@@ -345,7 +366,11 @@ class AlpacaStream:
         cpu = time.thread_time()
         if not self.cpu or now - self.cpu[-1][0] >= 1:
             self.cpu.append((now, cpu, self.rx_bytes))
-        msgs = json.loads(raw)
+        if isinstance(raw, (bytes, bytearray)):
+            import msgpack
+            msgs = msgpack.unpackb(raw, timestamp=1)  # الأوقات ثوانٍ (float) مباشرة
+        else:
+            msgs = json.loads(raw)
         n = 0
         for m in msgs:
             t = m.get("T")
@@ -437,7 +462,7 @@ class AlpacaStream:
             "subscription": self.subscription, "connects": self.connects, "reconnects": self.reconnects,
             "connected_for_s": age(self.connected_at) if self.state == "streaming" else None,
             "last_data_age_s": age(self.last_data), "msgs_per_s_10s": self.msgs_per_second(),
-            "transport": self.transport, "compression": self.compression, **self.load(),
+            "transport": self.transport, "compression": self.compression, "format": self.format, **self.load(),
             "counts": dict(self.counts), "symbols": {"trades": len(self.trades), "quotes": len(self.quotes), "bars": len(self.bars)},
             "latency": {k: v.stats(now) for k, v in self.lat.items()},
             "latency_note": "وقت الاستلام على هذا الجهاز − وقت الحدث عند البورصة؛ يتضمن فرق ساعة الجهاز",
