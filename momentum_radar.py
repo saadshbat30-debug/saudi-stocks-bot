@@ -95,15 +95,25 @@ def _scan(extra_fields):
     return [] if df is None or df.empty else df.to_dict("records")
 
 
+def source_name():
+    import alpaca_stream
+    return "Alpaca (SIP)" if alpaca_stream.source_is_alpaca() else "TradingView Screener"
+
+
 def fetch_candidates():
-    # لو رفض TradingView أحد حقول الزخم نرجع للحقول الأساسية فقط، ويُحسب المؤشر من المتوفر بدل أن يتعطل الرادار
-    try:
-        raw = _scan(MOMENTUM_FIELDS)
-    except ImportError:
-        raise
-    except Exception as e:
-        print(f"⚠️ رادار الزخم: رُفضت حقول الزخم، رجوع للحقول الأساسية: {e}")
-        raw = _scan([])
+    import alpaca_stream
+    if alpaca_stream.source_is_alpaca():
+        import radar_alpaca  # الحقول نفسها من بيانات Alpaca اللحظية (DATA_SOURCE=alpaca)
+        raw = radar_alpaca.scan(MIN_PRICE, MAX_PRICE, MIN_CHANGE_PCT, MIN_VOLUME, MIN_RVOL)
+    else:
+        # لو رفض TradingView أحد حقول الزخم نرجع للحقول الأساسية فقط، ويُحسب المؤشر من المتوفر بدل أن يتعطل الرادار
+        try:
+            raw = _scan(MOMENTUM_FIELDS)
+        except ImportError:
+            raise
+        except Exception as e:
+            print(f"⚠️ رادار الزخم: رُفضت حقول الزخم، رجوع للحقول الأساسية: {e}")
+            raw = _scan([])
     rows = []
     for r in raw:
         row = {{**RENAME, **MOMENTUM_RENAME}.get(k, k): v for k, v in r.items()}
@@ -299,7 +309,8 @@ def snapshot():
         if _cache["data"] and time.time() - _cache["at"] < CACHE_SECONDS:
             return _cache["data"]
         session = get_market_session()
-        base = {"app_name": APP_NAME, "session": session, "updated_at": session["now_ny"], "source": "TradingView Screener"}
+        src = source_name()
+        base = {"app_name": APP_NAME, "session": session, "updated_at": session["now_ny"], "source": src}
         try:
             rows = build_table(session["name"])
         except ImportError:
@@ -309,9 +320,9 @@ def snapshot():
             print(f"⚠️ رادار الزخم: تعذر الجلب: {e}")
             stale = _cache["data"]
             if stale:  # آخر نتيجة ناجحة مع التنبيه، بدل شاشة فارغة
-                return {**stale, "stale": True, "error": f"تعذر تحديث البيانات من TradingView: {str(e)[:120]}"}
+                return {**stale, "stale": True, "error": f"تعذر تحديث البيانات من {src}: {str(e)[:120]}"}
             return {**base, "ok": False, "count": 0, "stocks": [],
-                    "error": f"تعذر جلب البيانات من TradingView: {str(e)[:120]}"}
+                    "error": f"تعذر جلب البيانات من {src}: {str(e)[:120]}"}
         stocks = [_stock(r) for r in rows[:TOP_RESULTS]]
         data = {**base, "ok": True, "count": len(stocks), "matched": len(rows), "stocks": stocks}
         _cache.update(at=time.time(), data=data)

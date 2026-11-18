@@ -685,6 +685,9 @@ def _apply_alpaca(r, now, yahoo_time):
     from zoneinfo import ZoneInfo
     ny = ZoneInfo("America/New_York")
     r["price"] = a["price"]
+    hist = alpaca_daily.get(r["symbol"])
+    if hist and hist["closes"]:
+        r["prev_close"] = hist["closes"][-1]  # إغلاق آخر جلسة مكتملة من Alpaca (معدّل للتقسيم)
     prev = r.get("prev_close")
     if prev:
         r["change"] = a["price"] - prev

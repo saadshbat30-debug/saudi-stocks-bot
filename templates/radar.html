@@ -58,7 +58,7 @@
   <a class="chip" href="/" style="margin-inline-start:auto">← جدول الأسهم</a>
 </div>
 <div class="rd-warn" id="rd-warn" hidden></div>
-<div class="rd-note">المصدر: ماسح TradingView<span id="rd-delay"></span> · أسهم NASDAQ وNYSE وAMEX بسعر ${{ cfg.min_price }}–${{ cfg.max_price }}، تغير ≥ {{ cfg.min_change }}%، حجم ≥ {{ "{:,}".format(cfg.min_volume) }}، حجم نسبي ≥ {{ cfg.min_rvol }}× · يُعرض أعلى {{ cfg.top }} بسكور ≥ {{ cfg.min_score }} بعد استبعاد الحركات المتأخرة · يتحدث كل 20 ثانية · ليس توصية شراء أو بيع</div>
+<div class="rd-note">المصدر: <span id="rd-src">—</span><span id="rd-delay"></span> · أسهم NASDAQ وNYSE وAMEX بسعر ${{ cfg.min_price }}–${{ cfg.max_price }}، تغير ≥ {{ cfg.min_change }}%، حجم ≥ {{ "{:,}".format(cfg.min_volume) }}، حجم نسبي ≥ {{ cfg.min_rvol }}× · يُعرض أعلى {{ cfg.top }} بسكور ≥ {{ cfg.min_score }} بعد استبعاد الحركات المتأخرة · يتحدث كل 20 ثانية · ليس توصية شراء أو بيع</div>
 
 <div id="rd-grid"><div class="rd-empty">بانتظار وصول البيانات...</div></div>
 
@@ -140,6 +140,7 @@ async function rdLoad() {
     document.getElementById("rd-matched").textContent = data.matched != null ? ` · ${data.matched} سهم اجتاز الشروط` : "";
     const delayed = (data.stocks || []).some(s => String(s.update_mode || "").startsWith("delayed"));
     document.getElementById("rd-delay").textContent = delayed ? " (بيانات متأخرة 15 دقيقة)" : "";
+    document.getElementById("rd-src").textContent = data.source === "Alpaca (SIP)" ? "Alpaca SIP (لحظي، كل البورصات)" : "ماسح TradingView";
     warn.hidden = !data.error; warn.textContent = data.error ? "⚠️ " + data.error : "";
     rdStocks = data.stocks || [];
   } catch (e) {

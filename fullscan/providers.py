@@ -162,5 +162,11 @@ class AlpacaProvider:
 
 
 def make(name=None):
-    name = (name or os.environ.get("FULLSCAN_PROVIDER", "yahoo")).lower()
+    try:
+        import alpaca_stream  # يقرأ .env (المفاتيح وDATA_SOURCE)
+        alpaca_stream.load_env()
+    except ImportError:
+        pass
+    default = "alpaca" if os.environ.get("DATA_SOURCE", "").strip().lower() == "alpaca" else "yahoo"
+    name = (name or os.environ.get("FULLSCAN_PROVIDER", default)).lower()
     return AlpacaProvider() if name == "alpaca" else YahooProvider()
