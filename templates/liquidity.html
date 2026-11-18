@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}رادار السيولة اللحظي — منصة الأسهم{% endblock %}
+{% block content %}
+<style>
+  main { max-width:none !important; }
+  .liq-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .liq-head h2 { margin:0; color:#facc15; font-size:20px; }
+  .liq-sub { color:var(--muted); font-size:12px; margin-top:5px; }
+  .liq-search { display:flex; gap:8px; flex-wrap:wrap; }
+  .liq-search input { width:180px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:9px; padding:10px 12px; font:inherit; direction:ltr; text-transform:uppercase; }
+  .liq-search button { border:0; border-radius:9px; padding:10px 16px; background:var(--accent); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+  .liq-status { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
+  .liq-pill { background:var(--card); border:1px solid var(--line); border-radius:30px; padding:6px 11px; color:var(--muted); font-size:12px; }
+  .liq-pill.ok { color:#4ade80; border-color:#166534; }
+  .liq-pill.bad { color:#fbbf24; border-color:#854d0e; }
+  .liq-price { display:flex; align-items:center; gap:18px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 16px; margin-bottom:14px; }
+  .liq-price strong { font-size:25px; direction:ltr; display:inline-block; }
+  .liq-price .muted { font-size:12px; }
+  .liq-grid { display:grid; grid-template-columns:repeat(5,minmax(190px,1fr)); gap:10px; }
+  .liq-card { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:13px; min-width:0; }
+  .liq-card h3 { margin:0 0 12px; color:#facc15; font-size:15px; }
+  .liq-metric { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .liq-metric:last-child { border-bottom:0; }
+  .liq-metric span { color:var(--muted); font-size:12px; }
+  .liq-metric b { font-size:14px; direction:ltr; text-align:left; overflow-wrap:anywhere; }
+  .liq-metric b.big { font-size:18px; }
+  .buy { color:#22c55e; } .sell { color:#f87171; } .neutral { color:#cbd5e1; }
+  .liq-bar { display:flex; height:9px; overflow:hidden; border-radius:20px; background:#374151; margin:10px 0 5px; }
+  .liq-bar .b { background:#22c55e; } .liq-bar .s { background:#ef4444; }
+  .liq-note { color:var(--muted); font-size:12px; line-height:1.8; background:#171e26; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:14px; }
+  .liq-empty { text-align:center; color:var(--muted); padding:38px 12px; background:var(--card); border:1px dashed var(--line); border-radius:12px; }
+  @media(max-width:1200px) { .liq-grid { grid-template-columns:repeat(3,minmax(190px,1fr)); } }
+  @media(max-width:760px) { .liq-grid { grid-template-columns:repeat(2,minmax(145px,1fr)); gap:7px; } .liq-card { padding:10px; } .liq-metric b { font-size:12px; } }
+  @media(max-width:420px) { .liq-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="liq-head">
+  <div>
+    <h2>◈ رادار السيولة اللحظي</h2>
+    <div class="liq-sub">تحليل الصفقات الفعلية وتدفق القيمة — Alpaca SIP</div>
+  </div>
+  <form class="liq-search" id="liq-form">
+    <input id="liq-symbol" name="symbol" maxlength="15" placeholder="AAPL" autocomplete="off" value="{{ symbol }}" aria-label="رمز السهم">
+    <button type="submit">ابدأ المراقبة</button>
+  </form>
+</div>
+
+<div class="liq-status">
+  <span class="liq-pill" id="liq-connection">بانتظار الاتصال</span>
+  <span class="liq-pill" id="liq-feed">المصدر: —</span>
+  <span class="liq-pill" id="liq-lag">تأخير المصدر: —</span>
+  <span class="liq-pill" id="liq-updated">آخر تحديث: —</span>
+</div>
+
+<div class="liq-price" id="liq-price" hidden>
+  <div><div class="muted">السهم</div><strong id="liq-ticker">—</strong></div>
+  <div><div class="muted">آخر صفقة</div><strong id="liq-last">—</strong></div>
+  <div><div class="muted">Bid / Ask</div><strong id="liq-ba" style="font-size:17px">—</strong></div>
+  <div><div class="muted">حالة آخر تصنيف</div><strong id="liq-side" style="font-size:15px">—</strong></div>
+</div>
+
+<div id="liq-empty" class="liq-empty">اكتب رمز سهم أمريكي ثم اضغط «ابدأ المراقبة»</div>
+<div class="liq-grid" id="liq-grid" hidden></div>
+
+<div class="liq-note">
+  <b>طريقة القياس وحدود الدقة:</b>
+  قيمة الصفقة = السعر × عدد الأسهم. الشراء/البيع المبادر يُصنّف NBBO فقط عندما يكون سعر التنفيذ عند أو أعلى Ask أو عند أو أدنى Bid، مع وجود Quote سابقة وحديثة. التنفيذ داخل السبريد أو عند غياب Quote يُصنّف بطريقة Tick Rule تقديرية إذا تحرك السعر؛ وإذا بقي السعر ثابتاً يُترك «غير مصنف» ولا نُبقي اتجاه الصفقة السابقة.
+  <br>النوافذ متحركة من 1 ثانية إلى 5 دقائق، محسوبة بوقت استلام الرسالة على هذا الجهاز، وليست شموعاً. جميع القيم بالدولار الأمريكي. لا تمثل هذه البيانات Delta حقيقية كاملة ولا توصية تداول.
+</div>
+
+<script>
+(function() {
+  const input = document.getElementById("liq-symbol");
+  const form = document.getElementById("liq-form");
+  const empty = document.getElementById("liq-empty");
+  const grid = document.getElementById("liq-grid");
+  let symbol = "";
+  let timer = null;
+  let busy = false;
+
+  const fmt = n => n == null ? "—" : Number(n).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+  const integer = n => Number(n || 0).toLocaleString("en-US");
+  const safe = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
+  const windows = [
+    ["1", "ثانية واحدة"], ["5", "5 ثوانٍ"], ["10", "10 ثوانٍ"],
+    ["60", "دقيقة واحدة"], ["300", "5 دقائق"]
+  ];
+
+  function card(key, label, d) {
+    const buyPct = d.buy_pct == null ? 0 : Math.max(0, Math.min(100, d.buy_pct));
+    const netClass = d.net_value > 0 ? "buy" : d.net_value < 0 ? "sell" : "neutral";
+    return '<section class="liq-card"><h3>' + label + '</h3>' +
+      '<div class="liq-metric"><span>قيمة الشراء</span><b class="buy big">$' + fmt(d.buy_value) + '</b></div>' +
+      '<div class="liq-metric"><span>قيمة البيع</span><b class="sell big">$' + fmt(d.sell_value) + '</b></div>' +
+      '<div class="liq-metric"><span>صافي التدفق</span><b class="' + netClass + ' big">$' + fmt(d.net_value) + '</b></div>' +
+      '<div class="liq-bar"><div class="b" style="width:' + buyPct + '%"></div><div class="s" style="width:' + (100-buyPct) + '%"></div></div>' +
+      '<div class="liq-metric"><span>نسبة الشراء من المصنف</span><b>' + (d.buy_pct == null ? "—" : d.buy_pct.toFixed(1) + "%") + '</b></div>' +
+      '<div class="liq-metric"><span>عدد الصفقات</span><b>' + integer(d.trade_count) + '</b></div>' +
+      '<div class="liq-metric"><span>شراء / بيع / مجهول</span><b>' + integer(d.buy_count) + ' / ' + integer(d.sell_count) + ' / ' + integer(d.unknown_count) + '</b></div>' +
+      '<div class="liq-metric"><span>قيمة غير مصنفة</span><b class="neutral">$' + fmt(d.unknown_value) + '</b></div>' +
+      '<div class="liq-metric"><span>تغطية NBBO من القيمة</span><b>' + (d.nbbo_coverage_pct == null ? "—" : d.nbbo_coverage_pct.toFixed(1) + "%") + '</b></div>' +
+      '<div class="liq-metric"><span>قيمة مصنفة بتقدير Tick</span><b class="neutral">$' + fmt(d.estimated_value) + '</b></div>' +
+      '</section>';
+  }
+
+  function render(data) {
+    const s = data.stream || {};
+    const live = s.state === "streaming";
+    const conn = document.getElementById("liq-connection");
+    conn.textContent = live ? "Alpaca SIP متصل" : "البث: " + (s.state || "غير متاح");
+    conn.className = "liq-pill " + (live ? "ok" : "bad");
+    document.getElementById("liq-feed").textContent = "المصدر: " + (s.feed || "SIP");
+    const lag = s.latency && s.latency.trades ? s.latency.trades.p50_ms : null;
+    document.getElementById("liq-lag").textContent = "وسيط تأخير الصفقات: " + (lag == null ? "—" : (lag/1000).toFixed(2) + " ث");
+    document.getElementById("liq-updated").textContent = "آخر تحديث: " + new Date(data.server_time*1000).toLocaleTimeString("ar-SA");
+    const last = data.last_trade;
+    document.getElementById("liq-price").hidden = false;
+    document.getElementById("liq-ticker").textContent = data.symbol;
+    document.getElementById("liq-last").textContent = last ? "$" + fmt(last.price) : "—";
+    const q = data.quote;
+    document.getElementById("liq-ba").textContent = q ? "$" + fmt(q.bid) + " / $" + fmt(q.ask) : "لا توجد Quote";
+    const side = document.getElementById("liq-side");
+    const sideText = !last ? "لا توجد صفقات" : last.side === "buy" ? "شراء" : last.side === "sell" ? "بيع" : "غير مصنف";
+    side.textContent = sideText + (last && last.method === "tick" ? " · تقديري" : last && last.method === "nbbo" ? " · NBBO" : "");
+    side.className = last && last.side === "buy" ? "buy" : last && last.side === "sell" ? "sell" : "neutral";
+    grid.innerHTML = windows.map(([key,label]) => card(key, label, data.windows[key])).join("");
+    grid.hidden = false;
+    empty.hidden = true;
+  }
+
+  async function poll() {
+    if (!symbol || busy) return;
+    busy = true;
+    try {
+      const response = await fetch("/api/liquidity/" + encodeURIComponent(symbol), {cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "تعذر جلب بيانات السيولة");
+      render(data);
+    } catch (e) {
+      const conn = document.getElementById("liq-connection");
+      conn.textContent = e.message;
+      conn.className = "liq-pill bad";
+    } finally {
+      busy = false;
+    }
+  }
+
+  function start(value) {
+    const next = String(value || "").trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(next)) {
+      document.getElementById("liq-connection").textContent = "أدخل رمز سهم صحيحاً";
+      document.getElementById("liq-connection").className = "liq-pill bad";
+      return;
+    }
+    symbol = next;
+    input.value = next;
+    history.replaceState(null, "", "/liquidity?symbol=" + encodeURIComponent(next));
+    empty.textContent = "جارٍ الاشتراك في " + next + " وانتظار الصفقات وبيانات أفضل عرض وطلب...";
+    empty.hidden = false;
+    grid.hidden = true;
+    document.getElementById("liq-price").hidden = true;
+    if (timer) clearInterval(timer);
+    poll();
+    timer = setInterval(poll, 1000);
+  }
+
+  form.addEventListener("submit", e => { e.preventDefault(); start(input.value); });
+  if (input.value.trim()) start(input.value);
+})();
+</script>
+{% endblock %}
