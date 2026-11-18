@@ -161,3 +161,27 @@ class TestTableValues(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStockPageFromAlpaca(unittest.TestCase):
+    def test_52_week_range_from_alpaca_daily_bars(self):
+        now = time.time() + market.RIYADH_OFFSET
+        bars = [{"time": now - 400 * 86400, "high": 1265.0, "low": 900.0},  # أقدم من سنة: لا يدخل
+                {"time": now - 200 * 86400, "high": 40.0, "low": 30.0},
+                {"time": now - 86400, "high": 1.2, "low": 0.93}]
+        with mock.patch.object(market, "get_chart", return_value=bars):
+            self.assertEqual(market._alpaca_52w("WFF", 1.11), {"high52": 40.0, "low52": 0.93})
+            self.assertEqual(market._alpaca_52w("WFF", 50.0)["high52"], 50.0)  # سعر اليوم أعلى من كل الشموع
+        with mock.patch.object(market, "get_chart", side_effect=RuntimeError("x")):
+            self.assertEqual(market._alpaca_52w("WFF", 1.11), {})
+
+    def test_sma50_from_alpaca_closes(self):
+        closes = [float(i) for i in range(1, 71)]
+        row = {"symbol": "ZZA", "price": 71.0, "change": 1.0, "change_pct": 1.4, "volume": 1000, "prev_close": 70.0,
+               "day_high": 71.0, "day_low": 69.0, "avg_volume": 1000, "shares": None, "sma50": 999.0, "src": "alpaca"}
+        with mock.patch.object(al, "source_is_alpaca", return_value=True), \
+                mock.patch.object(market.alpaca_daily, "get", return_value={"closes": closes, "vols": [1000] * 70}), \
+                mock.patch.object(market.alpaca_daily, "avg_volume", return_value=1000), \
+                mock.patch.object(al, "client", return_value=None):
+            r = market._enrich(dict(row), time.time())
+        self.assertEqual(r["sma50"], round(sum(closes[-49:] + [71.0]) / 50, 2))

@@ -190,6 +190,8 @@ def get_quotes(symbols):
                 r, s20 = rsi(closes), sma(closes, 20)
                 result[s]["rsi"] = round(r, 1) if r is not None else None
                 result[s]["sma20"] = round(s20, 2) if s20 else None
+    if single and single in result and result[single].get("src") == "alpaca":
+        result[single] = {**result[single], **_alpaca_52w(single, result[single]["price"])}
     # العرض والطلب من TradingView في الدخول المجهول هما أفضل سعرين على Cboe One فقط (ليسا NBBO) فلا يُعرضان
     if single and single in result and single not in tv_syms:
         rq = _raw_for([single], max_age=10).get(single)
@@ -272,6 +274,21 @@ def get_quotes(symbols):
                 item["source"] = stream.tv().meta(s)
             result[s] = item
         return result
+
+
+def _alpaca_52w(symbol, price):
+    """أعلى وأدنى 52 أسبوعًا من شموع Alpaca اليومية (معدّلة للتقسيم، وهي شموع الشارت نفسها) مع سعر اليوم.
+    {} إن تعذر، فيبقى رقم ياهو."""
+    try:
+        bars = get_chart(symbol, "1d")
+    except Exception:
+        return {}
+    cut = time.time() + RIYADH_OFFSET - 365 * 86400
+    year = [b for b in bars if b["time"] >= cut]
+    if len(year) < 2:
+        return {}
+    return {"high52": _price_round(max([b["high"] for b in year] + [price])),
+            "low52": _price_round(min([b["low"] for b in year] + [price]))}
 
 
 _raw_cache = {}  # الرمز ← {"at": وقت الجلب، "q": رد ياهو الخام}
@@ -646,11 +663,13 @@ def get_market(market_id):
         rows = cached["rows"] if cached else []
 
         # تحديث التاريخ في الخلفية حتى لا تتأخر الصفحة (للأسهم النشطة فقط)
-        missing = [r["symbol"] for r in rows if r["symbol"] not in _market_history]
+        # في وضع Alpaca التاريخ اليومي للأسهم المدرجة من Alpaca (alpaca_daily)، وياهو للأسهم خارج البورصة فقط
+        hist_rows = [r for r in rows if r.get("otc")] if alpaca_stream.source_is_alpaca() else rows
+        missing = [r["symbol"] for r in hist_rows if r["symbol"] not in _market_history]
         stale = now - _history_state["at"] > HISTORY_CACHE_SECONDS
-        if rows and (missing or stale) and not _history_state["running"]:
+        if hist_rows and (missing or stale) and not _history_state["running"]:
             _history_state["running"] = True
-            symbols = missing if missing and not stale else [r["symbol"] for r in rows]
+            symbols = missing if missing and not stale else [r["symbol"] for r in hist_rows]
             threading.Thread(target=_refresh_market_history, args=(symbols,), daemon=True).start()
 
         # باقي الأسهم المدرجة من المسح الكامل (الأقل نشاطًا) — حتى لا يغيب أي سهم
@@ -866,6 +885,9 @@ def _enrich(r, now):
         value, s20 = rsi(closes), sma(closes, 20)
         r["rsi"] = round(value, 1) if value is not None else None
         r["sma20"] = round(s20, 2) if s20 else None
+        if a_hist and len(a_hist["closes"]) >= 15:
+            s50 = sma(closes, 50)  # من الإغلاقات نفسها التي حُسب منها متوسط 20 (بدل fiftyDayAverage من ياهو)
+            r["sma50"] = round(s50, 2) if s50 else None
 
     r["price"] = _price_round(price)
     r["change"] = round(r["change"], 4)
