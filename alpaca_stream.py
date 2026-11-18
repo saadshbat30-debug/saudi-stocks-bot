@@ -190,6 +190,8 @@ class AlpacaStream:
         self.gaps = deque(maxlen=50)  # (من، إلى، السبب) فترات الانقطاع
         self._ws, self._stop, self._thread = None, threading.Event(), None
         self._force_reason = None
+        self.rx_bytes, self.cpu = 0, deque(maxlen=120)  # (وقت، وقت معالج خيط الاستقبال، بايتات مستلمة)
+        self.transport = self.compression = None
 
     # ----- التشغيل -----
     def start(self):
@@ -218,9 +220,23 @@ class AlpacaStream:
                 pass
 
     def _default_connect(self):
+        """websockets (يطلب ضغط permessage-deflate الذي يدعمه Alpaca) وإلا websocket-client بلا ضغط.
+
+        فحص 2026-11-18 على جهاز المستخدم: كل الصفقات عبر SIP دون ضغط ≈ 10 ميغابت/ث عند 10 آلاف صفقة/ث، والاستقبال
+        بقي 4–5 آلاف رسالة/ث ثم قطع الخادم الاتصال. الضغط يقلل الحجم نحو 4× (قيس على إطارات صفقات بشكل Alpaca)."""
+        self.transport = self.compression = None
+        try:
+            from websockets.sync.client import connect
+        except ImportError:
+            connect = None
+        if connect is not None:
+            ws = connect(self.cfg["url"], compression="deflate", max_size=None, open_timeout=15,
+                         ping_interval=20, ping_timeout=20, close_timeout=2)
+            self.transport = "websockets"
+            self.compression = ws.response.headers.get("Sec-WebSocket-Extensions") or None
+            return ws
         import websocket
-        # skip_utf8_validation: تحقق websocket-client من UTF-8 مكتوب بـ Python وبطيء جدًا؛ قيس 50 ألف رسالة/ث معه
-        # و1.5 مليون دونه، وفي فحص 2026-11-18 تراكمت الرسائل حتى تأخرت 12 ث. json.loads يرفض النص غير الصالح أصلًا.
+        # skip_utf8_validation: تحقق websocket-client من UTF-8 مكتوب بـ Python وبطيء جدًا (50 ألف رسالة/ث مقابل 1.5 مليون)
         kw = {"timeout": 15, "enable_multithread": True, "skip_utf8_validation": True}
         px = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
         if px:
@@ -231,6 +247,7 @@ class AlpacaStream:
             kw["sslopt"] = {"ca_certs": ca}
         ws = websocket.create_connection(self.cfg["url"], **kw)
         ws.settimeout(None)
+        self.transport = "websocket-client"
         return ws
 
     def _run(self):
@@ -267,11 +284,14 @@ class AlpacaStream:
     _last_code = None
 
     def _session(self):
-        self.state = "connecting"
+        self.state, self._last_code = "connecting", None
         ws = self._ws = self._connect()
         self.connects += 1
         self._handle(self._recv(ws))  # [{"T":"success","msg":"connected"}]
-        ws.send(json.dumps({"action": "auth", "key": self.cfg["key"], "secret": self.cfg["secret"]}))
+        try:
+            ws.send(json.dumps({"action": "auth", "key": self.cfg["key"], "secret": self.cfg["secret"]}))
+        except Exception:
+            pass  # الخادم أغلق بعد رسالة خطأ (406 مثلًا): الرسالة ما زالت في المخزن وتُقرأ الآن
         self._handle(self._recv(ws))
         if not self.authenticated:
             return self._last_error_text or "لم تكتمل المصادقة"
@@ -321,6 +341,10 @@ class AlpacaStream:
             return
         now = time.time()
         self.last_msg = now
+        self.rx_bytes += len(raw)
+        cpu = time.thread_time()
+        if not self.cpu or now - self.cpu[-1][0] >= 1:
+            self.cpu.append((now, cpu, self.rx_bytes))
         msgs = json.loads(raw)
         n = 0
         for m in msgs:
@@ -391,6 +415,15 @@ class AlpacaStream:
                 self.force_reconnect("انقطاع البيانات")
                 self.last_data = None
 
+    def load(self, window=10):
+        """انشغال خيط الاستقبال (100% = المعالج هو الحد) وحجم البيانات بعد فك الضغط، لآخر window ثانية."""
+        pts = [p for p in self.cpu if p[0] >= time.time() - window - 1]
+        if len(pts) < 2 or pts[-1][0] - pts[0][0] < 1:
+            return {"rx_kb_s": None, "cpu_busy_pct": None}
+        dt = pts[-1][0] - pts[0][0]
+        return {"rx_kb_s": round((pts[-1][2] - pts[0][2]) / dt / 1024, 1),
+                "cpu_busy_pct": round(min(100.0, (pts[-1][1] - pts[0][1]) / dt * 100), 1)}
+
     def msgs_per_second(self, window=10):
         now = int(time.time())
         return round(sum(n for s, n in self.rate if now - window <= s < now) / window, 1)
@@ -404,6 +437,7 @@ class AlpacaStream:
             "subscription": self.subscription, "connects": self.connects, "reconnects": self.reconnects,
             "connected_for_s": age(self.connected_at) if self.state == "streaming" else None,
             "last_data_age_s": age(self.last_data), "msgs_per_s_10s": self.msgs_per_second(),
+            "transport": self.transport, "compression": self.compression, **self.load(),
             "counts": dict(self.counts), "symbols": {"trades": len(self.trades), "quotes": len(self.quotes), "bars": len(self.bars)},
             "latency": {k: v.stats(now) for k, v in self.lat.items()},
             "latency_note": "وقت الاستلام على هذا الجهاز − وقت الحدث عند البورصة؛ يتضمن فرق ساعة الجهاز",

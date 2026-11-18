@@ -9,3 +9,5 @@ tvscraper @ git+https://github.com/Tekyyy/tvscraper@0334d701386a80cf467a0b4b56d1
 tradingview-screener>=3.0
 # إعدادات .env (مفاتيح Alpaca وغيرها)
 python-dotenv>=1.0
+# بث Alpaca: ضغط permessage-deflate (يقلل حجم بيانات SIP نحو 4×)
+websockets>=15

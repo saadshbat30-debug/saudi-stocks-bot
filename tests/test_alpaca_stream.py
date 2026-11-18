@@ -161,6 +161,8 @@ class TestStream(Base):
         self.assertGreaterEqual(lt["p50_ms"], 19); self.assertLess(lt["p50_ms"], 500)
         self.assertGreaterEqual(lq["p50_ms"], 9); self.assertLess(lq["p50_ms"], 500)
         self.assertGreater(st["msgs_per_s_10s"], 0)
+        self.assertEqual(st["transport"], "websockets")
+        self.assertIn("permessage-deflate", st["compression"])
 
     def test_reconnects_after_server_drops_and_resubscribes(self):
         s = self.server()
@@ -275,13 +277,25 @@ class TestConfig(unittest.TestCase):
 
 
 class TestThroughputSettings(unittest.TestCase):
-    def test_utf8_validation_is_skipped(self):
-        """فحص 2026-11-18 على الجهاز: التحقق البطيء من UTF-8 أخّر الصفقات 12 ث في الوسيط."""
+    def test_compression_is_requested_and_large_frames_allowed(self):
+        """فحص 2026-11-18 على الجهاز: كل الصفقات دون ضغط لم تلحق بالبث فقطع الخادم الاتصال."""
+        import websockets.sync.client as wsc
+        c = al.AlpacaStream(cfg(1))
+        with mock.patch.object(wsc, "connect") as cc:
+            cc.return_value.response.headers = {"Sec-WebSocket-Extensions": "permessage-deflate"}
+            c._default_connect()
+        kw = cc.call_args.kwargs
+        self.assertEqual((kw["compression"], kw["max_size"]), ("deflate", None))  # دفعة شموع كل السوق قد تتجاوز 1MB
+        self.assertEqual((c.transport, c.compression), ("websockets", "permessage-deflate"))
+
+    def test_fallback_client_skips_slow_utf8_validation(self):
         import websocket
         c = al.AlpacaStream(cfg(1))
-        with mock.patch.object(websocket, "create_connection") as cc, mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(sys.modules, {"websockets.sync.client": None}), \
+                mock.patch.object(websocket, "create_connection") as cc, mock.patch.dict(os.environ, {}, clear=True):
             c._default_connect()
         self.assertTrue(cc.call_args.kwargs["skip_utf8_validation"])
+        self.assertEqual(c.transport, "websocket-client")
 
     def test_forced_reconnect_is_not_logged_as_an_error(self):
         c = al.AlpacaStream(cfg(1))

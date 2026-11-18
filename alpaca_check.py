@@ -137,7 +137,7 @@ def run_stream(cfg, seconds, test_stream):
             symbols_seen.add(m["S"])
     c = al.AlpacaStream(cfg, on_data=on_data, market_hours=lambda: False)  # المراقبة الآلية معطلة: نقطع يدويًا
     c.start()
-    t0, peak, kicked, kick_at, back_at, data_after = time.time(), 0, False, None, None, None
+    t0, peak, kicked, kick_at, back_at, data_after, loads = time.time(), 0, False, None, None, None, []
     while time.time() - t0 < seconds:
         time.sleep(1)
         peak = max(peak, c.msgs_per_second(1))
@@ -160,10 +160,14 @@ def run_stream(cfg, seconds, test_stream):
             data_after = time.time()
         if int(time.time() - t0) % 15 == 0:
             st = c.status()
+            lt = (st["latency"].get("trades") or {}).get("p50_ms")
             print(f"  {int(time.time() - t0)} ث: {st['state']} · {st['msgs_per_s_10s']} رسالة/ث · "
-                  f"صفقات {c.counts['trades']} · أسعار {c.counts['quotes']} · شموع {c.counts['bars']}")
+                  f"صفقات {c.counts['trades']} · أسعار {c.counts['quotes']} · شموع {c.counts['bars']} · "
+                  f"تأخير {lt if lt is not None else '—'}ms · {st['rx_kb_s']} KB/ث · معالج الاستقبال {st['cpu_busy_pct']}%")
+            loads.append((st["cpu_busy_pct"], st["rx_kb_s"]))
     st = c.status()
     c.stop()
+    print(f"  الاتصال: {st['transport']} · الضغط: {st['compression'] or 'غير مفعّل (الخادم أو الشبكة لم يقبله)'}")
     print(json.dumps({k: st[k] for k in ("state", "fatal", "subscription", "counts", "symbols", "latency", "errors")},
                      ensure_ascii=False, indent=1, default=str)[:3000])
 
@@ -198,6 +202,13 @@ def run_stream(cfg, seconds, test_stream):
                + (f" · بعد طرح فرق الساعة: وسيط الصفقات ≈ {main_lat:.0f}ms" if CLOCK_OFFSET else "")
                + ("" if ok else " — أعلى من ثانيتين: الرسائل تتراكم عند الجهاز (المعالجة أو الإنترنت أبطأ من البث)."
                   " جرّب --no-quotes أو --symbols لتقليل الحجم ثم قارن"))
+        cpus = [x[0] for x in loads if x[0] is not None]
+        if cpus and not ok:
+            busy = sorted(cpus)[len(cpus) // 2]
+            print(f"  التشخيص: انشغال معالج الاستقبال (وسيط) {busy}% — "
+                  + ("المعالج هو الحد: قلّل الرموز أو شغّل على جهاز أسرع" if busy >= 80 else
+                     "المعالج غير مشغول، فالحد هو الإنترنت أو المسار إلى Alpaca"
+                     + ("" if st["compression"] else " (والضغط غير مفعّل)")))
     else:
         result("التأخير الفعلي", None, "لا بيانات لقياسه")
     if kicked:
