@@ -109,3 +109,22 @@ class TestPrevCloseAndFullscan(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFunnel(unittest.TestCase):
+    def test_counts_each_condition(self):
+        now = 1_800_000_000
+        base = {"otc": False, "src": "alpaca", "exchange": "NMS"}
+        rows = [{**base, "symbol": "GOOD", "price": 10.0, "change_pct": 5.0, "volume": 3_000_000},
+                {**base, "symbol": "NOHI", "price": 10.0, "change_pct": 5.0, "volume": 3_000_000},
+                {**base, "symbol": "CHEAP", "price": 0.1, "change_pct": 5.0, "volume": 3_000_000},
+                {**base, "symbol": "FLAT", "price": 10.0, "change_pct": 0.0, "volume": 3_000_000},
+                {**base, "symbol": "YHOO", "price": 10.0, "change_pct": 5.0, "volume": 3_000_000, "src": "yahoo"}]
+        hist = {s: {"closes": CLOSES, "vols": [1_000_000] * 70} for s in ("GOOD", "CHEAP", "FLAT", "YHOO")}
+        with mock.patch.object(ad, "get", side_effect=hist.get), \
+                mock.patch.object(ra, "minute_bars", return_value={"GOOD": [(now - 120, 10.0, 10.0)]}), \
+                mock.patch.object(al, "config", return_value={}), mock.patch.object(al, "client", return_value=None):
+            out = ra.scan(0.5, 50, 1.0, 100_000, 1.5, rows=rows, now=now)
+        self.assertEqual([r["name"] for r in out], ["GOOD"])
+        self.assertEqual(ra.FUNNEL, {"rows": 5, "alpaca_listed": 4, "with_history": 3, "price": 2, "change": 1,
+                                     "volume": 1, "rvol": 1, "with_minute_bars": 1})

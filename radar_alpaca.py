@@ -17,6 +17,7 @@ BARS_URL = "https://data.alpaca.markets/v2/stocks/bars"
 EXCHANGES = {"NMS": "NASDAQ", "NGM": "NASDAQ", "NCM": "NASDAQ", "NAS": "NASDAQ", "NYQ": "NYSE", "NYS": "NYSE",
              "ASE": "AMEX", "PCX": "AMEX", "BTS": "AMEX"}
 _http = None
+FUNNEL = {}  # أعداد آخر مسح عند كل شرط: لمعرفة سبب قلة النتائج
 
 
 def _session():
@@ -92,21 +93,31 @@ def scan(min_price, max_price, min_change, min_volume, min_rvol, rows=None, now=
         rows = market.get_market("us")
     now = now or time.time()
     cand = []
+    f = {"rows": len(rows), "alpaca_listed": 0, "with_history": 0, "price": 0, "change": 0, "volume": 0, "rvol": 0}
     for r in rows:
         if r.get("otc") or r.get("src") != "alpaca" or EXCHANGES.get(r.get("exchange")) is None:
             continue
+        f["alpaca_listed"] += 1
         price, chg, vol = r.get("price"), r.get("change_pct"), r.get("volume") or 0
         hist = alpaca_daily.get(r["symbol"])
         if not price or chg is None or not hist or len(hist["vols"]) < 10:
             continue
+        f["with_history"] += 1
         avg10 = sum(hist["vols"][-10:]) / 10
         rvol = vol / avg10 if avg10 else None
-        if not (min_price <= price <= max_price and chg >= min_change and vol >= min_volume and rvol and rvol >= min_rvol):
-            continue
-        cand.append((r, hist, rvol))
+        for key, ok in (("price", min_price <= price <= max_price), ("change", chg >= min_change),
+                        ("volume", vol >= min_volume), ("rvol", bool(rvol) and rvol >= min_rvol)):
+            if not ok:
+                break
+            f[key] += 1
+        else:
+            cand.append((r, hist, rvol))
     cand.sort(key=lambda x: -x[2])
     cand = cand[:400]  # مثل حد الماسح في TradingView
     bars = minute_bars([r["symbol"] for r, _, _ in cand], al.config()) if cand else {}
+    f["with_minute_bars"] = sum(1 for r, _, _ in cand if bars.get(r["symbol"]))
+    FUNNEL.clear()
+    FUNNEL.update(f)
     c = al.client()
     out = []
     for r, hist, rvol in cand:

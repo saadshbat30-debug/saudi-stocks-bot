@@ -86,11 +86,20 @@ function rdRender() {
     return true;
   });
   document.getElementById("rd-count").textContent = list.length + " سهم";
+  function rdFunnel() {  // كم سهمًا بقي بعد كل شرط في آخر مسح
+    const f = rdState.funnel, d = rdState.dropped;
+    if (!f || !f.rows) return "";
+    const step = [["أسهم الجدول", f.rows], ["من Alpaca في ناسداك/نيويورك/أمكس", f.alpaca_listed], ["لها تاريخ يومي من Alpaca", f.with_history],
+      ["السعر ضمن النطاق", f.price], ["التغير كافٍ", f.change], ["الحجم كافٍ", f.volume], ["الحجم النسبي كافٍ", f.rvol],
+      ["لها شموع دقيقة", f.with_minute_bars]];
+    const tail = d && d.candidates ? ` → استُبعد ${d.late} لأن الحركة متأخرة/ممتدة و${d.low_score} لأن السكور دون الحد` : "";
+    return `<div style="font-size:13px;margin-top:12px;line-height:1.9">آخر مسح: ${step.map(([n, v]) => `${n} <b>${v ?? "—"}</b>`).join(" ← ")}${tail}</div>`;
+  }
   if (!list.length) {
     const why = rdState.ok === false ? "تعذر جلب البيانات" : !rdStocks.length && rdState.session && !rdState.session.is_live
       ? "السوق مغلق: شروط الرادار تخصم 15 نقطة خارج الجلسات فلا يبلغ أي سهم حد العرض. يعود عند ما قبل الافتتاح (4:00 صباحًا بتوقيت نيويورك)"
       : "لا أسهم تطابق الفلتر حاليًا";
-    grid.innerHTML = `<div class="rd-empty">🔭 ${rdEsc(why)}</div>`;
+    grid.innerHTML = `<div class="rd-empty">🔭 ${rdEsc(why)}${rdFunnel()}</div>`;
     return;
   }
   grid.innerHTML = list.map(s => {

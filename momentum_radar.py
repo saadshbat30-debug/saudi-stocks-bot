@@ -259,13 +259,18 @@ def classify_row(row, session_name):
 PRIORITY = {"اختراق مبكر محتمل": 3, "زخم قوي": 2, "مراقبة": 1, "مستبعد": 0, "متأخر / ممتد": -1}
 
 
+DROPPED = {}  # أعداد آخر مسح: مرشحون، ومستبعدون لأن الحركة متأخرة أو السكور دون الحد
+
+
 def build_table(session_name, rows=None):
     rows = fetch_candidates() if rows is None else rows
     out = []
+    DROPPED.update(candidates=len(rows), late=0, low_score=0)
     for row in rows:
         setup, score, reasons = classify_row(row, session_name)
         # الحركات المتأخرة وما دون حد العرض لا تظهر
         if setup == "متأخر / ممتد" or score < MIN_SCORE_TO_SHOW:
+            DROPPED["late" if setup == "متأخر / ممتد" else "low_score"] += 1
             continue
         m = compute_momentum(row)
         out.append({**row, "setup": setup, "score": score, "pass_rvol": reasons["rvol"], "pass_change": reasons["change"],
@@ -324,6 +329,9 @@ def snapshot():
             return {**base, "ok": False, "count": 0, "stocks": [],
                     "error": f"تعذر جلب البيانات من {src}: {str(e)[:120]}"}
         stocks = [_stock(r) for r in rows[:TOP_RESULTS]]
-        data = {**base, "ok": True, "count": len(stocks), "matched": len(rows), "stocks": stocks}
+        data = {**base, "ok": True, "count": len(stocks), "matched": len(rows), "stocks": stocks, "dropped": dict(DROPPED)}
+        if src == "Alpaca (SIP)":
+            import radar_alpaca
+            data["funnel"] = dict(radar_alpaca.FUNNEL)
         _cache.update(at=time.time(), data=data)
         return data
