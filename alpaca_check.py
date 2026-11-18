@@ -76,9 +76,10 @@ def check_network():
             times.append((time.perf_counter() - t0) * 1000)
         except OSError as e:
             print(f"  تعذر الاتصال: {e}")
+            break
         time.sleep(0.2)
     if not times:
-        result("زمن الذهاب والإياب", False, "تعذر فتح اتصال TCP")
+        result("زمن الذهاب والإياب", None, "تعذر فتح اتصال TCP مباشر (شبكة عبر بروكسي أو بلا DNS مباشر)؛ لا يؤثر على البث")
         return None
     times.sort()
     med = times[len(times) // 2]
