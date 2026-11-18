@@ -62,6 +62,7 @@
     <a href="/scanner" class="{{ 'active' if request.path == '/scanner' }}" title="ماسح الزخم والماكد: اختر الفاصل والمؤشرات">📶 الزخم والماكد</a>
     <a href="/breakout" class="{{ 'active' if request.path == '/breakout' }}" title="فلتر قبل الانطلاق: نشاط غير معتاد والسعر في نطاق ضيق">⚡ قبل الانطلاق</a>
     <a href="/radar" class="{{ 'active' if request.path == '/radar' }}" title="رادار الزخم: أقوى الأسهم زخمًا الآن من ماسح TradingView (سرعة السعر، RSI، MACD، الاتجاه، الحجم النسبي)">📡 رادار الزخم</a>
+    <a href="/liquidity" class="{{ 'active' if request.path.startswith('/liquidity') }}" title="تدفق السيولة اللحظي: صفقات الشراء والبيع ضمن نوافذ زمنية قصيرة">◈ السيولة اللحظية</a>
     {% if markets|length > 1 %}{% for id, m in markets.items() %}
       <a href="/market/{{ id }}" class="{{ 'active' if id == market_id }}">{{ m.title }}</a>
     {% endfor %}{% endif %}
