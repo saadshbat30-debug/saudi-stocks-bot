@@ -204,6 +204,16 @@ def _heartbeat():
 
 def watch(symbols):
     """يضيف رموزًا للبث، موزعة على عدة اتصالات (كل اتصال SHARD_SIZE رمز)."""
+    try:
+        import alpaca_stream
+        if alpaca_stream.source_is_alpaca():
+            # DATA_SOURCE=alpaca: الأسهم الأمريكية من بث Alpaca (يكتب في المخازن نفسها عبر _record)؛
+            # ياهو يبقى للمؤشرات (^GSPC) والأسواق الأخرى (.SR) فقط
+            symbols = [x for x in symbols if "." in x or "^" in x]
+            if not symbols:
+                return
+    except ImportError:
+        pass
     p = tv()
     if p:
         # الأسهم الأمريكية لـ TradingView، والباقي (مثل الأسهم السعودية .SR) يبقى على بث ياهو

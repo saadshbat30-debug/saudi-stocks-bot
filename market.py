@@ -504,6 +504,26 @@ def raw_quotes(symbols):
     return (data.get("quoteResponse") or {}).get("result") or []
 
 
+def _night_alpaca(symbols):
+    """أسعار التداول الليلي من Alpaca (feed=overnight، 8 م – 4 ص نيويورك). True إن نجح الجلب.
+    التغير يُحسب في _enrich مقابل إغلاق الجلسة الرسمية (سعر الصف)."""
+    now = time.time()
+    try:
+        snaps = alpaca_data.snapshots(symbols, "overnight")
+    except Exception as e:
+        STATUS["night_error"] = f"Alpaca: {str(e)[:180]}"
+        print(f"⚠️ أسعار التداول الليلي من Alpaca: {str(e)[:120]} — من ياهو بدلًا منها")
+        return False
+    found = 0
+    for sym, snap in snaps.items():
+        t = snap.get("latestTrade") or {}
+        if t.get("p") and t.get("t") and now - alpaca_stream.ts(t["t"]) < 12 * 3600:  # صفقة من هذه الليلة
+            _night_quotes[sym] = {"price": t["p"], "change_pct": None, "at": now, "src": "alpaca"}
+            found += 1
+    STATUS.update(night_at=now, night_count=found, night_error=None)
+    return True
+
+
 def _night_loop():
     while True:
         if stream.is_overnight():
@@ -512,6 +532,9 @@ def _night_loop():
             rows.sort(key=lambda r: -((r.get("price") or 0) * (r.get("volume") or 0)))
             symbols = list(dict.fromkeys(list(_night_extra) + [r["symbol"] for r in rows[:300]]))
             found = 0
+            if alpaca_stream.source_is_alpaca() and _night_alpaca(symbols):
+                time.sleep(60)
+                continue
             try:
                 for i in range(0, len(symbols), 100):
                     for q in raw_quotes(symbols[i:i + 100]):
@@ -644,6 +667,13 @@ def get_market(market_id):
         top = sorted(listed, key=lambda r: r.get("speed") or 0, reverse=True)[:20]
         top += sorted(listed, key=lambda r: r.get("vol_ratio") or 0, reverse=True)[:20]
         c.watch([r["symbol"] for r in top])
+        if c.on_trade is None:
+            c.on_trade = _alpaca_trade
+        # مرشحو «قبل الانطلاق» (ناسداك ونيويورك، 1.5–25$، حجم نشط): صفقاتهم وحدها لحظيًا لحساب آخر 3 دقائق
+        pre = [r for r in listed if r.get("exchange") in breakout.LISTED and 1.5 <= (r.get("price") or 0) <= 25
+               and (r.get("volume") or 0) >= 300_000]
+        pre.sort(key=lambda r: -(r.get("vol_ratio") or 0))
+        c.watch([r["symbol"] for r in pre[:c.cfg.get("tape_max", 200)]], trades_only=True)
         alpaca_daily.ensure([r["symbol"] for r in out if not r.get("otc")])  # الأنشط أولًا (ترتيب الماسح)
     return out
 
@@ -669,6 +699,31 @@ def _speed(symbol, price, now):
 
 def _price_round(p):
     return round(p, 4) if p < 1 else round(p, 2)
+
+
+_a_cum = {}  # الرمز ← (يوم نيويورك، حجم اليوم التراكمي من صفقات Alpaca)
+
+
+def _alpaca_trade(symbol, price, size, t):
+    """كل صفقة من بث Alpaca تُكتب في مخزن البث المشترك (stream._record) كما كان يكتب بث ياهو، فيقرؤها
+    «قبل الانطلاق» (آخر 3 دقائق) وشريط صفقات صفحة السهم والسعر اللحظي في الجدول.
+    حجم اليوم = شمعة اليوم من Alpaca (إن وصلت) + كميات الصفقات بعدها، ولا ينقص أبدًا."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ny = datetime.fromtimestamp(t, ZoneInfo("America/New_York"))
+    day = ny.date()
+    c = alpaca_stream.client()
+    d = c.daily.get(symbol) if c else None
+    base = d[0]["v"] if d and datetime.fromtimestamp(alpaca_stream.ts(d[0]["t"]), ZoneInfo("America/New_York")).date() == day else 0
+    prev_day, cum = _a_cum.get(symbol, (None, 0))
+    cum = (cum if prev_day == day else 0) + size
+    cum = max(cum, base)
+    _a_cum[symbol] = (day, cum)
+    hist = alpaca_daily.get(symbol)
+    prev = hist["closes"][-1] if hist and hist["closes"] else None
+    regular = (9, 30) <= (ny.hour, ny.minute) < (16, 0)
+    stream._record(symbol, price, cum, t, regular, price - prev if prev else None,
+                   (price / prev - 1) * 100 if prev else None, "alpaca", night=False)
 
 
 def _apply_alpaca(r, now, yahoo_time):

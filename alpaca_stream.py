@@ -83,6 +83,7 @@ def config():
         "trades": symbols("ALPACA_TRADES", "watch" if full else "*"), "quotes": symbols("ALPACA_QUOTES", "watch" if full else "*"),
         "bars": symbols("ALPACA_BARS", "watch" if full else "*"), "daily": symbols("ALPACA_DAILY", "*" if full else "off"),
         "watch_max": int(os.environ.get("ALPACA_WATCH_MAX", "60")),
+        "tape_max": int(os.environ.get("ALPACA_TAPE_MAX", "200")),
         "stale_seconds": float(os.environ.get("ALPACA_STALE_SECONDS", "30")),
         "bars_keep": int(os.environ.get("ALPACA_BARS_KEEP", "30")),
         # msgpack: نصف حجم JSON تقريبًا (قيس 368 مقابل 733 KB لـ 6000 صفقة)، وAlpaca يدعمه بترويسة Content-Type
@@ -193,7 +194,9 @@ class AlpacaStream:
         self.market_hours = market_hours or _market_hours
         self.trades, self.quotes, self.bars = {}, {}, {}
         self.daily = {}  # الرمز ← (شمعة اليوم من قناة dailyBars، وقت استلامها)
-        self.watched = {}  # الرمز ← آخر طلب متابعة (قائمة الصفقات والأسعار المتغيرة)
+        self.watched = {}  # الرمز ← آخر طلب متابعة كاملة (صفقات وأسعار وشموع دقيقة)
+        self.tape_watched = {}  # الرمز ← آخر طلب متابعة الصفقات وحدها
+        self.on_trade = None  # دالة (الرمز، السعر، الكمية، الوقت) لكل صفقة — المنصة تكتبها في مخزن البث المشترك
         self._send_lock = threading.Lock()
         self.lat = {"trades": LatencyWindow(), "quotes": LatencyWindow(), "bars": LatencyWindow()}
         self.counts = {"trades": 0, "quotes": 0, "bars": 0, "updatedBars": 0, "dailyBars": 0, "corrections": 0, "cancels": 0, "other": 0}
@@ -236,42 +239,49 @@ class AlpacaStream:
 
     format = "json"
 
-    def _channels(self, watched):
-        """الرموز لكل قناة: الثابتة من الإعداد + المتابَعة الآن (إلا إذا كانت القناة لكل السوق)."""
-        out = {}
+    def _effective(self):
+        """الرموز المتابَعة لكل قناة: المتابعة الكاملة (صفحة السهم وأنشط الأسهم) لكل القنوات، ومتابعة الصفقات
+        وحدها (مرشحو «قبل الانطلاق») لقناة الصفقات فقط — الأسعار (quotes) أثقل بكثير على الاتصال."""
+        full = set(self.watched)
+        return {"trades": full | set(self.tape_watched), "quotes": full, "bars": full}
+
+    def _channels(self):
+        """الرموز لكل قناة عند الاشتراك: الثابتة من الإعداد + المتابَعة الآن (إلا إذا كانت القناة لكل السوق)."""
+        eff, out = self._effective(), {}
         for ch in ("trades", "quotes", "bars"):
             fixed = self.cfg[ch]
-            out[ch] = ["*"] if fixed == ["*"] else sorted(set(fixed) | watched)
+            out[ch] = ["*"] if fixed == ["*"] else sorted(set(fixed) | eff[ch])
         out["dailyBars"] = self.cfg.get("daily") or []
         return out
 
-    def watch(self, symbols):
-        """تطلب المنصة صفقات وأسعار هذه الرموز لحظيًا (صفحة سهم، أعلى الجدول). الأقدم طلبًا يخرج بعد watch_max."""
-        now, new = time.time(), []
-        for sym in symbols:
-            if not sym or "." in sym or "^" in sym:
-                continue
-            if sym not in self.watched:
-                new.append(sym)
-            self.watched[sym] = now
-        drop = []
-        if len(self.watched) > self.cfg.get("watch_max", 60):
-            keep = sorted(self.watched, key=self.watched.get, reverse=True)[:self.cfg.get("watch_max", 60)]
-            drop = [s for s in self.watched if s not in keep]
-            for s in drop:
-                del self.watched[s]
-            new = [s for s in new if s in self.watched]
+    def watch(self, symbols, trades_only=False):
+        """تطلب المنصة بيانات هذه الرموز لحظيًا. trades_only: الصفقات فقط (حد tape_max)، وإلا الصفقات والأسعار
+        وشموع الدقيقة (حد watch_max). الأقدم طلبًا يخرج عند تجاوز الحد."""
+        group = self.tape_watched if trades_only else self.watched
+        cap = self.cfg.get("tape_max", 200) if trades_only else self.cfg.get("watch_max", 60)
+        before, now = self._effective(), time.time()
+        for i, sym in enumerate(symbols):
+            if sym and "." not in sym and "^" not in sym:
+                group[sym] = now - i * 1e-6  # القائمة مرتبة بالأهمية: الأول يبقى عند تجاوز الحد
+        if len(group) > cap:
+            keep = set(sorted(group, key=group.get, reverse=True)[:cap])
+            for s in [s for s in group if s not in keep]:
+                del group[s]
+        after = self._effective()
         ws = self._ws
         if ws is None or self.state != "streaming":
             return  # تُرسل مع الاشتراك عند الاتصال
-        for action, syms in (("unsubscribe", drop), ("subscribe", new)):
+        for action, diff in (("unsubscribe", lambda ch: before[ch] - after[ch]), ("subscribe", lambda ch: after[ch] - before[ch])):
             msg = {"action": action}
             for ch in ("trades", "quotes", "bars"):
-                if self.cfg[ch] != ["*"] and syms:
-                    msg[ch] = [s for s in syms if s not in self.cfg[ch]]
+                if self.cfg[ch] == ["*"]:
+                    continue
+                syms = sorted(diff(ch) - set(self.cfg[ch]))
+                if syms:
+                    msg[ch] = syms
                     if ch == "bars":
-                        msg["updatedBars"] = msg[ch]
-            if any(v for k, v in msg.items() if k != "action"):
+                        msg["updatedBars"] = syms
+            if len(msg) > 1:
                 try:
                     with self._send_lock:
                         ws.send(self._encode(msg))
@@ -392,7 +402,7 @@ class AlpacaStream:
         if not self.authenticated:
             return self._last_error_text or "لم تكتمل المصادقة"
         sub = {"action": "subscribe"}
-        for ch, syms in self._channels(set(self.watched)).items():
+        for ch, syms in self._channels().items():
             if syms:
                 sub[ch] = syms
         if sub.get("bars"):
@@ -454,7 +464,13 @@ class AlpacaStream:
             if t == "t":
                 self.trades[m["S"]] = m
                 self.counts["trades"] += 1
-                self.lat["trades"].add(now, now - ts(m["t"]))
+                tt = ts(m["t"])
+                self.lat["trades"].add(now, now - tt)
+                if self.on_trade:
+                    try:
+                        self.on_trade(m["S"], m["p"], m.get("s") or 0, tt)
+                    except Exception as e:
+                        log.warning("معالجة صفقة %s: %s", m["S"], type(e).__name__)
             elif t == "q":
                 self.quotes[m["S"]] = m
                 self.counts["quotes"] += 1
@@ -543,7 +559,7 @@ class AlpacaStream:
             "connected_for_s": age(self.connected_at) if self.state == "streaming" else None,
             "last_data_age_s": age(self.last_data), "msgs_per_s_10s": self.msgs_per_second(),
             "transport": self.transport, "compression": self.compression, "format": self.format, **self.load(),
-            "counts": dict(self.counts), "watched": len(self.watched),
+            "counts": dict(self.counts), "watched": len(self.watched), "tape_watched": len(self.tape_watched),
             "symbols": {"trades": len(self.trades), "quotes": len(self.quotes), "bars": len(self.bars), "daily": len(self.daily)},
             "latency": {k: v.stats(now) for k, v in self.lat.items()},
             "latency_note": "وقت الاستلام على هذا الجهاز − وقت الحدث عند البورصة؛ يتضمن فرق ساعة الجهاز",

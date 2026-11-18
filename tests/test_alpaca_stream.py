@@ -116,7 +116,7 @@ class FakeAlpaca:
 def cfg(port, **kw):
     c = {"key": KEY, "secret": SECRET, "feed": "sip", "url": f"ws://127.0.0.1:{port}", "trading_url": al.PAPER_TRADING_URL,
          "trades": ["*"], "quotes": ["*"], "bars": ["*"], "stale_seconds": 1.0, "bars_keep": 30, "format": "msgpack",
-         "daily": [], "watch_max": 60}
+         "daily": [], "watch_max": 60, "tape_max": 200}
     c.update(kw)
     return c
 
@@ -330,6 +330,33 @@ class TestWatchAndDaily(Base):
         self.assertTrue(wait(lambda: len([m for m in s.subs if m.get("dailyBars")]) >= 2))
         last_first = [m for m in s.subs if m.get("dailyBars")][-1]
         self.assertEqual(last_first["trades"], ["AMD"])
+
+
+class TestTradesOnlyWatch(Base):
+    def test_trades_only_group_subscribes_trades_without_quotes(self):
+        s = self.server()
+        c = self.run_client(s, trades=[], quotes=[], bars=[], daily=["*"], watch_max=5, tape_max=2)
+        self.assertTrue(wait(lambda: c.state == "streaming"))
+        c.watch(["AAPL"])
+        c.watch(["SMLA", "SMLB", "SMLC"], trades_only=True)  # الحد 2 والقائمة مرتبة بالأهمية: الأخير (SMLC) يخرج
+        self.assertTrue(wait(lambda: len(s.subs) >= 3))
+        msgs = s.subs[1:]
+        self.assertEqual(msgs[0], {"action": "subscribe", "trades": ["AAPL"], "quotes": ["AAPL"], "bars": ["AAPL"], "updatedBars": ["AAPL"]})
+        self.assertEqual(msgs[1], {"action": "subscribe", "trades": ["SMLA", "SMLB"]})
+        self.assertEqual(sorted(c.tape_watched), ["SMLA", "SMLB"])
+        c.watch(["AAPL"], trades_only=True)  # في المتابعة الكاملة أصلًا: لا رسالة جديدة لقناة الصفقات
+        time.sleep(0.5)
+        self.assertNotIn("AAPL", [x for m in s.subs[3:] for x in m.get("trades", [])])
+
+    def test_trade_hook_receives_each_trade(self):
+        s = self.server()
+        c = self.run_client(s)
+        got = []
+        c.on_trade = lambda *a: got.append(a)
+        self.assertTrue(wait(lambda: len(got) >= 3))
+        sym, price, size, t = got[0]
+        self.assertEqual((sym, size), ("AAPL", 100))
+        self.assertGreater(price, 190)
 
 
 class TestLive(unittest.TestCase):

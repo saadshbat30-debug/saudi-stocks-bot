@@ -76,3 +76,30 @@ def bars(symbol, interval, prepost=False, cfg=None):
 def al_ny():
     from zoneinfo import ZoneInfo
     return ZoneInfo("America/New_York")
+
+
+SNAP_URL = "https://data.alpaca.markets/v2/stocks/snapshots"
+
+
+def snapshots(symbols, feed, cfg=None):
+    """{رمز المنصة: لقطة} — آخر صفقة وآخر سعر وشمعة الدقيقة لكل رمز. feed: overnight للتداول الليلي، otc…"""
+    if time.time() < _blocked["until"]:
+        raise RuntimeError(f"{_blocked['why']} (إيقاف مؤقت لطلبات Alpaca)")
+    cfg = cfg or al.config()
+    headers = {"APCA-API-KEY-ID": cfg["key"], "APCA-API-SECRET-KEY": cfg["secret"]}
+    out = {}
+    for i in range(0, len(symbols), 100):
+        batch = {s.replace("-", "."): s for s in symbols[i:i + 100] if "." not in s and "^" not in s}
+        if not batch:
+            continue
+        with _sem:
+            r = _http().get(SNAP_URL, params={"symbols": ",".join(batch), "feed": feed}, headers=headers, timeout=20)
+        if r.status_code in (401, 403):
+            _blocked.update(until=time.time() + 600, why=f"Alpaca HTTP {r.status_code}")
+        if r.status_code != 200:
+            raise RuntimeError(f"Alpaca HTTP {r.status_code}: {' '.join(r.text.split())[:120]}")
+        d = r.json()
+        for sym, snap in (d.get("snapshots") or d).items():
+            if isinstance(snap, dict):
+                out[batch.get(sym, sym)] = snap
+    return out
