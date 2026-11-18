@@ -317,6 +317,32 @@ def api_momentum_radar():
     return jsonify(momentum_radar.snapshot())
 
 
+# ===== رادار السيولة اللحظي — تجميع صفقات SIP =====
+@app.route("/liquidity")
+def liquidity_page():
+    symbol = request.args.get("symbol", "").strip().upper()
+    if symbol and not valid_symbol(symbol):
+        abort(404)
+    return render_template("liquidity.html", markets=MARKETS, market_id=None, symbol=symbol)
+
+
+@app.route("/api/liquidity/<symbol>")
+def api_liquidity(symbol):
+    symbol = symbol.strip().upper()
+    if not valid_symbol(symbol):
+        abort(404)
+    import alpaca_stream
+    import liquidity_tape
+    client = alpaca_stream.client()
+    if client is None:
+        return jsonify({"error": "بث Alpaca غير مبدوء. شغّل المنصة مع ALPACA_STREAM=1 وتأكد من حالة /api/alpaca/status."}), 503
+    if client.state != "streaming":
+        return jsonify({"error": "بث Alpaca ليس في حالة streaming.", "stream": alpaca_stream.status()}), 503
+    liquidity_tape.attach(client)
+    client.watch([symbol])
+    return jsonify(liquidity_tape.snapshot(symbol, alpaca_stream.status()))
+
+
 @app.route("/saudi")
 def saudi_page():
     """منصة أبو طلال للسوق السعودي داخل نفس الصفحة (تعمل كخادم مستقل على SAUDI_URL)."""
