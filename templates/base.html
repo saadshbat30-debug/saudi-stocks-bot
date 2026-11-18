@@ -112,7 +112,8 @@ async function loadStatus() {
       ss.title = [`مصدر الأسعار والأحجام والشارت: Alpaca (SIP، كل البورصات)`, al.fatal ? `خطأ: ${al.fatal}` : "",
         `شموع اليوم لـ ${al.daily_symbols ?? 0} سهم (تتحدث كل دقيقة) · صفقات لحظية لـ ${al.watched ?? 0} سهم (صفحة السهم وأنشط الأسهم)`,
         al.lag_ms != null ? `تأخير الصفقات (الوسيط): ${(al.lag_ms / 1000).toFixed(1)} ث` : "", `آخر بيانات قبل ${al.last_data_age_s ?? "—"} ث · إعادات الاتصال: ${al.reconnects ?? 0}`,
-        "قائمة الأسهم والبيانات الأساسية (الاسم، القيمة السوقية، الأسهم الحرة، متوسط الحجم) من ياهو"].filter(Boolean).join("\n");
+        al.history ? `تاريخ يومي من Alpaca (للسيولة النسبية وRSI): ${al.history.with_history} سهم${al.history.running ? " — يُجلب الآن" : ""}${al.history.error ? " · " + al.history.error : ""}` : "",
+        "قائمة الأسهم والإغلاق السابق والبيانات الأساسية (الاسم، القيمة السوقية، الأسهم الحرة) من ياهو"].filter(Boolean).join("\n");
       return;
     }
     const ok = s.connected && s.last_tick_age != null && s.last_tick_age < 120;

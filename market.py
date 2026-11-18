@@ -7,6 +7,7 @@ import yfinance as yf
 
 import breakout
 import extras
+import alpaca_daily
 import alpaca_data
 import alpaca_stream
 import stream
@@ -643,6 +644,7 @@ def get_market(market_id):
         top = sorted(listed, key=lambda r: r.get("speed") or 0, reverse=True)[:20]
         top += sorted(listed, key=lambda r: r.get("vol_ratio") or 0, reverse=True)[:20]
         c.watch([r["symbol"] for r in top])
+        alpaca_daily.ensure([r["symbol"] for r in out if not r.get("otc")])  # الأنشط أولًا (ترتيب الماسح)
     return out
 
 
@@ -690,6 +692,8 @@ def _apply_alpaca(r, now, yahoo_time):
     if a.get("volume") is not None and datetime.fromtimestamp(a["day_date"], ny).date() == datetime.fromtimestamp(now, ny).date():
         r["volume"] = a["volume"]
         r["day_high"], r["day_low"] = a["day_high"], a["day_low"]
+        r["_a_volume"] = True  # حجم اليوم من Alpaca
+        r["_a_vwap"] = a.get("vwap")  # متوسط سعر صفقات اليوم من Alpaca: قيمة التداول = هو × الحجم
     r["src"] = "alpaca"
     r["live"] = a["kind"] == "trade" and now - a["at"] < 60
     r["src_age"] = round(now - a["at"])
@@ -771,9 +775,17 @@ def _enrich(r, now):
     sh = extras.sharia_for(symbol)
     r["sharia"], r["sharia_why"], r["sharia_src"], r["purify"] = sh["status"], sh["why"], sh.get("source"), sh.get("purify")
     shares = r["float"] or shares
+    alpaca_mode = alpaca_stream.source_is_alpaca()
+    a_volume, a_vwap = r.pop("_a_volume", False), r.pop("_a_vwap", None)
+    a_avg = alpaca_daily.avg_volume(symbol) if alpaca_mode else None
+    if a_avg:
+        avg_vol = a_avg  # متوسط 3 أشهر من شموع Alpaca اليومية بدل ياهو
     typical = (r["day_high"] + r["day_low"] + price) / 3 if r["day_high"] and r["day_low"] else price
-    r["value"] = round(typical * volume)
+    r["value"] = round((a_vwap if a_volume and a_vwap else typical) * volume)
     r["vol_ratio"] = round(volume / avg_vol, 2) if avg_vol else None
+    if alpaca_mode:
+        # مصدر كل رقم لعلامة المصدر في الجدول: alpaca فقط إذا كان طرفا السيولة النسبية (حجم اليوم ومتوسطه) من Alpaca
+        r["liq_src"] = "alpaca" if a_avg and a_volume else "yahoo"
     r["turnover"] = round(volume / shares * 100, 2) if shares else None
 
     # ===== الزخم =====
@@ -783,9 +795,16 @@ def _enrich(r, now):
     r["speed"] = _speed(symbol, price, now)
     r["at_high"] = bool(high and r["change_pct"] > 0 and price >= high * 0.995)
 
-    closes = _market_history.get(symbol)
+    a_hist = alpaca_daily.get(symbol) if alpaca_mode else None
+    if a_hist and len(a_hist["closes"]) >= 15:
+        closes = a_hist["closes"] + [price]  # أيام مكتملة من Alpaca + سعر اليوم
+        r["mom_src"] = "alpaca" if r.get("src") == "alpaca" else "yahoo"
+    else:
+        closes = _market_history.get(symbol)
+        closes = closes[:-1] + [price] if closes else None
+        if alpaca_mode:
+            r["mom_src"] = "yahoo"
     if closes:
-        closes = closes[:-1] + [price]
         value, s20 = rsi(closes), sma(closes, 20)
         r["rsi"] = round(value, 1) if value is not None else None
         r["sma20"] = round(s20, 2) if s20 else None

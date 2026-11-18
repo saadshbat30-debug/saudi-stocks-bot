@@ -299,7 +299,8 @@ def api_breakout():
 def api_alpaca_status():
     """حالة بث Alpaca SIP (اتصال، مصادقة، أعداد الرسائل، التأخير، الانقطاعات). لا يحتوي المفاتيح."""
     import alpaca_stream
-    return jsonify(alpaca_stream.status())
+    import alpaca_daily
+    return jsonify({**alpaca_stream.status(), "daily_history": alpaca_daily.status()})
 
 
 @app.route("/radar")
@@ -423,7 +424,8 @@ def _alpaca_brief():
     lat = (st.get("latency") or {}).get("trades") or {}
     return {"state": st["state"], "source": alpaca_stream.source_is_alpaca(), "fatal": st.get("fatal"),
             "last_data_age_s": st.get("last_data_age_s"), "watched": st.get("watched"),
-            "daily_symbols": (st.get("symbols") or {}).get("daily"), "lag_ms": lat.get("p50_ms"), "reconnects": st.get("reconnects")}
+            "daily_symbols": (st.get("symbols") or {}).get("daily"), "lag_ms": lat.get("p50_ms"), "reconnects": st.get("reconnects"),
+            "history": __import__("alpaca_daily").status()}
 
 
 @app.route("/api/status")

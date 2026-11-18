@@ -296,7 +296,8 @@ class AlpacaStream:
         out = {"price": price, "at": at, "kind": kind}
         if day:
             d = day[0]
-            out.update(day_date=ts(d["t"]), volume=d["v"], day_high=d["h"], day_low=d["l"], open=d["o"], daily_at=day[1])
+            out.update(day_date=ts(d["t"]), volume=d["v"], day_high=d["h"], day_low=d["l"], open=d["o"], daily_at=day[1],
+                       vwap=d.get("vw"))
         return out
 
     def _encode(self, obj):
