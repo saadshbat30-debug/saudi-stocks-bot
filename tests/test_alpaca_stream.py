@@ -73,6 +73,14 @@ class FakeAlpaca:
         sub = json.loads(await ws.recv())
         self.subs.append(sub)
         await ws.send(json.dumps([{"T": "subscription", **{k: v for k, v in sub.items() if k != "action"}}]))
+
+        async def reader():
+            try:
+                while True:
+                    self.subs.append(json.loads(await ws.recv()))
+            except Exception:
+                pass
+        asyncio.ensure_future(reader())
         i = 0
         try:
             while True:
@@ -85,6 +93,9 @@ class FakeAlpaca:
                 i += 1
                 batch = [{"T": "t", "S": "AAPL", "i": i, "x": "V" if i % 2 else "Q", "p": 190.0 + i / 100, "s": 100, "c": ["@"], "t": iso(now - 0.020), "z": "C"},
                          {"T": "q", "S": "TSLA", "bx": "Q", "bp": 400.0, "bs": 2, "ax": "P", "ap": 400.05, "as": 3, "c": ["R"], "t": iso(now - 0.010), "z": "C"}]
+                if i % 10 == 5 and sub.get("dailyBars"):
+                    day = datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
+                    batch.append({"T": "d", "S": "AAPL", "o": 189, "h": 192, "l": 188, "c": 190.0 + i / 100, "v": 1000 * i, "n": i, "vw": 190, "t": day})
                 if i % 10 == 0:
                     minute = int(now // 60 * 60) - 60
                     batch.append({"T": "b", "S": "AAPL", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 1000, "n": 12, "vw": 1.2,
@@ -104,7 +115,8 @@ class FakeAlpaca:
 
 def cfg(port, **kw):
     c = {"key": KEY, "secret": SECRET, "feed": "sip", "url": f"ws://127.0.0.1:{port}", "trading_url": al.PAPER_TRADING_URL,
-         "trades": ["*"], "quotes": ["*"], "bars": ["*"], "stale_seconds": 1.0, "bars_keep": 30, "format": "msgpack"}
+         "trades": ["*"], "quotes": ["*"], "bars": ["*"], "stale_seconds": 1.0, "bars_keep": 30, "format": "msgpack",
+         "daily": [], "watch_max": 60}
     c.update(kw)
     return c
 
@@ -287,6 +299,55 @@ class TestConfig(unittest.TestCase):
         r = subprocess.run(["git", "check-ignore", ".env"], cwd=root, capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), ".env")
 
+
+
+class TestWatchAndDaily(Base):
+    def test_daily_bars_for_all_and_trades_only_for_watched(self):
+        s = self.server()
+        c = self.run_client(s, trades=[], quotes=[], bars=[], daily=["*"], watch_max=3)
+        c.watch(["TSLA"])  # قبل الاتصال: يُرسل مع الاشتراك الأول
+        self.assertTrue(wait(lambda: c.counts["dailyBars"] >= 2))
+        first = s.subs[0]
+        self.assertEqual((first["dailyBars"], first["trades"], first["quotes"], first["bars"]), (["*"], ["TSLA"], ["TSLA"], ["TSLA"]))
+        c.watch(["AMD", "NVDA", "F"])  # أثناء البث: اشتراك جديد، والأقدم (TSLA) يخرج لأن الحد 3
+        self.assertTrue(wait(lambda: any(m.get("action") == "unsubscribe" for m in s.subs)))
+        subs = [m for m in s.subs[1:] if m["action"] == "subscribe"]
+        unsubs = [m for m in s.subs[1:] if m["action"] == "unsubscribe"]
+        self.assertEqual(sorted(subs[0]["trades"]), ["AMD", "F", "NVDA"])
+        self.assertEqual(unsubs[0]["trades"], ["TSLA"])
+        self.assertEqual(sorted(c.watched), ["AMD", "F", "NVDA"])
+        a = c.live("AAPL")
+        self.assertEqual((a["day_high"], a["day_low"]), (192, 188))
+        self.assertGreater(a["volume"], 0)
+
+    def test_reconnect_resubscribes_watch_list(self):
+        s = self.server()
+        c = self.run_client(s, trades=[], quotes=[], bars=[], daily=["*"])
+        self.assertTrue(wait(lambda: c.state == "streaming"))
+        c.watch(["AMD"])
+        s.kick()
+        self.assertTrue(wait(lambda: c.connects >= 2 and c.state == "streaming"))
+        self.assertTrue(wait(lambda: len([m for m in s.subs if m.get("dailyBars")]) >= 2))
+        last_first = [m for m in s.subs if m.get("dailyBars")][-1]
+        self.assertEqual(last_first["trades"], ["AMD"])
+
+
+class TestLive(unittest.TestCase):
+    def test_newest_source_wins(self):
+        c = al.AlpacaStream(cfg(1))
+        now = time.time()
+        c.daily["X"] = ({"t": 0, "o": 1, "h": 3, "l": 0.5, "c": 2.0, "v": 500}, now - 30)
+        self.assertEqual((c.live("X")["price"], c.live("X")["kind"], c.live("X")["volume"]), (2.0, "daily", 500))
+        c.trades["X"] = {"p": 2.5, "t": now - 5}
+        self.assertEqual((c.live("X")["price"], c.live("X")["kind"]), (2.5, "trade"))
+        c.trades["X"] = {"p": 2.4, "t": now - 120}  # صفقة قديمة: شمعة اليوم أحدث
+        self.assertEqual(c.live("X")["kind"], "daily")
+        self.assertIsNone(c.live("NONE"))
+
+    def test_watch_ignores_non_us_symbols(self):
+        c = al.AlpacaStream(cfg(1, watch_max=5))
+        c.watch(["2222.SR", "^GSPC", "AAPL"])
+        self.assertEqual(list(c.watched), ["AAPL"])
 
 
 class TestJsonFormat(Base):

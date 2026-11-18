@@ -414,6 +414,18 @@ def api_events():
     return jsonify({**corp_events.snapshot(), **corp_events.news_snapshot()})
 
 
+def _alpaca_brief():
+    """مختصر حالة Alpaca لشريط المنصة (المفصل في /api/alpaca/status)."""
+    import alpaca_stream
+    st = alpaca_stream.status()
+    if st.get("state") in ("disabled", "not_started"):
+        return {"state": st["state"], "source": alpaca_stream.source_is_alpaca()}
+    lat = (st.get("latency") or {}).get("trades") or {}
+    return {"state": st["state"], "source": alpaca_stream.source_is_alpaca(), "fatal": st.get("fatal"),
+            "last_data_age_s": st.get("last_data_age_s"), "watched": st.get("watched"),
+            "daily_symbols": (st.get("symbols") or {}).get("daily"), "lag_ms": lat.get("p50_ms"), "reconnects": st.get("reconnects")}
+
+
 @app.route("/api/status")
 def api_status():
     age = screener_age()
@@ -421,6 +433,7 @@ def api_status():
     return jsonify({
         "screener_age": round(age) if age is not None else None, "screener_error": STATUS["screener_error"],
         "stream": stream.status(),
+        "alpaca": _alpaca_brief(),
         "night": {"count": STATUS["night_count"], "age": round(night_age) if night_age is not None else None, "error": STATUS["night_error"]},
         "company_info": extras.info_progress(),
     })

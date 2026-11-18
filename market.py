@@ -7,6 +7,8 @@ import yfinance as yf
 
 import breakout
 import extras
+import alpaca_data
+import alpaca_stream
 import stream
 import volfix
 from config import CACHE_SECONDS, HISTORY_CACHE_SECONDS, MARKETS, SCREEN_SECONDS
@@ -166,6 +168,8 @@ def get_quotes(symbols):
     المدرجة حديثًا)، والباقي من التاريخ اليومي.
     """
     stream.watch(symbols)
+    if len(symbols) == 1 and alpaca_stream.client():
+        alpaca_stream.client().watch(symbols)  # صفحة سهم مفتوحة: صفقاته وأسعاره لحظيًا من Alpaca
     result = {}
     single = symbols[0] if len(symbols) == 1 else None  # صفحة سهم: عرض وطلب أحدث من نقطة الأسعار
     tv_syms = set(_tv_us(symbols))
@@ -631,7 +635,15 @@ def get_market(market_id):
             seen = {r["symbol"] for r in rows}
             rows = rows + [r for r in full["rows"] if r["symbol"] not in seen]
 
-    return [_enrich(dict(r), now) for r in rows]
+    out = [_enrich(dict(r), now) for r in rows]
+    c = alpaca_stream.client() if alpaca_stream.source_is_alpaca() else None
+    if c and out:
+        # صفقات لحظية لأنشط الأسهم الآن (الباقي يتحدث كل دقيقة من شموع اليوم): أعلى زخم 5 دقائق وأعلى سيولة نسبية
+        listed = [r for r in out if not r.get("otc")]
+        top = sorted(listed, key=lambda r: r.get("speed") or 0, reverse=True)[:20]
+        top += sorted(listed, key=lambda r: r.get("vol_ratio") or 0, reverse=True)[:20]
+        c.watch([r["symbol"] for r in top])
+    return out
 
 
 _samples = {}  # الرمز ← (الوقت، السعر) لحساب سرعة التغير
@@ -655,6 +667,32 @@ def _speed(symbol, price, now):
 
 def _price_round(p):
     return round(p, 4) if p < 1 else round(p, 2)
+
+
+def _apply_alpaca(r, now, yahoo_time):
+    """DATA_SOURCE=alpaca: السعر والتغير وحجم اليوم وأعلاه وأدناه من بث Alpaca SIP بدل ياهو.
+
+    السعر من آخر صفقة (للأسهم المتابَعة) أو من شمعة الدقيقة أو شمعة اليوم (لكل السوق، تتحدث كل دقيقة).
+    يُترك ياهو فقط إذا لم يصل من Alpaca شيء للرمز، أو كان سعر ياهو أحدث بأكثر من 90 ثانية (قبل الافتتاح مثلًا،
+    حين لا تُرسل شموع اليوم). الإغلاق السابق من ياهو (Alpaca لا يرسله في البث)."""
+    c = alpaca_stream.client() if alpaca_stream.source_is_alpaca() else None
+    a = c.live(r["symbol"]) if c else None
+    if not a or (yahoo_time and a["at"] < yahoo_time - 90):
+        return
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ny = ZoneInfo("America/New_York")
+    r["price"] = a["price"]
+    prev = r.get("prev_close")
+    if prev:
+        r["change"] = a["price"] - prev
+        r["change_pct"] = (a["price"] / prev - 1) * 100
+    if a.get("volume") is not None and datetime.fromtimestamp(a["day_date"], ny).date() == datetime.fromtimestamp(now, ny).date():
+        r["volume"] = a["volume"]
+        r["day_high"], r["day_low"] = a["day_high"], a["day_low"]
+    r["src"] = "alpaca"
+    r["live"] = a["kind"] == "trade" and now - a["at"] < 60
+    r["src_age"] = round(now - a["at"])
 
 
 def _enrich(r, now):
@@ -690,6 +728,7 @@ def _enrich(r, now):
             r["volume"] = live["volume"]
         r["live"] = True
         r["src_age"] = round(now - live["at"])
+    _apply_alpaca(r, now, (live or {}).get("trade_time") or quote_time)
     price = r["price"]
     if r["day_high"] is not None:
         r["day_high"] = max(r["day_high"], price)
@@ -828,10 +867,23 @@ def get_chart(symbol, interval, prepost=False, verify=True):
     cached = _charts.get(key)
     if cached and time.time() - cached["at"] < max_age and cached.get("verified", True) >= verify:
         return cached["bars"]
+    alpaca_error = None
+    if alpaca_stream.source_is_alpaca() and alpaca_data.supported(symbol, interval):
+        try:
+            out = alpaca_data.bars(symbol, interval, prepost)
+            if out:
+                _charts[key] = {"bars": out, "at": time.time(), "meta": {"src": "Alpaca (SIP)"}, "verified": True}
+                return out
+            alpaca_error = "لا شموع من Alpaca لهذا الرمز"
+        except Exception as e:  # مفتاح، شبكة، رمز غير موجود في Alpaca
+            alpaca_error = str(e)[:160]
+            print(f"⚠️ شموع Alpaca لـ {symbol} {interval}: {alpaca_error} — من ياهو بدلًا منها")
     bars, at = _yahoo_raw(symbol, interval, prepost)
     if not bars:
         return cached["bars"] if cached else []
     meta = {"src": "ياهو (yfinance)"}
+    if alpaca_error:
+        meta["alpaca_error"] = alpaca_error
     # المطابقة مبنية على جلسات السوق الأمريكي (9:30–16:00 نيويورك) والعطب المرصود في أسهمه: لا تُطبَّق على غيره
     if verify and interval in VERIFY_WITH and "." not in symbol:
         raw, oldest = {interval: bars}, at

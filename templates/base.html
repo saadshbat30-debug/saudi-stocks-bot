@@ -103,7 +103,18 @@ async function loadStatus() {
     banner.hidden = !stale;
     if (stale) banner.innerHTML = `⚠️ قائمة الأسعار من ياهو متأخرة <b>${Math.round(age / 60)} دقيقة</b> — ياهو يحد الطلبات مؤقتًا عادةً، وستعود تلقائيًا. صفحة السهم تأخذ السعر من شموع الدقيقة في هذه الأثناء.` +
       (st.screener_error ? `<div style="opacity:.7;font-size:12px;direction:ltr;text-align:left;margin-top:4px">${st.screener_error.replace(/[<>&]/g, "")}</div>` : "");
-    const ss = document.getElementById("stream-status"), s = st.stream;
+    const ss = document.getElementById("stream-status"), s = st.stream, al = st.alpaca;
+    if (al && al.source && al.state !== "disabled") {
+      // DATA_SOURCE=alpaca: الأسعار والأحجام والشارت من Alpaca SIP
+      const fresh = al.state === "streaming" && al.last_data_age_s != null && al.last_data_age_s < 90;
+      ss.textContent = al.state === "failed" ? "Alpaca متوقف" : al.state !== "streaming" ? "Alpaca يعيد الاتصال" : fresh ? "⚡ Alpaca SIP" : "Alpaca متصل (بلا بيانات)";
+      ss.className = "session " + (fresh ? "open" : "ext");
+      ss.title = [`مصدر الأسعار والأحجام والشارت: Alpaca (SIP، كل البورصات)`, al.fatal ? `خطأ: ${al.fatal}` : "",
+        `شموع اليوم لـ ${al.daily_symbols ?? 0} سهم (تتحدث كل دقيقة) · صفقات لحظية لـ ${al.watched ?? 0} سهم (صفحة السهم وأنشط الأسهم)`,
+        al.lag_ms != null ? `تأخير الصفقات (الوسيط): ${(al.lag_ms / 1000).toFixed(1)} ث` : "", `آخر بيانات قبل ${al.last_data_age_s ?? "—"} ث · إعادات الاتصال: ${al.reconnects ?? 0}`,
+        "قائمة الأسهم والبيانات الأساسية (الاسم، القيمة السوقية، الأسهم الحرة، متوسط الحجم) من ياهو"].filter(Boolean).join("\n");
+      return;
+    }
     const ok = s.connected && s.last_tick_age != null && s.last_tick_age < 120;
     if (s.installed !== undefined) {
       // TradingView عبر tvscraper: متصل / متأخر / منقطع

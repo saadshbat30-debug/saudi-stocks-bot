@@ -160,6 +160,10 @@ def run_stream(cfg, seconds, test_stream):
         if m.get("S"):
             symbols_seen.add(m["S"])
     c = al.AlpacaStream(cfg, on_data=on_data, market_hours=lambda: False)  # المراقبة الآلية معطلة: نقطع يدويًا
+    if not test_stream and cfg["trades"] != ["*"]:
+        # وضع المنصة (DATA_SOURCE=alpaca): صفقات لحظية لما يُتابَع فقط — نحاكيه بقائمة أسهم نشطة
+        c.watch(["AAPL", "TSLA", "NVDA", "AMD", "SPY", "QQQ", "MSFT", "F", "SOFI", "PLTR"])
+        print(f"  وضع المنصة: شموع اليوم {cfg.get('daily') or '—'} · صفقات وأسعار وشموع دقيقة لـ {len(c.watched)} سهم متابَع")
     c.start()
     t0, peak, kicked, kick_at, back_at, data_after, loads = time.time(), 0, False, None, None, None, []
     while time.time() - t0 < seconds:
@@ -212,7 +216,11 @@ def run_stream(cfg, seconds, test_stream):
     result("استقبال الصفقات", True if n_t else None, f"{n_t} صفقة لـ {st['symbols']['trades']} رمز" if n_t else "لا صفقات في هذه المدة (السوق مغلق أو هادئ)")
     if cfg["quotes"]:
         result("استقبال الأسعار", True if n_q else None, f"{n_q} سعر لـ {st['symbols']['quotes']} رمز" if n_q else "لا أسعار في هذه المدة")
-    if cfg["bars"]:
+    n_d = st["counts"].get("dailyBars", 0)
+    if cfg.get("daily"):
+        result("شموع اليوم (كل السوق)", True if n_d else None,
+               f"{n_d} شمعة لـ {st['symbols'].get('daily', 0)} سهم" if n_d else "لا شموع يوم (تُرسل بعد الافتتاح كل دقيقة)")
+    if cfg["bars"] or c.watched:
         result("شموع الدقيقة", True if n_b else (False if n_t > 1000 and seconds >= 130 else None),
                f"{n_b} شمعة لـ {st['symbols']['bars']} رمز (وصلت بعد حد الدقيقة)" if n_b else
                "لا شموع رغم وصول صفقات طوال أكثر من دقيقتين" if n_t > 1000 and seconds >= 130 else
@@ -287,7 +295,8 @@ def main():
     al.setup_logging((cfg["key"], cfg["secret"]), log_path, console=True)
     print(f"فحص Alpaca — {datetime.now(timezone.utc):%Y-%m-%d %H:%M:%S} UTC · المصدر {cfg['feed']} · {cfg['url']}"
           f" · التداول {cfg['trading_url']} (Paper، بلا أوامر)")
-    print(f"القنوات: صفقات {cfg['trades'] or '—'} · أسعار {cfg['quotes'] or '—'} · شموع {cfg['bars'] or '—'}")
+    print(f"القنوات: صفقات {cfg['trades'] or 'المتابَعة'} · أسعار {cfg['quotes'] or 'المتابَعة'} · شموع {cfg['bars'] or 'المتابَعة'}"
+          f" · شموع اليوم {cfg.get('daily') or '—'}")
     result("الإعدادات", True, "المفاتيح من البيئة/.env · المصدر sip · حساب Paper · لا كود أوامر")
     check_network()
     acct = check_auth(cfg)
