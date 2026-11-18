@@ -180,7 +180,7 @@ function render() {
   document.getElementById("q-name").textContent = q.name || "";
   document.getElementById("q-px").textContent = data.spot != null ? "$" + fmt(data.spot, data.spot < 1 ? 4 : 2) : "—";
   const ch = document.getElementById("q-ch"); ch.textContent = q.change_pct != null ? sgn(q.change_pct) : ""; ch.className = "ltr " + cls(q.change_pct);
-  document.getElementById("q-src").textContent = data.source === "Alpaca (OPRA)" ? "بيانات العقود من Alpaca OPRA (لحظية، كل بورصات الخيارات)" : "بيانات العقود من ياهو متأخرة نحو 15 دقيقة";
+  document.getElementById("q-src").textContent = data.source === "Alpaca (OPRA)" ? "بيانات العقود من Alpaca OPRA (لحظية، كل بورصات الخيارات) · ≈ قبل IV = محسوب من منتصف العرض والطلب لأن Alpaca لم يرسله" : "بيانات العقود من ياهو متأخرة نحو 15 دقيقة";
   document.getElementById("q-upd").textContent = data.updated ? "آخر تحديث للعقود: " + new Date(data.updated * 1000).toLocaleTimeString("ar-SA") + " · يتحدث كل دقيقة" : "";
   // تواريخ الانتهاء
   const today = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }));
@@ -224,7 +224,7 @@ function render() {
     if (!r) return `<td colspan="8" class="muted" style="text-align:center">—</td>`;
     const k = kind === "call" ? "c" : "p", itm = r.itm ? (kind === "call" ? "itm-c" : "itm-p") : "";
     const sel = picked && picked.contract === r.contract ? "sel" : "";
-    const vals = [fmt(r.delta, 2), r.iv != null ? fmt(r.iv, 1) + "%" : "—", big(r.oi), (r.unusual ? '<span class="hot">🔥</span>' : "") + big(r.volume),
+    const vals = [fmt(r.delta, 2), r.iv != null ? (r.iv_calc ? "≈" : "") + fmt(r.iv, 1) + "%" : "—", big(r.oi), (r.unusual ? '<span class="hot">🔥</span>' : "") + big(r.volume),
       `<span class="${cls(r.change_pct)}">${sgn(r.change_pct, 1)}</span>`, fmt(r.last), fmt(r.bid), fmt(r.ask)];
     const order = kind === "call" ? vals : [...vals].reverse();
     return order.map(v => `<td class="${k} ${itm} ${sel}" data-k="${kind}" data-c="${esc(r.contract)}">${v}</td>`).join("");
@@ -297,7 +297,7 @@ function calcOut() {
       <div><span class="muted">سعر التعادل</span><b>$${fmt(be)}</b></div>
       <div><span class="muted">يحتاج السهم</span><b class="${spot ? cls(isCall ? spot - be : be - spot) : ""}">${spot ? sgn((be / spot - 1) * 100, 1) : "—"}</b></div>
       <div><span class="muted">العرض / الطلب</span><b>${fmt(r.bid)} / ${fmt(r.ask)}</b></div>
-      <div><span class="muted">IV</span><b>${r.iv != null ? fmt(r.iv, 1) + "%" : "—"}</b></div>
+      <div><span class="muted">IV</span><b>${r.iv != null ? (r.iv_calc ? "≈" : "") + fmt(r.iv, 1) + "%" : "—"}</b></div>
       <div><span class="muted">الدلتا</span><b>${fmt(r.delta, 3)}</b></div>
       <div><span class="muted">الثيتا / يوم</span><b class="down">${r.theta != null ? money(r.theta * 100 * n) : "—"}</b></div>
       <div><span class="muted">احتمال داخل السعر</span><b>${r.itm_prob != null ? fmt(r.itm_prob, 1) + "%" : "—"}</b></div>

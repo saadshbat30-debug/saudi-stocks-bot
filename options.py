@@ -87,7 +87,32 @@ def greeks(kind, spot, strike, years, iv):
     }
 
 
-def _rows(df, kind, spot, years):
+def _bs_price(kind, spot, strike, years, iv):
+    sq = iv * math.sqrt(years)
+    d1 = (math.log(spot / strike) + (RATE + iv * iv / 2) * years) / sq
+    disc = strike * math.exp(-RATE * years)
+    if kind == "call":
+        return spot * _ncdf(d1) - disc * _ncdf(d1 - sq)
+    return disc * _ncdf(sq - d1) - spot * _ncdf(-d1)
+
+
+def implied_vol(kind, spot, strike, years, price):
+    """التذبذب الضمني الذي يعطي سعر العقد بنموذج بلاك-شولز (تنصيف بين 1% و1000%)، أو None إن كان السعر خارج حدود النموذج."""
+    if not (spot and strike and years and price) or price <= 0 or years <= 0:
+        return None
+    lo, hi = 0.01, 10.0
+    if not _bs_price(kind, spot, strike, years, lo) < price < _bs_price(kind, spot, strike, years, hi):
+        return None
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if _bs_price(kind, spot, strike, years, mid) < price:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def _rows(df, kind, spot, years, solve_iv=False):
     out = []
     for r in df.to_dict("records"):
         strike = _f(r.get("strike"))
@@ -96,12 +121,16 @@ def _rows(df, kind, spot, years):
         bid, ask, last = _f(r.get("bid")), _f(r.get("ask")), _f(r.get("lastPrice"))
         mid = (bid + ask) / 2 if bid and ask else last
         iv = _f(r.get("impliedVolatility"))
+        iv_calc = False
+        if not iv and solve_iv and bid and ask:  # Alpaca لا يرسل التذبذب الضمني لبعض العقود: يُحسب من منتصف العرض والطلب
+            iv = implied_vol(kind, spot, strike, years, mid)
+            iv_calc = iv is not None
         vol, oi = int(_f(r.get("volume")) or 0), int(_f(r.get("openInterest")) or 0)
         t = r.get("lastTradeDate")
         row = {
             "contract": r.get("contractSymbol"), "strike": strike, "last": last, "bid": bid, "ask": ask, "mid": mid,
             "change": _f(r.get("change")), "change_pct": _f(r.get("percentChange")),
-            "volume": vol, "oi": oi, "iv": round(iv * 100, 1) if iv else None,
+            "volume": vol, "oi": oi, "iv": round(iv * 100, 1) if iv else None, "iv_calc": iv_calc,
             "itm": bool(r.get("inTheMoney")),
             "last_trade": int(t.timestamp()) if hasattr(t, "timestamp") and not (isinstance(t, float) and math.isnan(t)) else None,
             # سعر التعادل عند الانتهاء: الكول = الإضراب + العلاوة، البوت = الإضراب − العلاوة
@@ -163,8 +192,8 @@ def chain(symbol, date=None, spot=None):
     # الانتهاء: إغلاق الجلسة 4 م نيويورك ≈ 20:00 UTC
     exp = datetime.strptime(date, "%Y-%m-%d").replace(hour=20, tzinfo=timezone.utc)
     years = max((exp - datetime.now(timezone.utc)).total_seconds(), 3600) / (365 * 86400)
-    calls, puts = _rows(oc.calls, "call", spot, years), _rows(oc.puts, "put", spot, years)
     src = getattr(oc, "source", "ياهو")
+    calls, puts = _rows(oc.calls, "call", spot, years, src != "ياهو"), _rows(oc.puts, "put", spot, years, src != "ياهو")
     if src != "ياهو" and spot:  # Alpaca لا يرسل «داخل النقد»: يُحسب من سعر السهم
         for r in calls:
             r["itm"] = r["strike"] < spot
