@@ -90,6 +90,15 @@ def _rss_news(symbol, count=12):
     return out
 
 
+def _alpaca_news(symbol):
+    """DATA_SOURCE=alpaca: أخبار الأسهم الأمريكية من Alpaca (Benzinga) أولًا، وياهو عند الفشل أو غياب الأخبار."""
+    try:
+        import alpaca_stream
+        return alpaca_stream.source_is_alpaca() and "." not in symbol and "^" not in symbol
+    except ImportError:
+        return False
+
+
 def get_news(symbol, count=12, tab=None):
     """tab=None: الأحدث ثم الكل ثم البيانات الصحفية حتى نجد أخبارًا؛ أو تبويب محدد مثل "press releases".
     إذا لم يرجع ياهو شيئًا (يرفض الطلب أحيانًا بصمت) نأخذ الأخبار من خلاصة RSS."""
@@ -100,8 +109,15 @@ def get_news(symbol, count=12, tab=None):
         if cached and now - cached["at"] < NEWS_SECONDS:
             return cached["items"]
     items = []
+    if tab is None and _alpaca_news(symbol):
+        try:
+            import alpaca_news
+            items = alpaca_news.news(symbol, count)
+            NEWS_SRC["alpaca"] = NEWS_SRC.get("alpaca", 0) + 1
+        except Exception as e:
+            NEWS_SRC["errors"] += 1; NEWS_SRC["last_error"] = f"Alpaca {symbol}: {str(e)[:120]}"
     try:
-        for tb in ((tab,) if tab else ("news", "all", "press releases")):
+        for tb in (() if items else (tab,) if tab else ("news", "all", "press releases")):
             t = yf.Ticker(symbol)
             items = [a for a in map(_parse_article, t.get_news(count=count, tab=tb) or []) if a]
             if items:

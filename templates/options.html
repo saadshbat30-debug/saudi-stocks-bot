@@ -93,7 +93,7 @@
       <thead id="thead"></thead>
       <tbody id="tbody"><tr><td class="muted" style="text-align:center;padding:30px">جارٍ تحميل العقود…</td></tr></tbody>
     </table></div>
-    <div class="note">اضغط أي عقد لحساب ربحه وخسارته · 🔥 = حجم اليوم أكبر من العقود المفتوحة (≥ 500) · المظلل = داخل السعر (ITM) · الدلتا واحتمال الانتهاء داخل السعر محسوبة بنموذج بلاك-شولز من التذبذب الضمني · بيانات العقود من ياهو متأخرة نحو 15 دقيقة</div>
+    <div class="note">اضغط أي عقد لحساب ربحه وخسارته · 🔥 = حجم اليوم أكبر من العقود المفتوحة (≥ 500) · المظلل = داخل السعر (ITM) · الدلتا واحتمال الانتهاء داخل السعر محسوبة بنموذج بلاك-شولز من التذبذب الضمني · <span id="q-src">بيانات العقود من ياهو متأخرة نحو 15 دقيقة</span></div>
   </div>
   <div class="card calc" id="calc"><h3>🧮 حاسبة العقد</h3><div class="muted">اختر عقدًا من الجدول</div></div>
 </div>
@@ -180,6 +180,7 @@ function render() {
   document.getElementById("q-name").textContent = q.name || "";
   document.getElementById("q-px").textContent = data.spot != null ? "$" + fmt(data.spot, data.spot < 1 ? 4 : 2) : "—";
   const ch = document.getElementById("q-ch"); ch.textContent = q.change_pct != null ? sgn(q.change_pct) : ""; ch.className = "ltr " + cls(q.change_pct);
+  document.getElementById("q-src").textContent = data.source === "Alpaca (OPRA)" ? "بيانات العقود من Alpaca OPRA (لحظية، كل بورصات الخيارات)" : "بيانات العقود من ياهو متأخرة نحو 15 دقيقة";
   document.getElementById("q-upd").textContent = data.updated ? "آخر تحديث للعقود: " + new Date(data.updated * 1000).toLocaleTimeString("ar-SA") + " · يتحدث كل دقيقة" : "";
   // تواريخ الانتهاء
   const today = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }));

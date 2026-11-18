@@ -25,14 +25,28 @@ def _f(v):
     return None if math.isnan(v) or math.isinf(v) else v
 
 
+def _alpaca(symbol):
+    """DATA_SOURCE=alpaca: العقود من Alpaca OPRA للأسهم الأمريكية."""
+    import alpaca_stream
+    return alpaca_stream.source_is_alpaca() and "." not in symbol and "^" not in symbol
+
+
 def expirations(symbol):
     now = time.time()
     with _lock:
         c = _exp.get(symbol)
         if c and now - c["at"] < EXP_SECONDS:
             return c["dates"]
+    dates = None
+    if _alpaca(symbol):
+        try:
+            import alpaca_options
+            dates = alpaca_options.expirations(symbol)
+        except Exception as e:
+            print(f"⚠️ تواريخ عقود {symbol} من Alpaca: {str(e)[:120]} — من ياهو بدلًا منها")
     try:
-        dates = list(yf.Ticker(symbol).options or [])
+        if dates is None:
+            dates = list(yf.Ticker(symbol).options or [])
     except Exception as e:
         print(f"⚠️ فشل جلب تواريخ عقود {symbol}: {e}")
         dates = c["dates"] if c else []
@@ -119,6 +133,18 @@ def chain(symbol, date=None, spot=None):
     key, now = (symbol, date), time.time()
     with _lock:
         c = _chain.get(key)
+    if not (c and now - c["at"] < CHAIN_SECONDS) and _alpaca(symbol):
+        try:
+            import alpaca_options
+            calls_raw, puts_raw = alpaca_options.chain(symbol, date)
+            if calls_raw or puts_raw:
+                oc = type("AlpacaChain", (), {"calls": alpaca_options.Frame(calls_raw), "puts": alpaca_options.Frame(puts_raw),
+                                               "underlying": {}, "source": "Alpaca (OPRA)"})()
+                c = {"oc": oc, "at": now}
+                with _lock:
+                    _chain[key] = c
+        except Exception as e:
+            print(f"⚠️ عقود {symbol} {date} من Alpaca: {str(e)[:120]} — من ياهو بدلًا منها")
     if not (c and now - c["at"] < CHAIN_SECONDS):
         try:
             oc = yf.Ticker(symbol).option_chain(date)
@@ -138,10 +164,16 @@ def chain(symbol, date=None, spot=None):
     exp = datetime.strptime(date, "%Y-%m-%d").replace(hour=20, tzinfo=timezone.utc)
     years = max((exp - datetime.now(timezone.utc)).total_seconds(), 3600) / (365 * 86400)
     calls, puts = _rows(oc.calls, "call", spot, years), _rows(oc.puts, "put", spot, years)
+    src = getattr(oc, "source", "ياهو")
+    if src != "ياهو" and spot:  # Alpaca لا يرسل «داخل النقد»: يُحسب من سعر السهم
+        for r in calls:
+            r["itm"] = r["strike"] < spot
+        for r in puts:
+            r["itm"] = r["strike"] > spot
     cv, pv = sum(r["volume"] for r in calls), sum(r["volume"] for r in puts)
     co, po = sum(r["oi"] for r in calls), sum(r["oi"] for r in puts)
     return {
-        "symbol": symbol, "expirations": dates, "date": date, "spot": spot,
+        "symbol": symbol, "expirations": dates, "date": date, "spot": spot, "source": src,
         "days": round(years * 365, 1), "updated": int(c["at"]),
         "calls": calls, "puts": puts,
         "summary": {
