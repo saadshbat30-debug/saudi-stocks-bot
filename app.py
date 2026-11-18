@@ -339,6 +339,7 @@ def api_liquidity(symbol):
     if client.state != "streaming":
         return jsonify({"error": "بث Alpaca ليس في حالة streaming.", "stream": alpaca_stream.status()}), 503
     liquidity_tape.attach(client)
+    liquidity_tape.watch(symbol)  # بدونها يتجاهل التجميع كل صفقات الرمز
     client.watch([symbol])
     return jsonify(liquidity_tape.snapshot(symbol, alpaca_stream.status()))
 
