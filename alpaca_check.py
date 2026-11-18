@@ -64,6 +64,29 @@ def http_get(url, cfg, params=None):
     return r, time.time() - t0
 
 
+def check_network():
+    """زمن الذهاب والإياب إلى خادم البث (اتصال TCP فقط) — يحدد مع فقد الحزم أقصى سرعة لاتصال واحد."""
+    import socket
+    print("\n— المسار إلى Alpaca —")
+    times = []
+    for _ in range(7):
+        t0 = time.perf_counter()
+        try:
+            socket.create_connection(("stream.data.alpaca.markets", 443), timeout=10).close()
+            times.append((time.perf_counter() - t0) * 1000)
+        except OSError as e:
+            print(f"  تعذر الاتصال: {e}")
+        time.sleep(0.2)
+    if not times:
+        result("زمن الذهاب والإياب", False, "تعذر فتح اتصال TCP")
+        return None
+    times.sort()
+    med = times[len(times) // 2]
+    result("زمن الذهاب والإياب", True, f"وسيط {med:.0f}ms (أدنى {times[0]:.0f} · أقصى {times[-1]:.0f}) من {len(times)} محاولات"
+           + (" — مرتفع: كل الصفقات لكل السوق تحتاج اتصالًا قريبًا من أمريكا" if med > 200 else ""))
+    return med
+
+
 def check_auth(cfg):
     print("\n— المصادقة (حساب Paper) —")
     try:
@@ -265,6 +288,7 @@ def main():
           f" · التداول {cfg['trading_url']} (Paper، بلا أوامر)")
     print(f"القنوات: صفقات {cfg['trades'] or '—'} · أسعار {cfg['quotes'] or '—'} · شموع {cfg['bars'] or '—'}")
     result("الإعدادات", True, "المفاتيح من البيئة/.env · المصدر sip · حساب Paper · لا كود أوامر")
+    check_network()
     acct = check_auth(cfg)
     sip = check_sip_rest(cfg, ["AAPL", "MSFT", "SPY", "TSLA", "NVDA", "AMD", "F", "SOFI"])
     clock_offset(sip if sip is not None else acct)

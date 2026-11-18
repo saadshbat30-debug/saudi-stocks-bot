@@ -110,6 +110,7 @@ class RedactFilter(logging.Filter):
 
 
 log = logging.getLogger("alpaca")
+logging.getLogger("websockets").setLevel(logging.CRITICAL)  # أخطاؤها تصل إلينا كاستثناءات وتُسجَّل في سجلنا بلا مفاتيح
 
 
 def setup_logging(secrets=(), path=None, console=True):
@@ -164,7 +165,7 @@ class LatencyWindow:
         now = now or time.time()
         while self.samples and now - self.samples[0][0] > self.seconds:
             self.samples.popleft()
-        d = sorted(x[1] for x in self.samples)
+        d = sorted(x[1] for x in list(self.samples))  # list(): نسخة ذرية؛ الخيط الآخر يضيف أثناء القراءة
         if not d:
             return None
         q = lambda p: round(d[min(len(d) - 1, int(p * len(d)))] * 1000, 1)
@@ -251,7 +252,7 @@ class AlpacaStream:
                 except ImportError:
                     log.warning("مكتبة msgpack غير مثبتة: الاستقبال بـ JSON (ضعف الحجم) — py -m pip install -r requirements.txt")
             ws = connect(self.cfg["url"], compression="deflate", max_size=None, open_timeout=15, additional_headers=headers,
-                         ping_interval=20, ping_timeout=20, close_timeout=2)
+                         ping_interval=30, ping_timeout=120, close_timeout=2)
             self.transport = "websockets"
             self.compression = ws.response.headers.get("Sec-WebSocket-Extensions") or None
             return ws
@@ -442,7 +443,7 @@ class AlpacaStream:
 
     def load(self, window=10):
         """انشغال خيط الاستقبال (100% = المعالج هو الحد) وحجم البيانات بعد فك الضغط، لآخر window ثانية."""
-        pts = [p for p in self.cpu if p[0] >= time.time() - window - 1]
+        pts = [p for p in list(self.cpu) if p[0] >= time.time() - window - 1]
         if len(pts) < 2 or pts[-1][0] - pts[0][0] < 1:
             return {"rx_kb_s": None, "cpu_busy_pct": None}
         dt = pts[-1][0] - pts[0][0]
@@ -451,7 +452,7 @@ class AlpacaStream:
 
     def msgs_per_second(self, window=10):
         now = int(time.time())
-        return round(sum(n for s, n in self.rate if now - window <= s < now) / window, 1)
+        return round(sum(n for s, n in list(self.rate) if now - window <= s < now) / window, 1)
 
     def status(self):
         now = time.time()

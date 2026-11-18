@@ -348,6 +348,34 @@ class TestMsgpackDecoding(unittest.TestCase):
         self.assertEqual(c.bars["AAPL"][-1][5], 9)
 
 
+class TestConcurrentStatus(unittest.TestCase):
+    def test_status_while_receiving(self):
+        """فحص 2026-11-18: status() من خيط آخر أثناء الاستقبال انهار بـ «deque mutated during iteration»."""
+        c = al.AlpacaStream(cfg(1))
+        stop = threading.Event()
+        now = time.time()
+        for i in range(20000):  # الحجم الفعلي على جهاز المستخدم (n=20000): قراءة طويلة يتخللها تبديل الخيوط
+            c.lat["trades"].add(now, 0.1)
+
+        def feed():
+            while not stop.is_set():
+                for _ in range(200):
+                    c.lat["trades"].add(time.time(), 0.1)
+                    c.rate.append([int(time.time()), 1])
+                    c.cpu.append((time.time(), 0.0, 1))
+        old = sys.getswitchinterval()
+        sys.setswitchinterval(1e-6)  # تبديل متكرر بين الخيطين يكشف السباق في كل تشغيل
+        th = threading.Thread(target=feed, daemon=True)
+        th.start()
+        try:
+            for _ in range(300):
+                c.status()
+        finally:
+            stop.set()
+            th.join()
+            sys.setswitchinterval(old)
+
+
 class TestTimestamps(unittest.TestCase):
     def test_nanosecond_rfc3339(self):
         self.assertAlmostEqual(al.ts("2021-02-22T15:51:45.335689322Z"), 1614009105.335689322, places=6)
