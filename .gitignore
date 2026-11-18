@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 .env
+# أي ملف يبدأ بـ .env قد يحتوي مفاتيح (نسخ احتياطية أو أسماء خاطئة) — ما عدا النموذج
+.env*
+!.env.example
 data/
 android/build/
 android/*.keystore

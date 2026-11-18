@@ -105,6 +105,9 @@ def check_sip_rest(cfg, symbols):
     return r
 
 
+CLOCK_OFFSET = None
+
+
 def clock_offset(resp):
     """فرق ساعة الجهاز عن ساعة خادم Alpaca (دقة ثانية واحدة من ترويسة Date)."""
     print("\n— ساعة الجهاز —")
@@ -113,6 +116,8 @@ def clock_offset(resp):
         return None
     server = parsedate_to_datetime(resp.headers["Date"]).timestamp()
     off = time.time() - server
+    global CLOCK_OFFSET
+    CLOCK_OFFSET = off
     ok = abs(off) < 1.5
     result("ساعة الجهاز", ok, f"الجهاز {'متقدم' if off > 0 else 'متأخر'} {abs(off):.1f} ث عن خادم Alpaca (دقة ±1 ث)"
            + ("" if ok else " — صحح ساعة Windows (الإعدادات ← الوقت ← مزامنة الآن)، فالتأخير المقاس يتضمن هذا الفرق"))
@@ -138,7 +143,14 @@ def run_stream(cfg, seconds, test_stream):
         peak = max(peak, c.msgs_per_second(1))
         if c.state == "failed":
             break
-        if not kicked and c.state == "streaming" and time.time() - t0 > seconds / 2 and c.last_data:
+        sec = datetime.now(timezone.utc).second
+        if (not kicked and c.state == "streaming" and time.time() - t0 > seconds / 2 and c.last_data
+                and 15 <= sec <= 40 and c.counts["bars"]):  # بعد استلام شموع، وبعيدًا عن حد الدقيقة
+            kicked, kick_at, before = True, time.time(), sum(c.counts.values())
+            print("  … قطع الاتصال عمدًا لاختبار إعادة الاتصال")
+            c.force_reconnect("اختبار إعادة الاتصال")
+        if (not kicked and c.state == "streaming" and c.last_data and time.time() - t0 > seconds * 0.75
+                and 15 <= sec <= 40):  # لم تصل شموع (السوق هادئ): يُختبر القطع على أي حال
             kicked, kick_at, before = True, time.time(), sum(c.counts.values())
             print("  … قطع الاتصال عمدًا لاختبار إعادة الاتصال")
             c.force_reconnect("اختبار إعادة الاتصال")
@@ -172,11 +184,20 @@ def run_stream(cfg, seconds, test_stream):
     result("استقبال الصفقات", True if n_t else None, f"{n_t} صفقة لـ {st['symbols']['trades']} رمز" if n_t else "لا صفقات في هذه المدة (السوق مغلق أو هادئ)")
     if cfg["quotes"]:
         result("استقبال الأسعار", True if n_q else None, f"{n_q} سعر لـ {st['symbols']['quotes']} رمز" if n_q else "لا أسعار في هذه المدة")
-    result("شموع الدقيقة", True if n_b else None, f"{n_b} شمعة لـ {st['symbols']['bars']} رمز" if n_b else "لا شموع (تصل بعد نهاية كل دقيقة فيها تداول)")
+    if cfg["bars"]:
+        result("شموع الدقيقة", True if n_b else (False if n_t > 1000 and seconds >= 130 else None),
+               f"{n_b} شمعة لـ {st['symbols']['bars']} رمز (وصلت بعد حد الدقيقة)" if n_b else
+               "لا شموع رغم وصول صفقات طوال أكثر من دقيقتين" if n_t > 1000 and seconds >= 130 else
+               "لا شموع: المدة أقصر من دقيقتين أو لا تداول")
     lat = st["latency"]
     if lat.get("trades") or lat.get("quotes"):
         parts = [f"{k}: وسيط {v['p50_ms']}ms · 95% {v['p95_ms']}ms · أقصى {v['max_ms']}ms ({v['n']} عينة)" for k, v in lat.items() if v]
-        result("التأخير الفعلي (آخر 60 ث)", True, " | ".join(parts) + f" · ذروة {peak:.0f} رسالة/ث")
+        main_lat = (lat.get("trades") or lat.get("quotes"))["p50_ms"] - (CLOCK_OFFSET or 0) * 1000
+        ok = main_lat <= 2000
+        result("التأخير الفعلي (آخر 60 ث)", ok, " | ".join(parts) + f" · ذروة {peak:.0f} رسالة/ث"
+               + (f" · بعد طرح فرق الساعة: وسيط الصفقات ≈ {main_lat:.0f}ms" if CLOCK_OFFSET else "")
+               + ("" if ok else " — أعلى من ثانيتين: الرسائل تتراكم عند الجهاز (المعالجة أو الإنترنت أبطأ من البث)."
+                  " جرّب --no-quotes أو --symbols لتقليل الحجم ثم قارن"))
     else:
         result("التأخير الفعلي", None, "لا بيانات لقياسه")
     if kicked:
@@ -203,7 +224,7 @@ def check_leaks(cfg, log_path, out_path, status):
 
 def main():
     ap = argparse.ArgumentParser(description="فحص ربط Alpaca (قراءة فقط)")
-    ap.add_argument("--seconds", type=int, default=90)
+    ap.add_argument("--seconds", type=int, default=150)
     ap.add_argument("--symbols", default="")
     ap.add_argument("--no-quotes", action="store_true")
     ap.add_argument("--test-stream", action="store_true")

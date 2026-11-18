@@ -273,6 +273,30 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(r.stdout.strip(), ".env")
 
 
+
+class TestThroughputSettings(unittest.TestCase):
+    def test_utf8_validation_is_skipped(self):
+        """فحص 2026-11-18 على الجهاز: التحقق البطيء من UTF-8 أخّر الصفقات 12 ث في الوسيط."""
+        import websocket
+        c = al.AlpacaStream(cfg(1))
+        with mock.patch.object(websocket, "create_connection") as cc, mock.patch.dict(os.environ, {}, clear=True):
+            c._default_connect()
+        self.assertTrue(cc.call_args.kwargs["skip_utf8_validation"])
+
+    def test_forced_reconnect_is_not_logged_as_an_error(self):
+        c = al.AlpacaStream(cfg(1))
+        c._force_reason = "اختبار إعادة الاتصال"
+
+        def boom():
+            raise ConnectionAbortedError("[WinError 10053] aborted")
+        c._session = boom
+        # جلسة واحدة: تبدأ، تفشل بالقطع المتعمد، تُسجل الفجوة، ثم يتوقف الحلقة
+        with mock.patch.object(c._stop, "is_set", side_effect=[False, False, True, True]), \
+                mock.patch.object(c._stop, "wait", return_value=False):
+            c._run()
+        self.assertEqual(list(c.errors), [])
+        self.assertEqual(c.gaps[-1][2], "اختبار إعادة الاتصال")
+
 class TestTimestamps(unittest.TestCase):
     def test_nanosecond_rfc3339(self):
         self.assertAlmostEqual(al.ts("2021-02-22T15:51:45.335689322Z"), 1614009105.335689322, places=6)

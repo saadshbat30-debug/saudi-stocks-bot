@@ -219,7 +219,9 @@ class AlpacaStream:
 
     def _default_connect(self):
         import websocket
-        kw = {"timeout": 15, "enable_multithread": True}
+        # skip_utf8_validation: تحقق websocket-client من UTF-8 مكتوب بـ Python وبطيء جدًا؛ قيس 50 ألف رسالة/ث معه
+        # و1.5 مليون دونه، وفي فحص 2026-11-18 تراكمت الرسائل حتى تأخرت 12 ث. json.loads يرفض النص غير الصالح أصلًا.
+        kw = {"timeout": 15, "enable_multithread": True, "skip_utf8_validation": True}
         px = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
         if px:
             p = urlparse(px)
@@ -238,8 +240,11 @@ class AlpacaStream:
             try:
                 reason = self._session()
             except Exception as e:  # شبكة، TLS، بروكسي، إغلاق مفاجئ
-                reason = f"{type(e).__name__}: {e}"
-                self._error(None, reason)
+                if self._force_reason:  # إغلاق متعمد (اختبار أو انقطاع بيانات): ليس خطأ شبكة
+                    reason = self._force_reason
+                else:
+                    reason = f"{type(e).__name__}: {e}"
+                    self._error(None, reason)
             finally:
                 self._close("نهاية الجلسة")  # لا يبقى مقبس مفتوح بعد فشل المصادقة أو انقطاع
                 self._ws, self.authenticated, self._force_reason, self._last_error_text = None, False, None, None
@@ -301,6 +306,7 @@ class AlpacaStream:
         return data or None
 
     _last_error_text = None
+    _lag_warned = 0
 
     def _error(self, code, text):
         self._last_code, self._last_error_text = code, text
@@ -374,6 +380,11 @@ class AlpacaStream:
         while not self._stop.wait(5):
             if self.state != "streaming" or not self.market_hours():
                 continue
+            lag = self.lat["trades"].stats() or self.lat["quotes"].stats()
+            if lag and lag["p50_ms"] > 5000 and time.time() - self._lag_warned > 60:
+                self._lag_warned = time.time()
+                log.warning("البيانات تصل متأخرة %.1f ث (وسيط آخر دقيقة): الجهاز أو الإنترنت أبطأ من حجم البث — "
+                            "قلّل الرموز (ALPACA_QUOTES/ALPACA_TRADES)", lag["p50_ms"] / 1000)
             last = self.last_data or self.connected_at
             if last and time.time() - last > self.cfg["stale_seconds"]:
                 log.warning("لا بيانات منذ %.0f ث أثناء التداول — إعادة اتصال", time.time() - last)
