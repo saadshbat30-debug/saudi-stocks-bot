@@ -100,7 +100,9 @@ async function loadStatus() {
     const st = await (await fetch("/api/status")).json();
     window.platformStatus = st;
     const banner = document.getElementById("stale-banner"), age = st.screener_age;
-    const stale = age != null && age > 180 && marketSession()[1] !== "";
+    // في وضع Alpaca الأسعار والأحجام من البث، وياهو للقائمة والأسماء فقط: تأخره لا يؤخر الأسعار
+    const al0 = st.alpaca, alFresh = al0 && al0.source && al0.state === "streaming" && al0.last_data_age_s != null && al0.last_data_age_s < 90;
+    const stale = !alFresh && age != null && age > 180 && marketSession()[1] !== "";
     banner.hidden = !stale;
     if (stale) banner.innerHTML = `⚠️ قائمة الأسعار من ياهو متأخرة <b>${Math.round(age / 60)} دقيقة</b> — ياهو يحد الطلبات مؤقتًا عادةً، وستعود تلقائيًا. صفحة السهم تأخذ السعر من شموع الدقيقة في هذه الأثناء.` +
       (st.screener_error ? `<div style="opacity:.7;font-size:12px;direction:ltr;text-align:left;margin-top:4px">${st.screener_error.replace(/[<>&]/g, "")}</div>` : "");
