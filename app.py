@@ -295,6 +295,13 @@ def api_breakout():
 
 
 # ===== رادار الزخم (Elite Radar Pro) — نفس آلية «قبل الانطلاق»: صفحة داخل قالب المنصة + مسار بيانات =====
+@app.route("/api/alpaca/status")
+def api_alpaca_status():
+    """حالة بث Alpaca SIP (اتصال، مصادقة، أعداد الرسائل، التأخير، الانقطاعات). لا يحتوي المفاتيح."""
+    import alpaca_stream
+    return jsonify(alpaca_stream.status())
+
+
 @app.route("/radar")
 def radar_page():
     import momentum_radar as mr
@@ -478,6 +485,10 @@ news_track.start()  # اختبار الخوارزمية: عائد الأسهم �
 if __name__ == "__main__":
     import saudi_runner
     msg = saudi_runner.start()  # منصة أبو طلال للسوق السعودي في نفس النافذة (إن كانت مثبتة)
+    import alpaca_stream
+    alpaca_msg = alpaca_stream.start()  # بث Alpaca SIP إن كان ALPACA_STREAM=1 في .env (بلا أوامر، Paper فقط)
+    if alpaca_msg:
+        print(alpaca_msg)
     print("✅ المنصة تعمل: http://127.0.0.1:5000")
     if msg:
         print(msg)
