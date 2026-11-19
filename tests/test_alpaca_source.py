@@ -185,3 +185,20 @@ class TestStockPageFromAlpaca(unittest.TestCase):
                 mock.patch.object(al, "client", return_value=None):
             r = market._enrich(dict(row), time.time())
         self.assertEqual(r["sma50"], round(sum(closes[-49:] + [71.0]) / 50, 2))
+
+
+class TestDeniedSubscription(unittest.TestCase):
+    def test_intraday_chart_skips_delayed_alpaca_after_409(self):
+        c = mock.Mock(fatal="409 الاشتراك لا يسمح بمصدر SIP (insufficient subscription)")
+        yahoo = [{"time": 1, "open": 1, "high": 1, "low": 1, "close": 1, "volume": 1}]
+        market._charts.clear()
+        with mock.patch.object(al, "source_is_alpaca", return_value=True), mock.patch.object(al, "client", return_value=c), \
+                mock.patch.object(market, "_tv_us", return_value=[]), \
+                mock.patch.object(market.alpaca_data, "bars") as abars, \
+                mock.patch.object(market, "_yahoo_raw", return_value=(yahoo, time.time())):
+            market.get_chart("ZZQ", "5m", verify=False)
+            abars.assert_not_called()
+            self.assertIn("409", market._charts[("ZZQ", "5m", False)]["meta"]["alpaca_error"])
+            market.get_chart("ZZQ", "1d", verify=False)  # اليومي غير متأثر بتأخير 15 دقيقة
+            abars.assert_called_once()
+        market._charts.clear()

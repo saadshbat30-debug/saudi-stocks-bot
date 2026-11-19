@@ -967,7 +967,11 @@ def get_chart(symbol, interval, prepost=False, verify=True):
     if cached and time.time() - cached["at"] < max_age and cached.get("verified", True) >= verify:
         return cached["bars"]
     alpaca_error = None
-    if alpaca_stream.source_is_alpaca() and alpaca_data.supported(symbol, interval):
+    c = alpaca_stream.client() if alpaca_stream.source_is_alpaca() else None
+    if c and (c.fatal or "").startswith("409") and interval in alpaca_data.INTRADAY:
+        # الخطة المجانية: Alpaca يرجع شموع SIP متأخرة 15 دقيقة دون أن يقول ذلك، فلا تُعرض كأنها لحظية
+        alpaca_error = "اشتراك Alpaca لا يشمل بيانات SIP الحديثة (خطأ 409)"
+    elif alpaca_stream.source_is_alpaca() and alpaca_data.supported(symbol, interval):
         try:
             out = alpaca_data.bars(symbol, interval, prepost)
             if out:
